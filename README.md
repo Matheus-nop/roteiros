@@ -69,4 +69,6 @@ ADMIN, PCM, COMERCIAL, EXPEDICAO, TECNICO. O menu e os botões se adaptam ao pap
 
 ## Deploy
 
-Cloudflare Pages ou Vercel: build `npm run build`, pasta `dist`, variáveis `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY`. Para o roteamento do React Router funcionar em URLs diretas, configure fallback para `index.html` (Vercel faz automático para Vite; no Cloudflare Pages adicione um `_redirects` com `/* /index.html 200`).
+**Vercel:** o `vercel.json` já fixa preset Vite, `npm ci`, `npm run build`, pasta `dist` e o fallback para `index.html`. O `package.json` exige Node 22 (Vite 7 não roda em Node 18/20.x antigo). Só falta, em *Settings → Environment Variables* do projeto, criar `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` e fazer *Redeploy*.
+
+**Cloudflare Pages:** build `npm run build`, pasta `dist`, mesmas variáveis; o `public/_redirects` cuida do fallback.
