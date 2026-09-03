@@ -21,8 +21,8 @@ export function Login() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-slate-100 px-4">
       <div className="w-full max-w-sm">
-        <div className="mb-6 flex justify-center"><Logo tamanho={36} /></div>
-        <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-slate-200">
+        <div className="mb-6 flex justify-center"><Logo altura={44} /></div>
+        <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <h1 className="text-base font-semibold text-slate-900">Entrar</h1>
           <p className="mt-0.5 text-sm text-slate-500">Gestão de roteiros, expedição e execução técnica.</p>
           <form onSubmit={submit} className="mt-4 space-y-3">

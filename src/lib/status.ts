@@ -1,4 +1,4 @@
-import type { Status, Tipo, Papel } from './types'
+import type { Status, Tipo, Papel, StatusSeparacao, Prioridade } from './types'
 
 // ---------------------------------------------------------------------
 // Máquina de estados: o status determina em qual tela a demanda aparece.
@@ -24,7 +24,21 @@ export const TODOS_STATUS: Status[] = [
 
 export const TIPOS: Tipo[] = [
   'ENTREGA', 'TROCA', 'RETORNO', 'RETORNO AO CLIENTE', 'LOCACAO', 'MANUTENÇÃO', 'RETIRADA', 'DEVOLUÇÃO',
+  'RETIRADA PARA ORÇAMENTO', 'TREINAMENTO', 'ASSINATURA', 'SOMENTE ASSINATURA', 'IDENTIFICAÇÃO',
 ]
+export const PRIORIDADES: Prioridade[] = ['NORMAL', 'ALTA', 'URGENTE', 'CRÍTICA']
+export const PRIORIDADE_TONE: Record<Prioridade, string> = {
+  NORMAL: 'bg-slate-100 text-slate-600 ring-slate-200',
+  ALTA: 'bg-amber-50 text-amber-800 ring-amber-200',
+  URGENTE: 'bg-orange-50 text-orange-800 ring-orange-200',
+  'CRÍTICA': 'bg-red-50 text-red-800 ring-red-200',
+}
+export const SEPARACAO_LABEL: Record<StatusSeparacao, string> = { NAO_SEPARADO: 'Não separado', EM_SEPARACAO: 'Em separação', SEPARADO: 'Separado' }
+export const SEPARACAO_TONE: Record<StatusSeparacao, string> = {
+  NAO_SEPARADO: 'bg-red-50 text-red-800 ring-red-200',
+  EM_SEPARACAO: 'bg-amber-50 text-amber-800 ring-amber-200',
+  SEPARADO: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
+}
 /** Tipos que passam pela separação/expedição. LOCACAO é tratada como ENTREGA. */
 export const TIPOS_SEPARACAO: Tipo[] = ['ENTREGA', 'TROCA', 'RETORNO', 'RETORNO AO CLIENTE', 'LOCACAO']
 

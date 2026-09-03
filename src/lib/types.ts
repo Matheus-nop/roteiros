@@ -7,8 +7,10 @@ export type Status =
 export type Tipo =
   | 'ENTREGA' | 'TROCA' | 'RETORNO' | 'RETORNO AO CLIENTE' | 'LOCACAO'
   | 'MANUTENÇÃO' | 'RETIRADA' | 'DEVOLUÇÃO'
+  | 'RETIRADA PARA ORÇAMENTO' | 'TREINAMENTO' | 'ASSINATURA' | 'SOMENTE ASSINATURA' | 'IDENTIFICAÇÃO'
 
-export type StatusSeparacao = 'NAO_SEPARADO' | 'SEPARADO'
+export type StatusSeparacao = 'NAO_SEPARADO' | 'EM_SEPARACAO' | 'SEPARADO'
+export type Prioridade = 'NORMAL' | 'ALTA' | 'URGENTE' | 'CRÍTICA'
 
 export type Papel = 'ADMIN' | 'PCM' | 'COMERCIAL' | 'EXPEDICAO' | 'TECNICO'
 
@@ -72,6 +74,7 @@ export interface Demanda {
   data_separacao: string | null
   ordem_parada: number | null
   origem: string | null
+  prioridade?: Prioridade
   herdado_de_pendencia: boolean
   observacao: string | null
   finalizado_em: string | null
@@ -100,6 +103,14 @@ export interface Fechamento {
   fechado_por: string | null
   fechado_em: string
   estornado: boolean
+}
+
+export interface EtiquetaAvulsa {
+  id?: string
+  numero?: number
+  tecnico: string | null; veiculo: string | null; cliente: string | null; local: string | null; tipo: string | null
+  equipamento: string | null; patrimonio: string | null; os: string | null; observacao: string | null
+  emitida_por?: string | null; emitida_em?: string
 }
 
 export interface Perfil {

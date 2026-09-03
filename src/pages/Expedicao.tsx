@@ -1,90 +1,128 @@
-// Expedição: separação dos itens roteirizados (tipos que separam). Mesma fonte da pré-carga.
-import { Printer } from 'lucide-react'
-import { useMemo, useState } from 'react'
+// Expedição: painel por técnico, separação em três estados, quem separou, etiquetas e liberação para rota.
+import { Printer, Play, Volume2, VolumeX, Search } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
-import { BarraFiltros, SeletorData } from '../components/Filtros'
-import { usePrint } from '../components/Print'
-import { FolhaEtiquetas } from '../components/Etiqueta'
-import { BarraSelecao, TabelaDemandas } from '../components/TabelaDemandas'
-import { Botao, Pagina, Select, Checkbox, Contador } from '../components/ui'
-import { STATUS_EM_ROTA, separaNaExpedicao } from '../lib/status'
-import { hojeISO, normalizar, textoBusca, ordenarParadas } from '../lib/format'
-import type { Demanda } from '../lib/types'
+import { SeletorData } from '../components/Filtros'
+import { ModalEtiquetas } from '../components/ModalEtiquetas'
+import { BarraSelecao } from '../components/TabelaDemandas'
+import { Chip, GrupoCard, LocalData } from '../components/Cards'
+import { Badge, BadgeTipo, Botao, Confirmar, Contador, Input, Pagina, Select, Vazio, cx } from '../components/ui'
+import { STATUS_EM_ROTA, SEPARACAO_LABEL, separaNaExpedicao } from '../lib/status'
+import { hojeISO, normalizar, textoBusca, ordenarParadas, agrupar, fmtPatrimonio, fmtData } from '../lib/format'
+import { veiculosDoGrupo } from '../components/GrupoTecnico'
+import { db } from '../lib'
+import type { Demanda, StatusSeparacao } from '../lib/types'
+
+function beep() {
+  try { const ctx = new AudioContext(); const o = ctx.createOscillator(); const g = ctx.createGain(); o.connect(g); g.connect(ctx.destination); o.frequency.value = 880; g.gain.value = 0.08; o.start(); o.stop(ctx.currentTime + 0.18) } catch { /* sem áudio */ }
+}
 
 export function Expedicao() {
-  const { demandas, expedidores, acoes, tecnicoPorId } = useData()
+  const { demandas, tecnicos, expedidores, acoes, tecnicoPorId, conectado } = useData()
   const { pode, usuario } = useAuth()
   const { toast, erro } = useToast()
-  const { imprimir } = usePrint()
   const [data, setData] = useState(hojeISO())
-  const [todasDatas, setTodasDatas] = useState(false)
+  const [todas, setTodas] = useState(false)
   const [busca, setBusca] = useState('')
-  const [tecnico, setTecnico] = useState('')
-  const [apenasPendentes, setApenasPendentes] = useState(false)
-  const [expedidor, setExpedidor] = useState<string>(() => localStorage.getItem('expedidor') ?? '')
+  const [som, setSom] = useState(() => localStorage.getItem('exp-som') !== 'off')
+  const [etiquetas, setEtiquetas] = useState(false)
   const [sel, setSel] = useState<Set<string>>(new Set())
-  const separar = pode('expedicao.separar')
+  const [confirmar, setConfirmar] = useState<{ titulo: string; texto: React.ReactNode; fn(): Promise<unknown>; msg: string } | null>(null)
+  const separar = pode('expedicao.separar'); const liberar = pode('expedicao.fechar')
+  const somRef = useRef(som); somRef.current = som
 
-  const base = useMemo(() => demandas.filter(d => STATUS_EM_ROTA.includes(d.status) && separaNaExpedicao(d.tipo) && (todasDatas || d.data_planejada === data)), [demandas, data, todasDatas])
-  const itens = useMemo(() => {
-    const b = normalizar(busca)
-    return base
-      .filter(d => !tecnico || (tecnico === '__sem' ? !d.tecnico_id : d.tecnico_id === tecnico))
-      .filter(d => !apenasPendentes || d.status_separacao !== 'SEPARADO')
-      .filter(d => !b || textoBusca(d).includes(b))
-      .sort((a, b) => (a.data_planejada ?? '').localeCompare(b.data_planejada ?? '') || (tecnicoPorId(a.tecnico_id)?.nome ?? '').localeCompare(tecnicoPorId(b.tecnico_id)?.nome ?? '') || ordenarParadas(a, b))
-  }, [base, busca, tecnico, apenasPendentes, tecnicoPorId])
+  useEffect(() => db.subscribe<Demanda>('demandas', e => {
+    if (somRef.current && e.novo && (e.novo as Demanda).status === 'ROTEIRIZADO' && (!e.antigo || (e.antigo as Demanda).status !== 'ROTEIRIZADO') && separaNaExpedicao((e.novo as Demanda).tipo)) beep()
+  }), [])
 
-  const separados = base.filter(d => d.status_separacao === 'SEPARADO').length
-  const escolherExpedidor = (v: string) => { setExpedidor(v); localStorage.setItem('expedidor', v) }
-  const quem = () => expedidor || usuario?.perfil.nome || null
+  const base = useMemo(() => demandas.filter(d => STATUS_EM_ROTA.includes(d.status) && separaNaExpedicao(d.tipo) && (todas || d.data_planejada === data)), [demandas, data, todas])
+  const itens = useMemo(() => { const b = normalizar(busca); return base.filter(d => !b || textoBusca(d).includes(b) || normalizar(tecnicoPorId(d.tecnico_id)?.nome).includes(b)) }, [base, busca, tecnicoPorId])
+  const grupos = useMemo(() => tecnicos.map(t => ({ t, itens: itens.filter(d => d.tecnico_id === t.id).sort(ordenarParadas) })).filter(g => g.itens.length), [itens, tecnicos])
+  const semTec = itens.filter(d => !d.tecnico_id)
 
-  const marcar = async (d: Demanda, v: boolean) => {
-    if (v && !quem()) { toast('Selecione quem está separando.', 'erro'); return }
-    try { await acoes.marcarSeparado(d.id, v, v ? quem() : null) } catch (e) { erro(e) }
+  const n = (s: StatusSeparacao) => base.filter(d => d.status_separacao === s).length
+  const quem = () => usuario?.perfil.nome ?? null
+  const run = async (fn: () => Promise<unknown>, msg?: string) => { try { await fn(); if (msg) toast(msg) } catch (e) { erro(e) } }
+
+  const liberarRota = (lista: Demanda[], rotulo: string) => {
+    const aptos = lista.filter(d => d.status === 'ROTEIRIZADO')
+    const naoSep = aptos.filter(d => d.status_separacao !== 'SEPARADO').length
+    if (!aptos.length) { toast('Nada para liberar.', 'info'); return }
+    setConfirmar({ titulo: 'Liberar para rota', texto: <>Liberar {aptos.length} item(ns) de <b>{rotulo}</b> para saída?{naoSep > 0 && <span className="mt-1 block text-amber-700">{naoSep} ainda não separado(s).</span>} A expedição confirma que está tudo pronto para sair.</>, fn: () => acoes.liberarParaRota(aptos.map(d => d.id)), msg: 'Rota liberada.' })
   }
-  const marcarSel = async (v: boolean) => {
-    if (v && !quem()) { toast('Selecione quem está separando.', 'erro'); return }
-    try { await Promise.all(Array.from(sel).map(id => acoes.marcarSeparado(id, v, v ? quem() : null))); toast(v ? 'Marcados como separados.' : 'Separação desfeita.'); setSel(new Set()) } catch (e) { erro(e) }
+
+  const Linha = ({ d }: { d: Demanda }) => {
+    const liberado = d.status !== 'ROTEIRIZADO'
+    return (
+      <div className={cx('flex items-center gap-3 px-4 py-2.5', d.status_separacao === 'SEPARADO' && 'bg-emerald-50/40', sel.has(d.id) && 'bg-blue-50/60')}>
+        <input type="checkbox" checked={sel.has(d.id)} onChange={e => setSel(s => { const x = new Set(s); e.target.checked ? x.add(d.id) : x.delete(d.id); return x })} className="h-4 w-4 rounded border-slate-300" />
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-x-2 text-[13px] font-bold text-slate-800">{d.cliente_nome ?? '—'} <LocalData local={d.local} /></div>
+          <div className="flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-slate-500">📦 {d.equipamento_nome} · <span className={d.patrimonio ? 'font-mono' : ''}>{fmtPatrimonio(d)}</span> · <span className="om">OS {d.om ?? '—'}</span>{todas && <> · 📅 {fmtData(d.data_planejada)}</>}{d.ordem_parada ? <> · parada {d.ordem_parada / 10}</> : null}</div>
+        </div>
+        <BadgeTipo tipo={d.tipo} />
+        {liberado && <Badge tone="bg-indigo-50 text-indigo-800 ring-indigo-200">▶ liberado</Badge>}
+        {separar ? (
+          <Select value={d.status_separacao} disabled={liberado} onChange={e => run(() => acoes.definirSeparacao(d.id, e.target.value as StatusSeparacao, d.separado_por ?? quem()))}
+            className={cx('!w-40 !py-1 !text-xs font-bold', d.status_separacao === 'SEPARADO' ? '!bg-emerald-50 !text-emerald-800 !border-emerald-300' : d.status_separacao === 'EM_SEPARACAO' ? '!bg-amber-50 !text-amber-800 !border-amber-300' : '!bg-red-50 !text-red-800 !border-red-300')}>
+            {(Object.keys(SEPARACAO_LABEL) as StatusSeparacao[]).map(s => <option key={s} value={s}>{SEPARACAO_LABEL[s].toUpperCase()}</option>)}
+          </Select>
+        ) : <Badge>{SEPARACAO_LABEL[d.status_separacao]}</Badge>}
+        {separar && <Select value={d.separado_por ?? ''} disabled={liberado} onChange={e => run(() => acoes.definirSeparadoPor(d.id, e.target.value || null))} className="!w-36 !py-1 !text-xs">
+          <option value="">— separou —</option>{expedidores.filter(x => x.ativo || x.nome === d.separado_por).map(x => <option key={x.id} value={x.nome}>{x.nome}</option>)}{d.separado_por && !expedidores.some(x => x.nome === d.separado_por) && <option value={d.separado_por}>{d.separado_por}</option>}
+        </Select>}
+      </div>
+    )
   }
 
   return (
-    <Pagina titulo="Expedição" subtitulo="Separação dos itens roteirizados (ENTREGA, TROCA, RETORNO, LOCAÇÃO)" acoes={<>
-      <label className="flex items-center gap-1.5 text-sm text-slate-600"><Checkbox checked={todasDatas} onChange={e => setTodasDatas(e.target.checked)} />Todas as datas</label>
+    <Pagina titulo="Expedição" subtitulo="Painel de separação · ENTREGA, TROCA, RETORNO e LOCAÇÃO" acoes={<>
+      <Botao variante="primario" onClick={() => setEtiquetas(true)}><Printer size={14} />Etiquetas</Botao>
+      {liberar && <Botao variante="sucesso" onClick={() => liberarRota(sel.size ? itens.filter(d => sel.has(d.id)) : itens, sel.size ? `${sel.size} selecionado(s)` : 'todos os técnicos')}><Play size={14} />Liberar para rota</Botao>}
+      <Botao onClick={() => { const v = !som; setSom(v); localStorage.setItem('exp-som', v ? 'on' : 'off'); if (v) beep() }} title="Aviso sonoro quando entra item novo na expedição">{som ? <Volume2 size={14} /> : <VolumeX size={14} />}Som: {som ? 'ligado' : 'desligado'}</Botao>
+      <span className={cx('inline-flex items-center gap-1.5 text-xs font-semibold', conectado ? 'text-emerald-700' : 'text-red-600')}><span className={cx('h-2 w-2 rounded-full', conectado ? 'bg-emerald-500' : 'bg-red-500')} />{conectado ? 'ao vivo' : 'sem tempo real'}</span>
+      <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={todas} onChange={e => setTodas(e.target.checked)} />Todas as datas</label>
       <SeletorData valor={data} onChange={setData} />
     </>}>
-      <div className="mb-3 grid grid-cols-3 gap-3 md:w-2/3 xl:w-1/2">
-        <Contador rotulo="A separar" valor={base.length - separados} tom="text-amber-700" />
-        <Contador rotulo="Separados" valor={separados} tom="text-emerald-700" />
-        <Contador rotulo="Total do dia" valor={base.length} />
+      <div className="mb-3 relative"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar técnico, cliente, local, equipamento, OS…" className="pl-8" /></div>
+      <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+        <Contador rotulo="Total" valor={base.length} />
+        <Contador rotulo="Não separado" valor={n('NAO_SEPARADO')} tom="text-red-700" />
+        <Contador rotulo="Em separação" valor={n('EM_SEPARACAO')} tom="text-amber-700" />
+        <Contador rotulo="Separado" valor={n('SEPARADO')} tom="text-emerald-700" />
       </div>
-      <BarraFiltros busca={busca} setBusca={setBusca} tecnico={tecnico} setTecnico={setTecnico}>
-        <label className="flex items-center gap-1.5 text-sm text-slate-600"><Checkbox checked={apenasPendentes} onChange={e => setApenasPendentes(e.target.checked)} />Só não separados</label>
-        {separar && (
-          <Select value={expedidor} onChange={e => escolherExpedidor(e.target.value)} className="w-44" title="Quem está separando">
-            <option value="">Quem separa…</option>
-            {expedidores.filter(x => x.ativo).map(x => <option key={x.id} value={x.nome}>{x.nome}</option>)}
-          </Select>
-        )}
-        <Botao onClick={() => imprimir(<FolhaEtiquetas itens={itens} prefixo="EXP" tecnicoPorId={id => tecnicoPorId(id)} />)} disabled={!itens.length}><Printer size={14} />Etiquetas ({itens.length})</Botao>
-      </BarraFiltros>
-
-      <TabelaDemandas itens={itens} colunas={['sel', 'numero', 'tecnico', 'veiculo', 'ordem', 'om', 'cliente', 'tipo', 'equipamento', 'patrimonio', 'separacao', 'status', 'acoes']}
-        selecionados={sel} onSelecionar={setSel} vazio="Nenhum item para separar nesta data."
-        acoes={d => <>
-          {separar && (d.status_separacao === 'SEPARADO'
-            ? <Botao tamanho="sm" onClick={() => marcar(d, false)}>↩ Estornar</Botao>
-            : <Botao tamanho="sm" variante="sucesso" onClick={() => marcar(d, true)}>✓ Separado</Botao>)}
-          <Botao tamanho="sm" variante="fantasma" title="Etiqueta" onClick={() => imprimir(<FolhaEtiquetas itens={[d]} prefixo="EXP" tecnicoPorId={id => tecnicoPorId(id)} />)}><Printer size={14} /></Botao>
-        </>} />
+      {grupos.length === 0 && semTec.length === 0 && <Vazio titulo="Nenhum item para separar nesta data" texto="Os itens chegam aqui quando o roteiro é gerado ou uma parada é liberada no pré-roteiro." />}
+      <div className="space-y-3">
+        {grupos.map(({ t, itens: its }) => {
+          const sep = its.filter(d => d.status_separacao === 'SEPARADO').length
+          const paradas = agrupar(its, agrupar.length ? (d => `${normalizar(d.cliente_nome)}|${normalizar(d.local)}`) : (d => d.id)).size
+          return (
+            <GrupoCard key={t.id} cor={t.cor} titulo={<span>👷 {t.nome}</span>} subtitulo={<span>🚗 {veiculosDoGrupo(its).join(' / ') || <span className="text-amber-700">sem veículo</span>} · {paradas} parada(s)</span>}
+              chips={<div className="flex items-center gap-2"><div className="h-1.5 w-40 overflow-hidden rounded bg-slate-200"><div className={cx('h-full', sep === its.length ? 'bg-emerald-500' : 'bg-amber-500')} style={{ width: `${(sep / its.length) * 100}%` }} /></div><span className={cx('text-xs font-bold', sep === its.length ? 'text-emerald-700' : 'text-red-600')}>{sep}/{its.length} separados</span></div>}
+              contagem={its.length}
+              direita={<>
+                <Botao tamanho="sm" variante="fantasma" title="Etiquetas deste técnico" onClick={() => { setSel(new Set(its.map(d => d.id))); setEtiquetas(true) }}><Printer size={13} /></Botao>
+                {liberar && its.some(d => d.status === 'ROTEIRIZADO') && <Botao tamanho="sm" variante="sucesso" onClick={() => liberarRota(its, t.nome)}><Play size={12} />Liberar</Botao>}
+              </>}>
+              {its.map(d => <Linha key={d.id} d={d} />)}
+            </GrupoCard>
+          )
+        })}
+        {semTec.length > 0 && <GrupoCard titulo="Sem técnico" contagem={semTec.length} chips={<Chip tone="bg-red-50 text-red-700">atribua no planejamento</Chip>}>{semTec.map(d => <Linha key={d.id} d={d} />)}</GrupoCard>}
+      </div>
 
       <BarraSelecao n={sel.size} onLimpar={() => setSel(new Set())}>
-        {separar && <Botao tamanho="sm" variante="sucesso" onClick={() => marcarSel(true)}>✓ Marcar separados</Botao>}
-        {separar && <Botao tamanho="sm" onClick={() => marcarSel(false)}>↩ Desfazer separação</Botao>}
-        <Botao tamanho="sm" onClick={() => imprimir(<FolhaEtiquetas itens={itens.filter(d => sel.has(d.id))} prefixo="EXP" tecnicoPorId={id => tecnicoPorId(id)} />)}><Printer size={13} />Etiquetas</Botao>
+        {separar && <Botao tamanho="sm" variante="sucesso" onClick={() => run(async () => { for (const id of sel) await acoes.definirSeparacao(id, 'SEPARADO', quem()) }, 'Marcados como separados.')}>✓ Marcar separados</Botao>}
+        {separar && <Botao tamanho="sm" onClick={() => run(async () => { for (const id of sel) await acoes.definirSeparacao(id, 'NAO_SEPARADO', null) }, 'Separação desfeita.')}>↩ Desfazer</Botao>}
+        {liberar && <Botao tamanho="sm" variante="primario" onClick={() => liberarRota(itens.filter(d => sel.has(d.id)), `${sel.size} selecionado(s)`)}><Play size={12} />Liberar para rota</Botao>}
+        <Botao tamanho="sm" onClick={() => setEtiquetas(true)}><Printer size={13} />Etiquetas</Botao>
       </BarraSelecao>
+
+      <ModalEtiquetas aberto={etiquetas} onFechar={() => setEtiquetas(false)} itens={sel.size ? itens.filter(d => sel.has(d.id)) : itens} tipo="EXPEDICAO" />
+      <Confirmar aberto={!!confirmar} titulo={confirmar?.titulo ?? ''} texto={confirmar?.texto} onFechar={() => setConfirmar(null)}
+        onConfirmar={() => { const c = confirmar!; setConfirmar(null); run(c.fn, c.msg); setSel(new Set()) }} />
     </Pagina>
   )
 }
