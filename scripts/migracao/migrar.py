@@ -18,6 +18,8 @@ Regras (ver relatório para os números):
   - Duplicatas (equipamento + patrimônio + OM + cliente) são consolidadas.
 """
 import argparse, collections, datetime as dt, json, os, re, sys, unicodedata, urllib.request, urllib.parse
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from clientes_mapa import canonico
 
 AQUI = os.path.dirname(os.path.abspath(__file__))
 SAIDA = os.path.join(AQUI, 'saida')
@@ -408,8 +410,18 @@ def consolidar(abas, tecnicos_conhecidos):
         if d['status'] in ('ROTEIRIZADO', 'AGUARDANDO_SAIDA', 'EM_DESLOCAMENTO') and (not d['tecnico_nome'] or not d['data_planejada']):
             anomalias['em_rota_sem_tecnico_ou_data'].append(f"{d['equipamento_nome']} {d['patrimonio'] or ''} OM {d['om']} ({d['status']})")
 
+    # --- clientes: nome canônico + apelidos (grafias originais)
+    apelidos = collections.defaultdict(set)
+    for d in demandas:
+        if not d['cliente_nome']: continue
+        canon = canonico(d['cliente_nome'])
+        if norm(canon) != norm(d['cliente_nome']): apelidos[canon].add(d['cliente_nome'])
+        else: apelidos.setdefault(canon, set())
+        d['cliente_nome'] = canon
+    rel['Clientes: grafias distintas na planilha'] = sum(len(v) for v in apelidos.values()) + len(apelidos)
+    clientes = [dict(nome=k, apelidos=sorted(v)) for k, v in sorted(apelidos.items())]
+
     # --- cadastros derivados
-    clientes = sorted({d['cliente_nome'] for d in demandas if d['cliente_nome']})
     equip = {}
     for d in demandas:
         if not d['equipamento_nome']: continue
@@ -422,7 +434,7 @@ def consolidar(abas, tecnicos_conhecidos):
 
     # sugestões de apelidos: clientes que compartilham o início do nome
     grupos = collections.defaultdict(list)
-    for c in clientes:
+    for c in [c['nome'] for c in clientes]:
         raiz = ' '.join(w for w in norm(c).replace('CONSTRUTORA', '').replace('CONSORCIO', '').split()[:1])
         if raiz: grupos[raiz].append(c)
     sugest = {k: v for k, v in grupos.items() if len(v) > 1}
@@ -443,6 +455,10 @@ def escrever_relatorio(demandas, cad, rel, anomalias, caminho):
     for k, v in tec.most_common(): linhas.append(f'- {k}: {v}')
     linhas += ['', '### Cadastros derivados', '', f"- Clientes distintos: {len(cad['clientes'])}", f"- Equipamentos (nome + patrimônio): {len(cad['equipamentos'])}", f"- Veículos: {', '.join(cad['veiculos'])}", f"- Técnicos: {', '.join(cad['tecnicos'])}", '']
     linhas += ['## Anomalias (o que a planilha tinha de errado e o que foi feito)', '']
+    linhas += ['### Clientes unificados (canônico ← grafias)', '']
+    for c in sorted(cad['clientes'], key=lambda c: -len(c['apelidos']))[:40]:
+        if c['apelidos']: linhas.append(f"- **{c['nome']}** ← {' | '.join(c['apelidos'])}")
+    linhas.append('')
     for k, lst in sorted(anomalias.items(), key=lambda x: -len(x[1])):
         linhas.append(f'### {k}: {len(lst)}'); linhas.append('')
         for x in lst[:15]: linhas.append(f'- {x}')
@@ -488,10 +504,21 @@ def enviar(saida):
     for c in cli_rows:
         cli[norm(c['nome'])] = c['id']
         for a in c.get('apelidos') or []: cli[norm(a)] = c['id']
-    faltam = [{'nome': n} for n in cad['clientes'] if norm(n) not in cli]
+    faltam, atualizar = [], []
+    for c in cad['clientes']:
+        cid = cli.get(norm(c['nome']))
+        if not cid: faltam.append({'nome': c['nome'], 'apelidos': c['apelidos']}); continue
+        ex = next(x for x in cli_rows if x['id'] == cid)
+        novos = [a for a in c['apelidos'] if norm(a) not in {norm(x) for x in (ex.get('apelidos') or [])} and norm(a) != norm(ex['nome'])]
+        if novos: atualizar.append((cid, sorted(set((ex.get('apelidos') or []) + novos))))
+        for a in c['apelidos']: cli[norm(a)] = cid
+        cli[norm(c['nome'])] = cid
     for i in range(0, len(faltam), 200):
-        for c in rest(url, key, token, 'POST', 'clientes', faltam[i:i + 200], 'return=representation'): cli[norm(c['nome'])] = c['id']
-    print('clientes criados:', len(faltam))
+        for c in rest(url, key, token, 'POST', 'clientes', faltam[i:i + 200], 'return=representation'):
+            cli[norm(c['nome'])] = c['id']
+            for a in c.get('apelidos') or []: cli[norm(a)] = c['id']
+    for cid, aps in atualizar: rest(url, key, token, 'PATCH', f'clientes?id=eq.{cid}', {'apelidos': aps}, 'return=minimal')
+    print('clientes criados:', len(faltam), '· apelidos completados em', len(atualizar))
     # equipamentos
     eq_rows = rest(url, key, token, 'GET', 'equipamentos?select=id,nome,patrimonio&limit=10000')
     eq = {(norm(e['nome']), norm(e['patrimonio'])): e['id'] for e in eq_rows}
