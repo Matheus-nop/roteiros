@@ -36,7 +36,7 @@ export function Pendencias() {
   const run = async (fn: () => Promise<unknown>, msg: string) => { try { await fn(); toast(msg); setSel(new Set()) } catch (e) { erro(e) } }
 
   return (
-    <Pagina titulo="Pendências" subtitulo={`${itens.length} item(ns) reagendado(s) · ${aguardando} aguardando roteirização`}>
+    <Pagina titulo="Pendências" subtitulo={`${itens.length} itens reagendados · ${aguardando} aguardando nova roteirização`}>
       <BarraFiltros busca={busca} setBusca={setBusca} tecnico={tecnico} setTecnico={setTecnico} />
       <TabelaDemandas itens={itens} colunas={['sel', 'om', 'cliente', 'tipo', 'equipamento', 'patrimonio', 'tecnico', 'abertura', 'reagendada', 'status', 'obs', 'acoes']}
         selecionados={sel} onSelecionar={setSel} vazio="Nenhuma pendência."

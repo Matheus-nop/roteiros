@@ -48,7 +48,7 @@ export function PreCarga() {
   const estornar = (f: Fechamento) => setConfirmar({ titulo: 'Estornar último fechamento', texto: <>Estornar o fechamento de <b>{tecnicoPorId(f.tecnico_id)?.nome}</b> em {fmtData(f.data)} ({f.demanda_ids.length} item)? Os itens voltam à pré-carga e à expedição.</>, fn: () => acoes.estornarFechamento(f), msg: 'Fechamento estornado.' })
 
   return (
-    <Pagina titulo="Pré-carga" subtitulo="Uma pré-carga por técnico, com as paradas ordenadas · marque o ✓ conforme separa · atualiza sozinha" acoes={<>
+    <Pagina titulo="Pré-carga" subtitulo="Uma pré-carga por técnico, na ordem das paradas · marque o ✓ conforme separa · a tela atualiza sozinha" acoes={<>
       <Botao variante="primario" title="Imprime a lista de carga de todos os técnicos" onClick={() => imprimir(<div>{grupos.map(g => <div key={g.t.id} style={{ pageBreakAfter: 'always' }}><FolhaRoteiro tecnico={g.t} data={data} itens={g.itens} /></div>)}</div>)}><Printer size={14} />Imprimir todas</Botao>
       {fechar && <Botao variante="perigo" onClick={() => fecharDia(null, doDia)}><Lock size={14} />Fechar dia</Botao>}
       {fechar && ultimo && <Botao onClick={() => estornar(ultimo)} title={`Último: ${tecnicoPorId(ultimo.tecnico_id)?.nome} · ${fmtDataHora(ultimo.fechado_em)}`}><Undo2 size={14} />Estornar</Botao>}
@@ -63,7 +63,7 @@ export function PreCarga() {
         <Select value={mostrar} onChange={e => setMostrar(e.target.value as typeof mostrar)} className="w-36"><option value="todos">Todos</option><option value="pendentes">Só pendentes</option><option value="separados">Só separados</option></Select>
         {separar && <Select value={expedidor} onChange={e => { setExpedidor(e.target.value); localStorage.setItem('expedidor', e.target.value) }} className="w-40"><option value="">Quem separa…</option>{expedidores.filter(x => x.ativo).map(x => <option key={x.id} value={x.nome}>{x.nome}</option>)}</Select>}
       </div>
-      {grupos.length === 0 && <Vazio titulo={`Nenhuma carga para ${fmtData(data)}`} texto="Libere paradas no pré-roteiro ou gere roteiros no planejamento." />}
+      {grupos.length === 0 && <Vazio titulo={`Nenhuma carga para ${fmtData(data)}`} texto="A pré-carga se forma quando o PCM libera paradas no pré-roteiro ou gera roteiros no planejamento." />}
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         {grupos.map(({ t, itens }) => {
           const sep = itens.filter(d => d.status_separacao === 'SEPARADO').length

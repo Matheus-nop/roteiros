@@ -25,7 +25,7 @@ export function ModalPendente({ itens, onFechar, titulo = 'Marcar pendente' }: {
         <Campo rotulo="Reagendar para (nova data planejada)"><Input type="date" value={data} min={hojeISO()} onChange={e => setData(e.target.value)} /></Campo>
         <Campo rotulo="Motivo / observação"><Input value={obs} onChange={e => setObs(e.target.value)} placeholder="Ex.: cliente sem responsável no local" /></Campo>
       </div>
-      <p className="mt-3 text-xs text-slate-500">A data de reagendamento passa a ser a data planejada. A data de abertura fica só como referência.</p>
+      <p className="mt-3 text-xs text-slate-500">A nova data passa a ser a data planejada do item; ele volta ao planejamento nessa data.</p>
     </Modal>
   )
 }

@@ -48,7 +48,7 @@ export function Layout() {
         {modoDemo && <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-200">Demo</span>}
         <div className="flex-1" />
         <span className="hidden items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] font-medium sm:flex" title={conectado ? 'Tempo real ativo' : 'Sem tempo real · atualiza a cada 30s'}>
-          <span className={cx('h-2 w-2 rounded-full', conectado ? 'bg-emerald-400' : 'bg-red-400')} />{conectado ? 'Conectado' : 'Sem tempo real'}
+          <span className={cx('h-2 w-2 rounded-full', conectado ? 'bg-emerald-400' : 'bg-red-400')} />{conectado ? 'Conectado' : 'Sem atualização automática'}
         </span>
         <button onClick={() => recarregar()} className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 text-[12px] font-semibold text-slate-800 hover:bg-slate-100" title="Forçar atualização">
           <RefreshCw size={13} className={carregando ? 'animate-spin' : ''} /><span className="hidden sm:inline">Atualizar</span>

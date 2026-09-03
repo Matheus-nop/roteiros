@@ -63,18 +63,18 @@ export function Fila() {
   const prontos = itens.filter(d => d.status === 'PRONTO_PARA_PLANEJAR' || d.status === 'ENCAMINHADO')
 
   return (
-    <Pagina titulo="Fila operacional" subtitulo={`${fila.length} demanda(s) · arraste os cards entre as colunas para avançar a triagem`} acoes={<>
+    <Pagina titulo="Fila operacional" subtitulo={`${fila.length} demandas aguardando triagem ou envio ao planejamento · arraste um card para outra coluna para avançar a etapa`} acoes={<>
       <div className="flex overflow-hidden rounded-lg ring-1 ring-slate-300">
         <button onClick={() => mudarVisao('kanban')} className={cx('flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium', visao === 'kanban' ? 'bg-[#1a56db] text-white' : 'bg-white text-slate-600')}><LayoutGrid size={13} />Kanban</button>
         <button onClick={() => mudarVisao('lista')} className={cx('flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium', visao === 'lista' ? 'bg-[#1a56db] text-white' : 'bg-white text-slate-600')}><List size={13} />Por parada</button>
       </div>
       {pode('fila.lancar') && <Botao onClick={() => setImportar(true)}><Upload size={14} />Importar</Botao>}
       <Botao variante={auditar ? 'primario' : 'secundario'} onClick={() => setParams(auditar ? {} : { auditar: '1' })} title="Mostrar só possíveis duplicatas (mesmo equipamento + patrimônio + OM + cliente)"><Search size={14} />Auditar{duplicatas.size ? ` (${duplicatas.size})` : ''}</Botao>
-      {pode('fila.enviar_planejamento') && <Botao variante="sucesso" disabled={!prontos.length} onClick={() => run(() => acoes.enviarParaPlanejamento(prontos.map(d => d.id)), `${prontos.length} enviada(s) ao planejamento.`)} title="Envia todos os itens prontos p/ planejar e encaminhados"><Send size={14} />Enviar prontos ({prontos.length})</Botao>}
+      {pode('fila.enviar_planejamento') && <Botao variante="sucesso" disabled={!prontos.length} onClick={() => run(() => acoes.enviarParaPlanejamento(prontos.map(d => d.id)), `${prontos.length} enviada(s) ao planejamento.`)} title="Envia ao planejamento todos os itens prontos para planejar e encaminhados"><Send size={14} />Enviar prontos ({prontos.length})</Botao>}
       {pode('fila.lancar') && <Botao variante="primario" onClick={() => setNova(true)}><Plus size={14} />Lançar demanda</Botao>}
     </>}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[260px]"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar cliente, local, equipamento, OS, patrimônio…" className="pl-8" /></div>
+        <div className="relative flex-1 min-w-[260px]"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por cliente, local, equipamento, OS ou patrimônio…" className="pl-8" /></div>
         <Select value={tipo} onChange={e => setTipo(e.target.value)} className="w-52"><option value="">Todos os tipos</option>{TIPOS.map(t => <option key={t}>{t}</option>)}</Select>
       </div>
 

@@ -1,10 +1,12 @@
 // Imp. técnico: o que o técnico executa. Agrupado por parada; marca FINALIZADO / PENDENTE (pede data).
-import { Check, Clock, Lock } from 'lucide-react'
+import { Check, Clock, Lock, Printer } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
 import { ModalPendente } from '../components/ModalPendente'
+import { EspelhoRoteiro } from '../components/EspelhoRoteiro'
+import { usePrint } from '../components/Print'
 import { Badge, BadgeStatus, BadgeTipo, Botao, Campo, Input, Modal, Pagina, Select, Vazio, cx } from '../components/ui'
 import { STATUS_EM_ROTA } from '../lib/status'
 import { agrupar, chaveParada, fmtData, fmtPatrimonio, hojeISO, ordenarParadas, rotuloData, addDias } from '../lib/format'
@@ -14,6 +16,7 @@ export function ImpTecnico() {
   const { demandas, tecnicos, acoes, tecnicoPorId } = useData()
   const { pode, usuario } = useAuth()
   const { toast, erro } = useToast()
+  const { imprimir } = usePrint()
   const meuTec = usuario?.perfil.papel === 'TECNICO' ? usuario.perfil.tecnico_id : null
   const [tecnico, setTecnico] = useState<string>(() => meuTec ?? localStorage.getItem('imp-tecnico') ?? '')
   const [pendente, setPendente] = useState<Demanda[] | null>(null)
@@ -28,10 +31,10 @@ export function ImpTecnico() {
   const escolher = (id: string) => { setTecnico(id); localStorage.setItem('imp-tecnico', id) }
 
   return (
-    <Pagina titulo="Imp. técnico" subtitulo="Execução em rota: finalizar ou marcar pendente (com data de reagendamento)" acoes={
+    <Pagina titulo="Imp. técnico" subtitulo="Execução em rota · finalize cada item ou marque pendente informando a nova data · imprima o espelho do roteiro" acoes={
       !meuTec && <Select value={tecnico} onChange={e => escolher(e.target.value)} className="w-52"><option value="">Selecione o técnico…</option>{tecnicos.filter(t => t.ativo).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}</Select>
     }>
-      {!tecnico && <Vazio titulo="Selecione o técnico" texto="O roteiro aparece agrupado por parada, só com as datas ativas." />}
+      {!tecnico && <Vazio titulo="Selecione o técnico" texto="O roteiro aparece agrupado por parada, mostrando só as datas com itens em rota." />}
       {tecnico && porData.length === 0 && <Vazio titulo={`${tecnicoPorId(tecnico)?.nome ?? ''} não tem itens em rota`} texto="Quando o PCM gerar o roteiro, os itens aparecem aqui." />}
 
       <div className="space-y-5">
@@ -43,7 +46,10 @@ export function ImpTecnico() {
             <section key={data} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
               <div className={cx('flex flex-wrap items-center justify-between gap-2 px-4 py-3', data < hoje ? 'bg-red-50' : 'bg-slate-50')}>
                 <div className="text-[15px] font-bold text-slate-900">📅 {rotuloData(data || null)} <span className="ml-2 text-[12px] font-normal text-slate-500">🚗 {veic ?? 'sem veículo'} · {paradas.length} parada(s) · {itens.length} item(ns)</span></div>
-                {executar && <Botao tamanho="sm" onClick={() => setFechar({ data, itens })}><Lock size={13} />Fechar roteiro do dia</Botao>}
+                <div className="flex items-center gap-2">
+                  <Botao tamanho="sm" variante="primario" onClick={() => imprimir(<EspelhoRoteiro tecnico={tecnicoPorId(tecnico)} data={data} itens={itens} />)}><Printer size={13} />Imprimir espelho</Botao>
+                  {executar && <Botao tamanho="sm" onClick={() => setFechar({ data, itens })}><Lock size={13} />Fechar roteiro do dia</Botao>}
+                </div>
               </div>
               <ol className="divide-y divide-slate-100">
                 {paradas.map((its, i) => (
