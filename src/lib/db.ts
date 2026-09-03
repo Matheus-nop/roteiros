@@ -1,0 +1,39 @@
+// Camada de acesso a dados. Duas implementações:
+//  - SupabaseDb: banco real (PostgreSQL + Realtime)
+//  - DemoDb:     memória/localStorage, para validar telas sem credenciais
+// Todas as operações identificam registros por uuid — nunca por índice de lista.
+
+import type { Usuario, Papel } from './types'
+
+export type Filtro = {
+  eq?: Record<string, unknown>
+  in?: Record<string, unknown[]>
+  notIn?: Record<string, unknown[]>
+  order?: { col: string; asc?: boolean }[]
+  limit?: number
+}
+
+export type EventoTabela<T = Record<string, unknown>> = {
+  tipo: 'INSERT' | 'UPDATE' | 'DELETE'
+  novo?: T
+  antigo?: Partial<T>
+}
+
+export interface Db {
+  readonly modo: 'supabase' | 'demo'
+  select<T>(tabela: string, filtro?: Filtro): Promise<T[]>
+  insert<T>(tabela: string, linhas: Record<string, unknown>[]): Promise<T[]>
+  update<T>(tabela: string, id: string, patch: Record<string, unknown>): Promise<T>
+  updateMany<T>(tabela: string, ids: string[], patch: Record<string, unknown>): Promise<T[]>
+  remove(tabela: string, id: string): Promise<void>
+  subscribe<T>(tabela: string, cb: (e: EventoTabela<T>) => void): () => void
+  auth: {
+    usuarioAtual(): Promise<Usuario | null>
+    entrar(email: string, senha: string): Promise<Usuario>
+    entrarDemo?(papel: Papel): Promise<Usuario>
+    sair(): Promise<void>
+    onChange(cb: (u: Usuario | null) => void): () => void
+  }
+}
+
+export class DbError extends Error {}
