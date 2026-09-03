@@ -69,6 +69,6 @@ ADMIN, PCM, COMERCIAL, EXPEDICAO, TECNICO. O menu e os botões se adaptam ao pap
 
 ## Deploy
 
-**Vercel:** o `vercel.json` já fixa preset Vite, `npm ci`, `npm run build`, pasta `dist` e o fallback para `index.html`. O `package.json` exige Node 22 (Vite 7 não roda em Node 18/20.x antigo). Só falta, em *Settings → Environment Variables* do projeto, criar `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` e fazer *Redeploy*.
+**Vercel:** o `vercel.json` já fixa preset Vite, `npm ci`, `npm run build`, pasta `dist` e o fallback para `index.html`. O `package.json` exige Node 22 (Vite 7 não roda em Node 18/20.x antigo). Só falta, em *Settings → Environment Variables* do projeto, criar `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (tipo **Config**, ambiente **Production** marcado, nomes sem espaços) e fazer *Redeploy* desmarcando *Use existing Build Cache*. Variáveis `VITE_` entram no momento do build: sem um build novo o app continua em modo demonstração.
 
 **Cloudflare Pages:** build `npm run build`, pasta `dist`, mesmas variáveis; o `public/_redirects` cuida do fallback.
