@@ -8,6 +8,10 @@
 
 create extension if not exists pgcrypto;
 
+-- Observação: os blocos "add column if not exists" reconciliam tabelas que já
+-- existiam no projeto com outra estrutura (create table if not exists não altera
+-- tabelas existentes). A migração é idempotente: pode ser executada mais de uma vez.
+
 -- ---------------------------------------------------------------------
 -- Cadastros
 -- ---------------------------------------------------------------------
@@ -19,6 +23,12 @@ create table if not exists tecnicos (
   cor            text,
   created_at     timestamptz not null default now()
 );
+alter table tecnicos
+  add column if not exists veiculo_padrao text,
+  add column if not exists ativo boolean not null default true,
+  add column if not exists cor text,
+  add column if not exists created_at timestamptz not null default now();
+create unique index if not exists uq_tecnicos_nome on tecnicos(nome);
 
 create table if not exists veiculos (
   id     uuid primary key default gen_random_uuid(),
@@ -26,12 +36,18 @@ create table if not exists veiculos (
   placa  text,
   ativo  boolean not null default true
 );
+alter table veiculos
+  add column if not exists placa text,
+  add column if not exists ativo boolean not null default true;
+create unique index if not exists uq_veiculos_nome on veiculos(nome);
 
 create table if not exists clientes (
   id       uuid primary key default gen_random_uuid(),
   nome     text not null unique,
   apelidos text[] not null default '{}'
 );
+alter table clientes add column if not exists apelidos text[] not null default '{}';
+create unique index if not exists uq_clientes_nome on clientes(nome);
 
 create table if not exists equipamentos (
   id                        uuid primary key default gen_random_uuid(),
@@ -41,6 +57,11 @@ create table if not exists equipamentos (
   unidade                   text,
   created_at                timestamptz not null default now()
 );
+alter table equipamentos
+  add column if not exists patrimonio text,
+  add column if not exists controlado_por_quantidade boolean not null default false,
+  add column if not exists unidade text,
+  add column if not exists created_at timestamptz not null default now();
 create unique index if not exists uq_equipamentos_nome_pat
   on equipamentos (nome, coalesce(patrimonio, ''));
 
@@ -49,6 +70,8 @@ create table if not exists expedidores (
   nome  text not null unique,
   ativo boolean not null default true
 );
+alter table expedidores add column if not exists ativo boolean not null default true;
+create unique index if not exists uq_expedidores_nome on expedidores(nome);
 
 -- ---------------------------------------------------------------------
 -- Demandas: a tabela central
@@ -104,6 +127,33 @@ create table if not exists demandas (
   updated_at       timestamptz not null default now(),
   created_by       uuid references auth.users(id)
 );
+alter table demandas
+  add column if not exists numero bigint generated always as identity,
+  add column if not exists om text,
+  add column if not exists cliente_id uuid references clientes(id),
+  add column if not exists cliente_nome text,
+  add column if not exists local text,
+  add column if not exists equipamento_id uuid references equipamentos(id),
+  add column if not exists equipamento_nome text,
+  add column if not exists patrimonio text,
+  add column if not exists quantidade numeric not null default 1,
+  add column if not exists unidade text,
+  add column if not exists tecnico_id uuid references tecnicos(id),
+  add column if not exists veiculo text,
+  add column if not exists data_abertura date default current_date,
+  add column if not exists data_planejada date,
+  add column if not exists data_reagendada date,
+  add column if not exists status_separacao text not null default 'NAO_SEPARADO',
+  add column if not exists separado_por text,
+  add column if not exists data_separacao date,
+  add column if not exists ordem_parada integer,
+  add column if not exists origem text,
+  add column if not exists herdado_de_pendencia boolean not null default false,
+  add column if not exists observacao text,
+  add column if not exists finalizado_em timestamptz,
+  add column if not exists created_at timestamptz not null default now(),
+  add column if not exists updated_at timestamptz not null default now(),
+  add column if not exists created_by uuid references auth.users(id);
 
 create index if not exists idx_demandas_status        on demandas(status);
 create index if not exists idx_demandas_tecnico       on demandas(tecnico_id);
@@ -125,6 +175,11 @@ create table if not exists historico (
   snapshot        jsonb,
   acao            text
 );
+alter table historico
+  add column if not exists snapshot jsonb,
+  add column if not exists acao text,
+  add column if not exists alterado_por uuid,
+  add column if not exists alterado_em timestamptz not null default now();
 create index if not exists idx_historico_demanda on historico(demanda_id);
 create index if not exists idx_historico_em      on historico(alterado_em desc);
 
@@ -154,6 +209,10 @@ create table if not exists perfis (
   tecnico_id uuid references tecnicos(id),              -- se papel = TECNICO
   created_at timestamptz not null default now()
 );
+alter table perfis
+  add column if not exists nome text,
+  add column if not exists email text,
+  add column if not exists tecnico_id uuid references tecnicos(id);
 
 -- Cria perfil automaticamente ao cadastrar usuário. O primeiro usuário vira ADMIN.
 create or replace function public.criar_perfil_novo_usuario()
@@ -259,6 +318,14 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------
+-- Privilégios (o Supabase já concede por padrão; explícito aqui por segurança)
+-- ---------------------------------------------------------------------
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on all tables in schema public to authenticated;
+grant usage, select on all sequences in schema public to authenticated;
+grant execute on all functions in schema public to authenticated;
+
+-- ---------------------------------------------------------------------
 -- Row Level Security
 -- ---------------------------------------------------------------------
 alter table tecnicos     enable row level security;
@@ -334,10 +401,12 @@ begin
   end if;
 end $$;
 
-alter publication supabase_realtime add table demandas;
-alter publication supabase_realtime add table tecnicos;
-alter publication supabase_realtime add table veiculos;
-alter publication supabase_realtime add table clientes;
-alter publication supabase_realtime add table equipamentos;
-alter publication supabase_realtime add table expedidores;
-alter publication supabase_realtime add table fechamentos;
+do $$
+declare t text;
+begin
+  foreach t in array array['demandas','tecnicos','veiculos','clientes','equipamentos','expedidores','fechamentos'] loop
+    if not exists (select 1 from pg_publication_tables where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = t) then
+      execute format('alter publication supabase_realtime add table %I', t);
+    end if;
+  end loop;
+end $$;
