@@ -35,17 +35,28 @@ function Arquivadas({ restaurar }: { restaurar: boolean }) {
   const [lista, setLista] = useState<Demanda[]>([])
   const [carregando, setCarregando] = useState(true)
   const [busca, setBusca] = useState('')
+  const [buscaAtiva, setBuscaAtiva] = useState('')
   const [status, setStatus] = useState<string>('')
   const [conf, setConf] = useState<Demanda | null>(null)
   const [tecnico, setTecnico] = useState('')
+  const [mostrar, setMostrar] = useState(200)
   const { tecnicos } = useData()
+  const LIMITE = 500
 
+  // Busca no servidor (ilike) com atraso de digitação; sem busca, traz as 500 mais recentes.
+  useEffect(() => { const t = setTimeout(() => setBuscaAtiva(busca), 350); return () => clearTimeout(t) }, [busca])
   const carregar = async () => {
     setCarregando(true)
-    try { setLista(await db.select<Demanda>('demandas', { in: { status: STATUS_ARQUIVADOS }, order: [{ col: 'updated_at', asc: false }], limit: 2000 })) } catch (e) { erro(e) } finally { setCarregando(false) }
+    try {
+      setLista(await db.select<Demanda>('demandas', {
+        in: { status: STATUS_ARQUIVADOS }, order: [{ col: 'updated_at', asc: false }], limit: LIMITE,
+        busca: buscaAtiva.trim().length >= 2 ? { colunas: ['om', 'cliente_nome', 'equipamento_nome', 'patrimonio', 'local'], termo: buscaAtiva } : undefined,
+      }))
+      setMostrar(200)
+    } catch (e) { erro(e) } finally { setCarregando(false) }
   }
-  useEffect(() => { carregar() }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => db.subscribe<Demanda>('demandas', () => { carregar() }), []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { carregar() }, [buscaAtiva]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => db.subscribe<Demanda>('demandas', (e) => { if (e.novo && STATUS_ARQUIVADOS.includes((e.novo as Demanda).status)) carregar() }), []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const itens = useMemo(() => {
     const b = normalizar(busca)
@@ -58,11 +69,12 @@ function Arquivadas({ restaurar }: { restaurar: boolean }) {
         <div className="relative"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar OM, cliente, equipamento…" className="w-72 pl-8" /></div>
         <Select value={status} onChange={e => setStatus(e.target.value)} className="w-40"><option value="">Finalizadas e canceladas</option><option value="FINALIZADO">Finalizadas</option><option value="CANCELADO">Canceladas</option></Select>
         <Select value={tecnico} onChange={e => setTecnico(e.target.value)} className="w-44"><option value="">Todos os técnicos</option>{tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}</Select>
-        <span className="text-xs text-slate-500">{carregando ? 'carregando…' : `${itens.length} de ${lista.length}`}</span>
+        <span className="text-xs text-slate-500">{carregando ? 'carregando…' : `${itens.length} encontrada(s)${lista.length >= LIMITE ? ` · mostrando as ${LIMITE} mais recentes, refine a busca` : ''}`}</span>
       </div>
-      <TabelaDemandas itens={itens} colunas={['numero', 'om', 'cliente', 'tipo', 'equipamento', 'patrimonio', 'tecnico', 'veiculo', 'data', 'status', 'obs', 'acoes']}
+      <TabelaDemandas itens={itens.slice(0, mostrar)} colunas={['numero', 'om', 'cliente', 'tipo', 'equipamento', 'patrimonio', 'tecnico', 'veiculo', 'data', 'status', 'obs', 'acoes']}
         vazio={carregando ? 'Carregando…' : 'Nenhuma demanda arquivada.'}
         acoes={d => restaurar && <Botao tamanho="sm" variante="fantasma" title="Restaurar para o planejamento" onClick={() => setConf(d)}><RotateCcw size={14} /></Botao>} />
+      {itens.length > mostrar && <div className="mt-3 text-center"><Botao onClick={() => setMostrar(m => m + 200)}>Mostrar mais ({itens.length - mostrar} restantes)</Botao></div>}
       <Confirmar aberto={!!conf} titulo="Restaurar demanda" onFechar={() => setConf(null)} texto={<>Restaurar <b>{conf?.equipamento_nome}</b> (OM {conf?.om}) para o planejamento (aguardando roteirização)?</>}
         onConfirmar={async () => { const d = conf!; setConf(null); try { await acoes.restaurar(d.id); toast('Restaurada.') } catch (e) { erro(e) } }} />
     </>

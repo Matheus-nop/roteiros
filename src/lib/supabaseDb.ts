@@ -8,6 +8,10 @@ function aplicarFiltro(q: any, f?: Filtro) {
   if (f.eq) for (const [k, v] of Object.entries(f.eq)) q = v === null ? q.is(k, null) : q.eq(k, v)
   if (f.in) for (const [k, v] of Object.entries(f.in)) q = q.in(k, v)
   if (f.notIn) for (const [k, v] of Object.entries(f.notIn)) q = q.not(k, 'in', `(${v.map(x => `"${x}"`).join(',')})`)
+  if (f.busca && f.busca.termo.trim()) {
+    const t = f.busca.termo.trim().replace(/[%,()]/g, ' ')
+    q = q.or(f.busca.colunas.map(c => `${c}.ilike.%${t}%`).join(','))
+  }
   if (f.order) for (const o of f.order) q = q.order(o.col, { ascending: o.asc ?? true })
   if (f.limit) q = q.limit(f.limit)
   return q

@@ -11,6 +11,8 @@ export type Filtro = {
   notIn?: Record<string, unknown[]>
   order?: { col: string; asc?: boolean }[]
   limit?: number
+  /** Busca textual (ilike) em qualquer uma das colunas. */
+  busca?: { colunas: string[]; termo: string }
 }
 
 export type EventoTabela<T = Record<string, unknown>> = {

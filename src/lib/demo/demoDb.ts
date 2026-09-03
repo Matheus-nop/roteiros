@@ -113,6 +113,10 @@ export class DemoDb implements Db {
     if (f?.eq) for (const [k, v] of Object.entries(f.eq)) rows = rows.filter(r => r[k] === v)
     if (f?.in) for (const [k, v] of Object.entries(f.in)) rows = rows.filter(r => v.includes(r[k]))
     if (f?.notIn) for (const [k, v] of Object.entries(f.notIn)) rows = rows.filter(r => !v.includes(r[k]))
+    if (f?.busca && f.busca.termo.trim()) {
+      const t = f.busca.termo.trim().toLowerCase()
+      rows = rows.filter(r => f.busca!.colunas.some(c => String(r[c] ?? '').toLowerCase().includes(t)))
+    }
     if (f?.order) {
       for (const o of [...f.order].reverse()) rows.sort((a, b) => (o.asc ?? true ? 1 : -1) * cmp(a[o.col], b[o.col]))
     }
