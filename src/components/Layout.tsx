@@ -51,7 +51,7 @@ export function Layout() {
         <div className="border-t border-white/10 px-3 py-3 text-xs text-brand-100/80">
           <div className="truncate font-medium text-white">{usuario?.perfil.nome ?? usuario?.email}</div>
           <div className="mt-0.5 flex items-center justify-between">
-            <span>{papel ? PAPEL_LABEL[papel] : ''}</span>
+            <span>{usuario?.semPerfil ? 'Sem perfil' : papel ? PAPEL_LABEL[papel] : ''}</span>
             <button onClick={sair} className="flex items-center gap-1 rounded px-1.5 py-0.5 hover:bg-white/10" title="Sair"><LogOut size={13} />Sair</button>
           </div>
         </div>
@@ -82,13 +82,19 @@ export function Layout() {
           <div className="flex items-center gap-3 text-xs text-slate-500">
             <span className="hidden items-center gap-1.5 sm:flex" title={ultimaAtualizacao ? `Última atualização ${ultimaAtualizacao.toLocaleTimeString('pt-BR')}` : ''}>
               {conectado ? <Wifi size={14} className="text-emerald-600" /> : <WifiOff size={14} className="text-red-600" />}
-              {conectado ? 'Tempo real' : 'Sem conexão'}
+              {conectado ? 'Tempo real' : 'Sem tempo real · atualiza a cada 30s'}
             </span>
             <button onClick={() => recarregar()} className="flex items-center gap-1 rounded px-2 py-1 hover:bg-slate-100" title="Forçar atualização">
               <RefreshCw size={14} className={carregando ? 'animate-spin' : ''} /> Atualizar
             </button>
           </div>
         </header>
+        {usuario?.semPerfil && (
+          <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 print:hidden">
+            <b>Seu usuário ainda não tem perfil.</b> Nada pode ser gravado até um administrador criar sua linha em <code>perfis</code>
+            (rodar de novo a migração <code>0001_schema.sql</code> no Supabase resolve: ela cria os perfis que faltam).
+          </div>
+        )}
         <main className="flex-1"><Outlet /></main>
       </div>
     </div>

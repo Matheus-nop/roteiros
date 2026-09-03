@@ -26,7 +26,8 @@ export interface Db {
   update<T>(tabela: string, id: string, patch: Record<string, unknown>): Promise<T>
   updateMany<T>(tabela: string, ids: string[], patch: Record<string, unknown>): Promise<T[]>
   remove(tabela: string, id: string): Promise<void>
-  subscribe<T>(tabela: string, cb: (e: EventoTabela<T>) => void): () => void
+  /** Eventos da tabela (realtime + escritas locais). onStatus informa se o canal realtime está ativo. */
+  subscribe<T>(tabela: string, cb: (e: EventoTabela<T>) => void, onStatus?: (ok: boolean) => void): () => void
   auth: {
     usuarioAtual(): Promise<Usuario | null>
     entrar(email: string, senha: string): Promise<Usuario>

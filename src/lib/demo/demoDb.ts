@@ -175,9 +175,10 @@ export class DemoDb implements Db {
     this.emitir(tabela, { tipo: 'DELETE', antigo })
   }
 
-  subscribe<T>(tabela: string, cb: (e: EventoTabela<T>) => void): () => void {
+  subscribe<T>(tabela: string, cb: (e: EventoTabela<T>) => void, onStatus?: (ok: boolean) => void): () => void {
     if (!this.ouvintes.has(tabela)) this.ouvintes.set(tabela, new Set())
     this.ouvintes.get(tabela)!.add(cb)
+    onStatus?.(true)
     return () => { this.ouvintes.get(tabela)?.delete(cb) }
   }
 

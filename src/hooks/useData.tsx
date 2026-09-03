@@ -31,6 +31,7 @@ function useTabelaRealtime<T extends { id: string }>(tabela: string, filtro?: Pa
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
+  const [realtime, setRealtime] = useState<boolean | null>(null)   // null = ainda conectando
   const aceitarRef = useRef(aceitar)
   aceitarRef.current = aceitar
 
@@ -62,11 +63,18 @@ function useTabelaRealtime<T extends { id: string }>(tabela: string, filtro?: Pa
         return [...prev, novo]
       })
       setTick(t => t + 1)
-    })
+    }, ok => setRealtime(ok))
     return off
   }, [tabela, recarregar])
 
-  return { linhas, carregando, erro, recarregar, tick }
+  // Sem realtime, recarrega periodicamente para não ficar com dados velhos.
+  useEffect(() => {
+    if (realtime !== false) return
+    const id = setInterval(recarregar, 30000)
+    return () => clearInterval(id)
+  }, [realtime, recarregar])
+
+  return { linhas, carregando, erro, recarregar, tick, realtime }
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
@@ -95,7 +103,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
     fechamentos: fechamentos.linhas,
     carregando: demandas.carregando || tecnicos.carregando,
     erro: demandas.erro ?? tecnicos.erro ?? null,
-    conectado: !demandas.erro,
+    conectado: !demandas.erro && demandas.realtime !== false,
     ultimaAtualizacao: ultima,
     recarregar: async () => {
       await Promise.all([demandas.recarregar(), tecnicos.recarregar(), veiculos.recarregar(), clientes.recarregar(), equipamentos.recarregar(), expedidores.recarregar(), fechamentos.recarregar()])

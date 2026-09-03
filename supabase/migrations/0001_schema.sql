@@ -235,6 +235,23 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.criar_perfil_novo_usuario();
 
+-- Backfill: usuários criados antes desta migração (ou antes do trigger) ganham perfil.
+-- Se ainda não há nenhum perfil, o usuário mais antigo vira ADMIN.
+do $$
+begin
+  insert into perfis (id, nome, email, papel)
+  select u.id,
+         coalesce(u.raw_user_meta_data->>'nome', split_part(u.email, '@', 1)),
+         u.email,
+         case when not exists (select 1 from perfis) and u.id = (select id from auth.users order by created_at limit 1)
+              then 'ADMIN' else coalesce(u.raw_user_meta_data->>'papel', 'PCM') end
+  from auth.users u
+  where not exists (select 1 from perfis p where p.id = u.id)
+  order by u.created_at;
+exception when others then
+  raise notice 'backfill de perfis ignorado: %', sqlerrm;
+end $$;
+
 create or replace function public.papel_atual()
 returns text language sql stable security definer set search_path = public as $$
   select papel from perfis where id = auth.uid()

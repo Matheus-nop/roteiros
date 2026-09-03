@@ -114,6 +114,8 @@ export interface Usuario {
   id: string
   email: string
   perfil: Perfil
+  /** true quando não existe linha em `perfis` para este usuário: sem papel, sem permissões. */
+  semPerfil?: boolean
 }
 
 export type NovaDemanda = Omit<

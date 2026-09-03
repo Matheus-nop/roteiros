@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     entrar: async (e, s) => { setUsuario(await db.auth.entrar(e, s)) },
     entrarDemo: async (p) => { if (db.auth.entrarDemo) setUsuario(await db.auth.entrarDemo(p)) },
     sair: async () => { await db.auth.sair(); setUsuario(null) },
-    pode: (a) => pode(usuario?.perfil.papel, a),
+    pode: (a) => !usuario?.semPerfil && pode(usuario?.perfil.papel, a),
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
