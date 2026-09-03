@@ -40,9 +40,9 @@ export function ImpTecnico() {
           const paradas = Array.from(agrupar(ordenados, chaveParada).values())
           const veic = itens.find(d => d.veiculo)?.veiculo
           return (
-            <section key={data} className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
-              <div className={cx('flex flex-wrap items-center justify-between gap-2 px-4 py-2.5', data < hoje ? 'bg-red-50' : 'bg-slate-50')}>
-                <div className="text-sm font-semibold text-slate-800">📅 {rotuloData(data || null)} <span className="ml-2 font-normal text-slate-500">🚗 {veic ?? 'sem veículo'} · {paradas.length} parada(s) · {itens.length} item(ns)</span></div>
+            <section key={data} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+              <div className={cx('flex flex-wrap items-center justify-between gap-2 px-4 py-3', data < hoje ? 'bg-red-50' : 'bg-slate-50')}>
+                <div className="text-[15px] font-bold text-slate-900">📅 {rotuloData(data || null)} <span className="ml-2 text-[12px] font-normal text-slate-500">🚗 {veic ?? 'sem veículo'} · {paradas.length} parada(s) · {itens.length} item(ns)</span></div>
                 {executar && <Botao tamanho="sm" onClick={() => setFechar({ data, itens })}><Lock size={13} />Fechar roteiro do dia</Botao>}
               </div>
               <ol className="divide-y divide-slate-100">
@@ -50,7 +50,7 @@ export function ImpTecnico() {
                   <li key={i} className="px-4 py-3">
                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                       <div className="flex items-center gap-2">
-                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">{its[0].ordem_parada ? its[0].ordem_parada / 10 : i + 1}</span>
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#1a56db] text-xs font-bold text-white">{its[0].ordem_parada ? its[0].ordem_parada / 10 : i + 1}</span>
                         <div>
                           <div className="text-sm font-semibold text-slate-800">{its[0].cliente_nome ?? '—'}</div>
                           <div className="text-xs text-slate-500">📍 {its[0].local ?? '—'}</div>
@@ -60,7 +60,7 @@ export function ImpTecnico() {
                     </div>
                     <ul className="space-y-1.5 pl-9">
                       {its.map(d => (
-                        <li key={d.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-md bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-100">
+                        <li key={d.id} className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-slate-50 px-3 py-2 text-sm ring-1 ring-slate-100">
                           <BadgeTipo tipo={d.tipo} />
                           <span className="font-medium text-slate-800">{d.equipamento_nome}</span>
                           <span className={cx('text-xs', d.patrimonio ? 'font-mono font-semibold' : 'text-slate-600')}>{fmtPatrimonio(d)}</span>

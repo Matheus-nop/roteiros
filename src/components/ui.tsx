@@ -7,7 +7,7 @@ export function cx(...c: (string | false | null | undefined)[]) { return c.filte
 
 type Variante = 'primario' | 'secundario' | 'perigo' | 'fantasma' | 'sucesso'
 const VAR: Record<Variante, string> = {
-  primario: 'bg-brand-700 text-white hover:bg-brand-800 ring-brand-700',
+  primario: 'bg-[#1a56db] text-white hover:bg-[#1748c9] ring-[#1a56db]',
   secundario: 'bg-white text-slate-700 hover:bg-slate-50 ring-slate-300',
   perigo: 'bg-white text-red-700 hover:bg-red-50 ring-red-200',
   fantasma: 'bg-transparent text-slate-600 hover:bg-slate-100 ring-transparent',
@@ -19,7 +19,7 @@ export function Botao({ variante = 'secundario', tamanho = 'md', className, ...p
     <button
       {...p}
       className={cx(
-        'inline-flex items-center gap-1.5 rounded-md font-medium ring-1 ring-inset shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50',
+        'inline-flex items-center gap-1.5 rounded-lg font-medium ring-1 ring-inset shadow-sm transition disabled:cursor-not-allowed disabled:opacity-50',
         tamanho === 'sm' ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm',
         VAR[variante], className,
       )}
@@ -85,7 +85,7 @@ export function Vazio({ titulo, texto, children }: { titulo: string; texto?: str
 
 export function Cartao({ children, className, titulo, acoes }: { children: ReactNode; className?: string; titulo?: ReactNode; acoes?: ReactNode }) {
   return (
-    <section className={cx('rounded-lg bg-white shadow-sm ring-1 ring-slate-200', className)}>
+    <section className={cx('rounded-xl bg-white shadow-sm ring-1 ring-slate-200', className)}>
       {(titulo || acoes) && (
         <header className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-200 px-4 py-2.5">
           <div className="text-sm font-semibold text-slate-800">{titulo}</div>
@@ -99,11 +99,11 @@ export function Cartao({ children, className, titulo, acoes }: { children: React
 
 export function Pagina({ titulo, subtitulo, acoes, children }: { titulo: string; subtitulo?: ReactNode; acoes?: ReactNode; children: ReactNode }) {
   return (
-    <div className="mx-auto max-w-[1600px] px-4 py-5 sm:px-6">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+    <div className="mx-auto max-w-[1800px] px-4 py-4 sm:px-5">
+      <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h1 className="text-xl font-semibold tracking-tight text-slate-900">{titulo}</h1>
-          {subtitulo && <p className="mt-0.5 text-sm text-slate-500">{subtitulo}</p>}
+          <h1 className="text-lg font-semibold tracking-tight text-slate-900">{titulo}</h1>
+          {subtitulo && <p className="mt-0.5 text-[13px] text-slate-500">{subtitulo}</p>}
         </div>
         {acoes && <div className="flex flex-wrap items-center gap-2">{acoes}</div>}
       </div>
@@ -114,7 +114,7 @@ export function Pagina({ titulo, subtitulo, acoes, children }: { titulo: string;
 
 export function Contador({ rotulo, valor, tom = 'text-slate-900', onClick }: { rotulo: string; valor: number | string; tom?: string; onClick?(): void }) {
   return (
-    <button onClick={onClick} className={cx('rounded-lg bg-white px-4 py-3 text-left shadow-sm ring-1 ring-slate-200', onClick && 'hover:ring-brand-600/50')}>
+    <button onClick={onClick} className={cx('rounded-xl bg-white px-4 py-3 text-left shadow-sm ring-1 ring-slate-200', onClick && 'hover:ring-[#1a56db]/50')}>
       <div className="text-[11px] font-medium uppercase tracking-wide text-slate-500">{rotulo}</div>
       <div className={cx('mt-1 text-2xl font-semibold tabular-nums', tom)}>{valor}</div>
     </button>

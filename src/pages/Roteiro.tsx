@@ -1,5 +1,5 @@
-// Roteiro do dia por técnico, com paradas ordenadas.
-import { Play, Printer, Trash2, Tag } from 'lucide-react'
+// Roteiro do dia por técnico, com paradas ordenadas (cards).
+import { Play, Printer, Trash2, Tag, Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
@@ -7,10 +7,11 @@ import { useToast } from '../hooks/useToast'
 import { SeletorData } from '../components/Filtros'
 import { usePrint } from '../components/Print'
 import { FolhaEtiquetas, FolhaRoteiro } from '../components/Etiqueta'
-import { CabecalhoTecnico, veiculosDoGrupo } from '../components/GrupoTecnico'
-import { Badge, BadgeStatus, BadgeTipo, Botao, Checkbox, Confirmar, Pagina, Vazio, cx } from '../components/ui'
+import { CardDemanda, Chip, GrupoCard, LocalData } from '../components/Cards'
+import { Botao, Confirmar, Input, Pagina, Vazio, cx } from '../components/ui'
 import { STATUS_EM_ROTA } from '../lib/status'
-import { agrupar, chaveParada, fmtData, fmtPatrimonio, hojeISO, ordenarParadas, codigo } from '../lib/format'
+import { agrupar, chaveParada, fmtData, hojeISO, ordenarParadas, normalizar, textoBusca } from '../lib/format'
+import { veiculosDoGrupo } from '../components/GrupoTecnico'
 import type { Demanda } from '../lib/types'
 
 export function Roteiro() {
@@ -19,76 +20,55 @@ export function Roteiro() {
   const { toast, erro } = useToast()
   const { imprimir } = usePrint()
   const [data, setData] = useState(hojeISO())
-  const [todasDatas, setTodasDatas] = useState(false)
+  const [todas, setTodas] = useState(false)
+  const [busca, setBusca] = useState('')
   const [remover, setRemover] = useState<{ d: Demanda; irmaos: Demanda[] } | null>(null)
   const editar = pode('roteiro.editar')
   const meuTec = usuario?.perfil.papel === 'TECNICO' ? usuario.perfil.tecnico_id : null
 
-  const emRota = useMemo(() => demandas.filter(d => STATUS_EM_ROTA.includes(d.status) && (todasDatas || d.data_planejada === data) && (!meuTec || d.tecnico_id === meuTec)), [demandas, data, todasDatas, meuTec])
+  const emRota = useMemo(() => { const b = normalizar(busca); return demandas.filter(d => STATUS_EM_ROTA.includes(d.status) && (todas || d.data_planejada === data) && (!meuTec || d.tecnico_id === meuTec) && (!b || textoBusca(d).includes(b) || normalizar(tecnicoPorId(d.tecnico_id)?.nome).includes(b))) }, [demandas, data, todas, meuTec, busca, tecnicoPorId])
   const grupos = useMemo(() => {
     const out: { t: ReturnType<typeof tecnicoPorId>; tecId: string; data: string; itens: Demanda[] }[] = []
-    for (const [k, its] of agrupar(emRota, d => `${d.tecnico_id ?? ''}|${d.data_planejada ?? ''}`)) {
-      const [tecId, dt] = k.split('|')
-      out.push({ t: tecnicoPorId(tecId), tecId, data: dt, itens: [...its].sort(ordenarParadas) })
-    }
+    for (const [k, its] of agrupar(emRota, d => `${d.tecnico_id ?? ''}|${d.data_planejada ?? ''}`)) { const [tecId, dt] = k.split('|'); out.push({ t: tecnicoPorId(tecId), tecId, data: dt, itens: [...its].sort(ordenarParadas) }) }
     return out.sort((a, b) => a.data.localeCompare(b.data) || (a.t?.nome ?? 'zz').localeCompare(b.t?.nome ?? 'zz'))
   }, [emRota, tecnicoPorId, tecnicos])
-
   const run = async (fn: () => Promise<unknown>, msg: string) => { try { await fn(); toast(msg) } catch (e) { erro(e) } }
 
   return (
-    <Pagina titulo="Roteiro" subtitulo="Roteiro do dia por técnico, com paradas ordenadas" acoes={<>
-      <label className="flex items-center gap-1.5 text-sm text-slate-600"><Checkbox checked={todasDatas} onChange={e => setTodasDatas(e.target.checked)} />Todas as datas</label>
+    <Pagina titulo="Roteiro" subtitulo="Roteiro do dia por técnico, parada por parada" acoes={<>
+      <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={todas} onChange={e => setTodas(e.target.checked)} />Todas as datas</label>
       <SeletorData valor={data} onChange={setData} />
     </>}>
-      {grupos.length === 0 && <Vazio titulo={`Nenhum roteiro para ${todasDatas ? 'as datas ativas' : fmtData(data)}`} texto="Gere roteiros no Planejamento ou Pré-roteiro." />}
-      <div className="space-y-4">
+      <div className="mb-3 relative"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar técnico, cliente, local, equipamento, OS…" className="pl-8" /></div>
+      {grupos.length === 0 && <Vazio titulo={`Nenhum roteiro para ${todas ? 'as datas ativas' : fmtData(data)}`} texto="Libere paradas no pré-roteiro ou gere roteiros no planejamento." />}
+      <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         {grupos.map(g => {
           const paradas = Array.from(agrupar(g.itens, chaveParada).values())
           const emDesloc = g.itens.filter(d => d.status === 'EM_DESLOCAMENTO').length
           const sep = g.itens.filter(d => d.status_separacao === 'SEPARADO').length
           return (
-            <section key={`${g.tecId}|${g.data}`} className="overflow-hidden rounded-lg bg-white shadow-sm ring-1 ring-slate-200">
-              <CabecalhoTecnico tecnico={g.t} total={g.itens.length} veiculos={veiculosDoGrupo(g.itens)} direita={<>
-                {todasDatas && <Badge>{fmtData(g.data)}</Badge>}
-                <Badge>{paradas.length} parada(s)</Badge>
-                <Badge tone="bg-emerald-50 text-emerald-800 ring-emerald-200">{sep}/{g.itens.length} sep.</Badge>
-                {emDesloc > 0 && <Badge tone="bg-cyan-50 text-cyan-800 ring-cyan-200">{emDesloc} em deslocamento</Badge>}
+            <GrupoCard key={`${g.tecId}|${g.data}`} cor={g.t?.cor} titulo={<span>👷 {g.t?.nome ?? 'Sem técnico'}</span>} subtitulo={<span>🚗 {veiculosDoGrupo(g.itens).join(' / ') || <span className="text-amber-700">sem veículo</span>} · 📅 {fmtData(g.data)}</span>}
+              chips={<><Chip tone="bg-slate-100 text-slate-700">{paradas.length} paradas</Chip><Chip tone="bg-emerald-50 text-emerald-800">{sep}/{g.itens.length} sep.</Chip>{emDesloc > 0 && <Chip tone="bg-cyan-50 text-cyan-800">{emDesloc} em deslocamento</Chip>}</>}
+              direita={<>
                 <Botao tamanho="sm" onClick={() => imprimir(<FolhaRoteiro tecnico={g.t} data={g.data} itens={g.itens} />)}><Printer size={13} />Roteiro</Botao>
-                <Botao tamanho="sm" onClick={() => imprimir(<FolhaEtiquetas itens={g.itens} prefixo="ROT" tecnicoPorId={id => tecnicoPorId(id)} />)}><Tag size={13} />Etiquetas</Botao>
+                <Botao tamanho="sm" onClick={() => imprimir(<FolhaEtiquetas itens={g.itens} tipo="ROTEIRO" modo={(localStorage.getItem('et-modo') as 'normal') || 'normal'} tecnicoPorId={id => tecnicoPorId(id)} />)}><Tag size={13} />Etiquetas</Botao>
                 {(editar || pode('roteiro.executar')) && emDesloc < g.itens.length && <Botao tamanho="sm" variante="primario" onClick={() => run(() => acoes.iniciarRota(g.itens), 'Rota iniciada.')}><Play size={13} />Iniciar rota</Botao>}
-              </>} />
-              <ol className="divide-y divide-slate-100">
-                {paradas.map((its, i) => (
-                  <li key={i} className="flex gap-3 px-4 py-2.5">
-                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-700 text-xs font-bold text-white">{its[0].ordem_parada ? its[0].ordem_parada / 10 : i + 1}</div>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-semibold text-slate-800">{its[0].cliente_nome ?? '—'} <span className="font-normal text-slate-500">· 📍 {its[0].local ?? '—'}</span></div>
-                      <ul className="mt-1 space-y-1">
-                        {its.map(d => (
-                          <li key={d.id} className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-sm">
-                            <span className="font-mono text-[11px] text-slate-400">{codigo('ROT', d.numero)}</span>
-                            <span className="w-4 text-center text-xs font-semibold text-slate-500">{d.ordem_parada ? d.ordem_parada / 10 : ''}</span>
-                            <BadgeTipo tipo={d.tipo} />
-                            <span className="text-slate-800">{d.equipamento_nome}</span>
-                            <span className={cx('text-xs', d.patrimonio ? 'font-mono font-semibold' : 'text-slate-600')}>{fmtPatrimonio(d)}</span>
-                            <span className="om text-xs text-slate-500">OM {d.om ?? '—'}</span>
-                            <BadgeStatus status={d.status} />
-                            {d.status_separacao === 'SEPARADO' ? <span className="text-[11px] text-emerald-700">✓ sep.</span> : <span className="text-[11px] text-amber-700">não sep.</span>}
-                            {editar && <button className="ml-auto rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600" title="Remover do roteiro (volta ao planejamento)" onClick={() => setRemover({ d, irmaos: g.itens })}><Trash2 size={13} /></button>}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </section>
+              </>}>
+              {paradas.map((its, i) => (
+                <div key={i}>
+                  <div className="flex items-center gap-2 bg-slate-50/80 px-4 py-1.5">
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1a56db] text-[11px] font-bold text-white">{its[0].ordem_parada ? its[0].ordem_parada / 10 : i + 1}</span>
+                    <span className="text-[13px] font-bold text-slate-800">{its[0].cliente_nome ?? '—'}</span><LocalData local={its[0].local} />
+                  </div>
+                  <div className="pl-6">{its.map(d => <CardDemanda key={d.id} d={d} compacto mostrarSeparacao acoes={editar ? <button className={cx('rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600')} title="Remover do roteiro (volta ao planejamento)" onClick={() => setRemover({ d, irmaos: g.itens })}><Trash2 size={13} /></button> : undefined} />)}</div>
+                </div>
+              ))}
+            </GrupoCard>
           )
         })}
       </div>
       <Confirmar aberto={!!remover} titulo="Remover do roteiro" onFechar={() => setRemover(null)}
-        texto={<>Remover <b>{remover?.d.equipamento_nome}</b> (OM {remover?.d.om}) do roteiro? Volta ao planejamento e as demais paradas são renumeradas sem reembaralhar.</>}
+        texto={<>Remover <b>{remover?.d.equipamento_nome}</b> (OS {remover?.d.om}) do roteiro? Volta ao planejamento e as demais paradas são renumeradas sem reembaralhar.</>}
         onConfirmar={() => { const r = remover!; setRemover(null); run(() => acoes.removerDoRoteiro(r.d, r.irmaos), 'Removida do roteiro.') }} />
     </Pagina>
   )

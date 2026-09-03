@@ -1,7 +1,7 @@
 // Operações de negócio sobre `demandas`. Todas identificam registros por uuid.
 import type { Db } from './db'
 import { DbError } from './db'
-import type { Demanda, Fechamento, NovaDemanda, Status, Historico } from './types'
+import type { Demanda, Fechamento, NovaDemanda, Status, Historico, StatusSeparacao, EtiquetaAvulsa } from './types'
 import { STATUS_ARQUIVADOS, STATUS_EM_ROTA, proximaTriagem } from './status'
 import { hojeISO, normalizar, ordenarParadas } from './format'
 
@@ -95,6 +95,36 @@ export function criarAcoes(db: Db) {
       return patch(id, separado
         ? { status_separacao: 'SEPARADO', separado_por: separadoPor, data_separacao: hojeISO() }
         : { status_separacao: 'NAO_SEPARADO', separado_por: null, data_separacao: null })
+    },
+
+    /** Separação em 3 estados (não separado → em separação → separado). */
+    async definirSeparacao(id: string, estado: StatusSeparacao, separadoPor: string | null) {
+      if (estado === 'SEPARADO') return patch(id, { status_separacao: 'SEPARADO', separado_por: separadoPor, data_separacao: hojeISO() })
+      if (estado === 'EM_SEPARACAO') return patch(id, { status_separacao: 'EM_SEPARACAO', separado_por: separadoPor, data_separacao: null })
+      return patch(id, { status_separacao: 'NAO_SEPARADO', separado_por: null, data_separacao: null })
+    },
+
+    async definirSeparadoPor(id: string, separadoPor: string | null) {
+      return patch(id, { separado_por: separadoPor })
+    },
+
+    /** Expedição dá o "ok, pode levar": ROTEIRIZADO → AGUARDANDO_SAIDA. */
+    async liberarParaRota(ids: string[]) {
+      return patchMany(ids, { status: 'AGUARDANDO_SAIDA' })
+    },
+
+    /** Pré-roteiro: libera um subconjunto de itens (uma parada) para o roteiro, numerando após as paradas já liberadas. */
+    async liberarParada(itens: Demanda[], jaNoRoteiro: Demanda[]) {
+      const semDados = itens.filter(d => !d.tecnico_id || !d.data_planejada)
+      if (semDados.length) throw new DbError('Itens sem técnico ou sem data não podem ser liberados.')
+      const max = jaNoRoteiro.reduce((m, d) => Math.max(m, d.ordem_parada ?? 0), 0)
+      const ordenados = [...itens].sort(ordenarParadas)
+      await Promise.all(ordenados.map((d, i) => patch(d.id, { status: 'ROTEIRIZADO', ordem_parada: max + (i + 1) * 10 })))
+    },
+
+    async registrarEtiquetaAvulsa(e: EtiquetaAvulsa, usuarioId: string | null) {
+      const [row] = await db.insert<EtiquetaAvulsa>('etiquetas_avulsas', [{ ...e, emitida_por: usuarioId }])
+      return row
     },
 
     /** Fecha a pré-carga do dia: ROTEIRIZADO → AGUARDANDO_SAIDA e registra fechamento (estornável). */
