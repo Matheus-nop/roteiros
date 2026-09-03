@@ -37,10 +37,10 @@ export function Dashboard() {
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
         <Contador rotulo="Na fila" valor={m.fila.length} onClick={() => nav('/fila')} />
         <Contador rotulo="A roteirizar" valor={m.aRoteirizar.length} tom="text-violet-700" onClick={() => nav('/planejamento')} />
-        <Contador rotulo="Em rota hoje" valor={m.hojeRota.length} tom="text-blue-700" onClick={() => nav('/roteiro')} />
+        <Contador rotulo="Roteirizado hoje" valor={m.hojeRota.length} tom="text-blue-700" onClick={() => nav('/roteiro')} />
         <Contador rotulo="Roteirizado amanhã" valor={m.amanhaRota.length} tom="text-slate-700" onClick={() => nav('/pre-carga')} />
         <Contador rotulo="Pendências" valor={m.pendencias.length} tom="text-orange-700" onClick={() => nav('/pendencias')} />
-        <Contador rotulo="Atrasadas" valor={m.atrasadas.length} tom={m.atrasadas.length ? 'text-red-700' : 'text-slate-700'} onClick={() => nav('/planejamento')} />
+        <Contador rotulo="Com data vencida" valor={m.atrasadas.length} tom={m.atrasadas.length ? 'text-red-700' : 'text-slate-700'} onClick={() => nav('/planejamento')} />
       </div>
 
       <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -71,7 +71,7 @@ export function Dashboard() {
           <ul className="divide-y divide-slate-100 text-sm">
             <Alerta n={m.semVeiculo.length} texto="roteirizada(s) sem veículo" onClick={() => nav('/planejamento')} />
             <Alerta n={m.semData.length} texto="com técnico mas sem data planejada" onClick={() => nav('/planejamento')} />
-            <Alerta n={m.atrasadas.length} texto="com data planejada no passado" onClick={() => nav('/planejamento')} />
+            <Alerta n={m.atrasadas.length} texto="com data planejada já vencida" onClick={() => nav('/planejamento')} />
             <Alerta n={m.duplicatasFila} texto="possível(is) duplicata(s) na fila" onClick={() => nav('/fila?auditar=1')} />
             <Alerta n={m.pendencias.length} texto="pendência(s) reagendada(s) aguardando roteirização" onClick={() => nav('/pendencias')} />
             {m.semVeiculo.length + m.semData.length + m.atrasadas.length + m.duplicatasFila + m.pendencias.length === 0 && <li className="px-4 py-3 text-slate-500">Nenhum alerta. Tudo em ordem.</li>}

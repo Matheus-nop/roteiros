@@ -109,11 +109,11 @@ export function Planejamento() {
   }
 
   return (
-    <Pagina titulo="Planejamento (PCM)" subtitulo={`${itens.length} demanda(s) · uma coluna por técnico · arraste para atribuir; dentro da data, arraste para ordenar as paradas`} acoes={<>
+    <Pagina titulo="Planejamento (PCM)" subtitulo={`${itens.length} demandas · uma coluna por técnico · arraste um card para outra coluna para atribuir o técnico; dentro da mesma data, arraste para definir a ordem das paradas`} acoes={<>
       {editar && <Botao variante="primario" onClick={gerarTodos}><Route size={14} />Gerar todos os roteiros</Botao>}
     </>}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[240px]"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar OS, cliente, local, equipamento…" className="pl-8" /></div>
+        <div className="relative flex-1 min-w-[240px]"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por OS, cliente, local ou equipamento…" className="pl-8" /></div>
         <Select value={status} onChange={e => setStatus(e.target.value)} className="w-48"><option value="">Todos os status</option>{STATUS_PLANEJAMENTO.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</Select>
         <Input type="date" value={dataFiltro} onChange={e => setDataFiltro(e.target.value)} className="w-40" title="Filtrar por data planejada" />
         {dataFiltro && <Botao tamanho="sm" variante="fantasma" onClick={() => setDataFiltro('')}>limpar data</Botao>}

@@ -71,14 +71,14 @@ export function Expedicao() {
           </Select>
         ) : <Badge>{SEPARACAO_LABEL[d.status_separacao]}</Badge>}
         {separar && <Select value={d.separado_por ?? ''} disabled={liberado} onChange={e => run(() => acoes.definirSeparadoPor(d.id, e.target.value || null))} className="!w-36 !py-1 !text-xs">
-          <option value="">— separou —</option>{expedidores.filter(x => x.ativo || x.nome === d.separado_por).map(x => <option key={x.id} value={x.nome}>{x.nome}</option>)}{d.separado_por && !expedidores.some(x => x.nome === d.separado_por) && <option value={d.separado_por}>{d.separado_por}</option>}
+          <option value="">quem separou</option>{expedidores.filter(x => x.ativo || x.nome === d.separado_por).map(x => <option key={x.id} value={x.nome}>{x.nome}</option>)}{d.separado_por && !expedidores.some(x => x.nome === d.separado_por) && <option value={d.separado_por}>{d.separado_por}</option>}
         </Select>}
       </div>
     )
   }
 
   return (
-    <Pagina titulo="Expedição" subtitulo="Painel de separação · ENTREGA, TROCA, RETORNO e LOCAÇÃO" acoes={<>
+    <Pagina titulo="Expedição" subtitulo="Separação do material por técnico · entra aqui o que sai do galpão: entrega, troca, retorno e locação" acoes={<>
       <Botao variante="primario" onClick={() => setEtiquetas(true)}><Printer size={14} />Etiquetas</Botao>
       {liberar && <Botao variante="sucesso" onClick={() => liberarRota(sel.size ? itens.filter(d => sel.has(d.id)) : itens, sel.size ? `${sel.size} selecionado(s)` : 'todos os técnicos')}><Play size={14} />Liberar para rota</Botao>}
       <Botao onClick={() => { const v = !som; setSom(v); localStorage.setItem('exp-som', v ? 'on' : 'off'); if (v) beep() }} title="Aviso sonoro quando entra item novo na expedição">{som ? <Volume2 size={14} /> : <VolumeX size={14} />}Som: {som ? 'ligado' : 'desligado'}</Botao>
@@ -93,7 +93,7 @@ export function Expedicao() {
         <Contador rotulo="Em separação" valor={n('EM_SEPARACAO')} tom="text-amber-700" />
         <Contador rotulo="Separado" valor={n('SEPARADO')} tom="text-emerald-700" />
       </div>
-      {grupos.length === 0 && semTec.length === 0 && <Vazio titulo="Nenhum item para separar nesta data" texto="Os itens chegam aqui quando o roteiro é gerado ou uma parada é liberada no pré-roteiro." />}
+      {grupos.length === 0 && semTec.length === 0 && <Vazio titulo="Nada para separar nesta data" texto="Os itens chegam aqui quando o PCM gera o roteiro ou libera uma parada no pré-roteiro." />}
       <div className="space-y-3">
         {grupos.map(({ t, itens: its }) => {
           const sep = its.filter(d => d.status_separacao === 'SEPARADO').length

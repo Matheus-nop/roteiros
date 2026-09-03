@@ -6,7 +6,8 @@ import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
 import { SeletorData } from '../components/Filtros'
 import { usePrint } from '../components/Print'
-import { FolhaEtiquetas, FolhaRoteiro } from '../components/Etiqueta'
+import { FolhaEtiquetas } from '../components/Etiqueta'
+import { EspelhoRoteiro } from '../components/EspelhoRoteiro'
 import { CardDemanda, Chip, GrupoCard, LocalData } from '../components/Cards'
 import { Botao, Confirmar, Input, Pagina, Vazio, cx } from '../components/ui'
 import { STATUS_EM_ROTA } from '../lib/status'
@@ -35,7 +36,7 @@ export function Roteiro() {
   const run = async (fn: () => Promise<unknown>, msg: string) => { try { await fn(); toast(msg) } catch (e) { erro(e) } }
 
   return (
-    <Pagina titulo="Roteiro" subtitulo="Roteiro do dia por técnico, parada por parada" acoes={<>
+    <Pagina titulo="Roteiro" subtitulo="Roteiro do dia por técnico, parada por parada · imprima o espelho para levar na rota" acoes={<>
       <label className="flex items-center gap-1.5 text-sm text-slate-600"><input type="checkbox" checked={todas} onChange={e => setTodas(e.target.checked)} />Todas as datas</label>
       <SeletorData valor={data} onChange={setData} />
     </>}>
@@ -50,7 +51,7 @@ export function Roteiro() {
             <GrupoCard key={`${g.tecId}|${g.data}`} cor={g.t?.cor} titulo={<span>👷 {g.t?.nome ?? 'Sem técnico'}</span>} subtitulo={<span>🚗 {veiculosDoGrupo(g.itens).join(' / ') || <span className="text-amber-700">sem veículo</span>} · 📅 {fmtData(g.data)}</span>}
               chips={<><Chip tone="bg-slate-100 text-slate-700">{paradas.length} paradas</Chip><Chip tone="bg-emerald-50 text-emerald-800">{sep}/{g.itens.length} sep.</Chip>{emDesloc > 0 && <Chip tone="bg-cyan-50 text-cyan-800">{emDesloc} em deslocamento</Chip>}</>}
               direita={<>
-                <Botao tamanho="sm" onClick={() => imprimir(<FolhaRoteiro tecnico={g.t} data={g.data} itens={g.itens} />)}><Printer size={13} />Roteiro</Botao>
+                <Botao tamanho="sm" onClick={() => imprimir(<EspelhoRoteiro tecnico={g.t} data={g.data} itens={g.itens} />)}><Printer size={13} />Espelho</Botao>
                 <Botao tamanho="sm" onClick={() => imprimir(<FolhaEtiquetas itens={g.itens} tipo="ROTEIRO" modo={(localStorage.getItem('et-modo') as 'normal') || 'normal'} tecnicoPorId={id => tecnicoPorId(id)} />)}><Tag size={13} />Etiquetas</Botao>
                 {(editar || pode('roteiro.executar')) && emDesloc < g.itens.length && <Botao tamanho="sm" variante="primario" onClick={() => run(() => acoes.iniciarRota(g.itens), 'Rota iniciada.')}><Play size={13} />Iniciar rota</Botao>}
               </>}>

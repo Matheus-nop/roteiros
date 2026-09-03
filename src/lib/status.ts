@@ -45,16 +45,16 @@ export const TIPOS_SEPARACAO: Tipo[] = ['ENTREGA', 'TROCA', 'RETORNO', 'RETORNO 
 export const separaNaExpedicao = (tipo: Tipo) => TIPOS_SEPARACAO.includes(tipo)
 
 export const STATUS_LABEL: Record<Status, string> = {
-  FILA: 'Fila',
-  AGUARDANDO_TRIAGEM: 'Aguard. triagem',
+  FILA: 'Na fila',
+  AGUARDANDO_TRIAGEM: 'Aguardando triagem',
   EM_ANALISE: 'Em análise',
-  PRONTO_PARA_PLANEJAR: 'Pronto p/ planejar',
-  ENCAMINHADO: 'Encaminhado',
-  AGUARDANDO_ROTEIRIZACAO: 'Aguard. roteirização',
+  PRONTO_PARA_PLANEJAR: 'Pronto para planejar',
+  ENCAMINHADO: 'Encaminhado ao PCM',
+  AGUARDANDO_ROTEIRIZACAO: 'Aguardando roteirização',
   PLANEJADO: 'Planejado',
   ROTEIRIZADO: 'Roteirizado',
-  AGUARDANDO_SAIDA: 'Aguard. saída',
-  EM_DESLOCAMENTO: 'Em deslocamento',
+  AGUARDANDO_SAIDA: 'Liberado para rota',
+  EM_DESLOCAMENTO: 'Em rota',
   FINALIZADO: 'Finalizado',
   PENDENTE: 'Pendente',
   REAGENDADO: 'Reagendado',
