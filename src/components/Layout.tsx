@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Inbox, CalendarRange, Route, PackageCheck, Truck, Map, ClipboardCheck, Clock, Users, Database, History, LogOut, RefreshCw, Plus, ChevronDown, Menu, X, Wifi, WifiOff, Smartphone } from 'lucide-react'
+import { LayoutDashboard, Inbox, CalendarRange, Route, PackageCheck, Truck, Map, ClipboardCheck, Clock, Users, Database, History, Archive, LogOut, RefreshCw, Plus, ChevronDown, Menu, X, Wifi, WifiOff, Smartphone } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Marca } from './Logo'
 import { useAuth } from '../hooks/useAuth'
@@ -23,7 +23,8 @@ const MENU: ItemMenu[] = [
   { to: '/roteiro', rotulo: 'Roteiro', icone: Map, papeis: ['ADMIN', 'PCM', 'COMERCIAL', 'EXPEDICAO'] },
   { to: '/imp-tecnico', rotulo: 'Imp. técnico', icone: ClipboardCheck, papeis: ['ADMIN', 'PCM', 'EXPEDICAO'] },
   { to: '/pendencias', rotulo: 'Pendências', icone: Clock, papeis: ['ADMIN', 'PCM', 'COMERCIAL'] },
-  { to: '/tecnicos', rotulo: 'Técnicos', icone: Users, papeis: ['ADMIN', 'PCM'], sep: true },
+  { to: '/arquivo', rotulo: 'Arquivo', icone: Archive, papeis: ['ADMIN', 'PCM', 'COMERCIAL', 'EXPEDICAO'], sep: true },
+  { to: '/tecnicos', rotulo: 'Técnicos', icone: Users, papeis: ['ADMIN', 'PCM'] },
   { to: '/cadastros', rotulo: 'Cadastros', icone: Database, papeis: ['ADMIN', 'PCM'] },
   { to: '/historico', rotulo: 'Histórico', icone: History, papeis: ['ADMIN', 'PCM', 'COMERCIAL', 'EXPEDICAO'] },
 ]

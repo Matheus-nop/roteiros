@@ -18,6 +18,7 @@ import { Pendencias } from './pages/Pendencias'
 import { Tecnicos } from './pages/Tecnicos'
 import { Cadastros } from './pages/Cadastros'
 import { Historico } from './pages/Historico'
+import { Arquivo } from './pages/Arquivo'
 import { Carregando } from './components/ui'
 
 function Protegido() {
@@ -42,6 +43,7 @@ function Protegido() {
           <Route path="pendencias" element={<Pendencias />} />
           <Route path="tecnicos" element={<Tecnicos />} />
           <Route path="cadastros" element={<Cadastros />} />
+          <Route path="arquivo" element={<Arquivo />} />
           <Route path="historico" element={<Historico />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>

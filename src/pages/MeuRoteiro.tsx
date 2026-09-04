@@ -36,7 +36,7 @@ export function MeuRoteiro() {
   const [pendente, setPendente] = useState<Demanda[] | null>(null)
   const executar = pode('roteiro.executar')
 
-  const encerradas = useEncerradas(data, tecnicoId)
+  const encerradas = useEncerradas(useMemo(() => [data], [data]), tecnicoId)
   const abertas = useMemo(
     () => demandas.filter(d => STATUS_EM_ROTA.includes(d.status) && d.tecnico_id === tecnicoId && d.data_planejada === data),
     [demandas, tecnicoId, data])
@@ -48,7 +48,21 @@ export function MeuRoteiro() {
   const veiculo = todas.find(d => d.veiculo)?.veiculo
   const naRua = abertas.some(d => d.status === 'EM_DESLOCAMENTO')
 
-  const run = async (fn: () => Promise<unknown>, msg: string) => { try { await fn(); toast(msg) } catch (e) { erro(e) } }
+  const run = async (fn: () => Promise<unknown>, msg: string) => {
+    try {
+      await fn()
+      if (msg) toast(msg)
+      // Concluído o último item do dia, o roteiro fecha e vai para o arquivo sozinho.
+      if (tecnicoId && tecnico && todas.length) {
+        const arq = await acoes.arquivarSeCompleto({
+          tecnicoId, tecnicoNome: tecnico.nome, data,
+          ids: todas.map(d => d.id), veiculo: veiculo ?? null,
+          usuarioId: usuario?.id ?? null,
+        }).catch(() => null)
+        if (arq) toast('Roteiro do dia concluído e arquivado.', 'info')
+      }
+    } catch (e) { erro(e) }
+  }
   const escolher = (id: string) => { setEscolhido(id); localStorage.setItem('meu-roteiro-tec', id) }
 
   if (!tecnicoId) {
@@ -93,7 +107,8 @@ export function MeuRoteiro() {
         ))}
       </div>
 
-      {pendente && <ModalPendente itens={pendente} onFechar={() => setPendente(null)} titulo="Não deu para fazer" />}
+      {/* Reagendar tira o item do dia — pode ter sido o último em rota, então revalida o arquivo. */}
+      {pendente && <ModalPendente itens={pendente} titulo="Não deu para fazer" onFechar={() => { setPendente(null); run(async () => {}, '') }} />}
     </div>
   )
 }

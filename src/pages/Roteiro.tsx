@@ -1,5 +1,5 @@
 // Roteiro do dia por técnico, com paradas ordenadas (cards).
-import { Play, Printer, Trash2, Tag, Search } from 'lucide-react'
+import { Play, Printer, Trash2, Tag, Search, XCircle } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
@@ -24,6 +24,7 @@ export function Roteiro() {
   const [todas, setTodas] = useState(false)
   const [busca, setBusca] = useState('')
   const [remover, setRemover] = useState<{ d: Demanda; irmaos: Demanda[] } | null>(null)
+  const [desfazer, setDesfazer] = useState<{ tecNome: string; data: string; itens: Demanda[] } | null>(null)
   const editar = pode('roteiro.editar')
   const meuTec = usuario?.perfil.papel === 'TECNICO' ? usuario.perfil.tecnico_id : null
 
@@ -54,6 +55,7 @@ export function Roteiro() {
                 <Botao tamanho="sm" onClick={() => imprimir(<EspelhoRoteiro tecnico={g.t} data={g.data} itens={g.itens} />)}><Printer size={13} />Espelho</Botao>
                 <Botao tamanho="sm" onClick={() => imprimir(<FolhaEtiquetas itens={g.itens} tipo="ROTEIRO" modo={(localStorage.getItem('et-modo') as 'normal') || 'normal'} tecnicoPorId={id => tecnicoPorId(id)} />)}><Tag size={13} />Etiquetas</Botao>
                 {(editar || pode('roteiro.executar')) && emDesloc < g.itens.length && <Botao tamanho="sm" variante="primario" onClick={() => run(() => acoes.iniciarRota(g.itens), 'Rota iniciada.')}><Play size={13} />Iniciar rota</Botao>}
+                {editar && <Botao tamanho="sm" variante="perigo" title="Desfaz o roteiro inteiro: os itens voltam ao planejamento" onClick={() => setDesfazer({ tecNome: g.t?.nome ?? 'sem técnico', data: g.data, itens: g.itens })}><XCircle size={13} />Excluir roteiro</Botao>}
               </>}>
               {paradas.map((its, i) => (
                 <div key={i}>
@@ -68,6 +70,9 @@ export function Roteiro() {
           )
         })}
       </div>
+      <Confirmar aberto={!!desfazer} titulo="Excluir o roteiro inteiro" perigo confirmarTexto="Excluir roteiro" onFechar={() => setDesfazer(null)}
+        texto={<>Devolver ao planejamento as <b>{desfazer?.itens.length}</b> demanda(s) do roteiro de <b>{desfazer?.tecNome}</b> em {fmtData(desfazer?.data ?? '')}? Técnico e data continuam — some a ordem das paradas e a separação, que eram deste roteiro.</>}
+        onConfirmar={() => { const x = desfazer!; setDesfazer(null); run(() => acoes.desfazerRoteiro(x.itens), `${x.itens.length} demanda(s) de volta ao planejamento.`) }} />
       <Confirmar aberto={!!remover} titulo="Remover do roteiro" onFechar={() => setRemover(null)}
         texto={<>Remover <b>{remover?.d.equipamento_nome}</b> (OS {remover?.d.om}) do roteiro? Volta ao planejamento e as demais paradas são renumeradas sem reembaralhar.</>}
         onConfirmar={() => { const r = remover!; setRemover(null); run(() => acoes.removerDoRoteiro(r.d, r.irmaos), 'Removida do roteiro.') }} />

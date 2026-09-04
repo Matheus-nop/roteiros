@@ -25,6 +25,8 @@ export interface Db {
   readonly modo: 'supabase' | 'demo'
   select<T>(tabela: string, filtro?: Filtro): Promise<T[]>
   insert<T>(tabela: string, linhas: Record<string, unknown>[]): Promise<T[]>
+  /** Insere ou sobrescreve conforme o índice único de `onConflict` (colunas separadas por vírgula). */
+  upsert<T>(tabela: string, linhas: Record<string, unknown>[], onConflict: string): Promise<T[]>
   update<T>(tabela: string, id: string, patch: Record<string, unknown>): Promise<T>
   updateMany<T>(tabela: string, ids: string[], patch: Record<string, unknown>): Promise<T[]>
   remove(tabela: string, id: string): Promise<void>
