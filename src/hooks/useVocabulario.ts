@@ -2,7 +2,7 @@
 //
 // Vale para localidade, cliente e equipamento. Os três são campos onde a ordem
 // alfabética é a pior ordem possível: quem lança dez demandas por dia digita quase
-// sempre os mesmos cinco nomes, e "AGUAS DO RIO" no topo vale mais que "ACQUA" só por
+// sempre os mesmos cinco nomes, e "ÁGUAS DO RIO" no topo vale mais que "ACQUA" só por
 // começar com A.
 //
 // Cada um vem de uma view (`v_localidades` da 0006, `v_clientes_uso` e

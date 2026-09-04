@@ -26,7 +26,10 @@ export const expedidoresSeed: Expedidor[] = ['Silvio', 'Adonai', 'Hugo', 'Arthur
   .map(nome => ({ id: uuid(), nome, ativo: true }))
 
 export const clientesSeed: Cliente[] = [
-  ['ÁGUAS DO RIO', ['AEGEA', 'AEGEA SANEAMENTO', 'AGUAS DO RIO']],
+  // Apelido é variação de escrita do MESMO cliente. ÁGUAS DO RIO e AEGEA são clientes
+  // diferentes, ainda que do mesmo grupo.
+  ['ÁGUAS DO RIO', ['AGUAS DO RIO']],
+  ['AEGEA', ['AEGEA SANEAMENTO']],
   ['CONSTRUTORA AFFONSECA', ['AFFONSECA', 'LYTORÂNEA']],
   ['R2X', ['R2X ENGENHARIA']],
   ['JC MORAES', []],

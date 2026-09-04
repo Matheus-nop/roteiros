@@ -92,9 +92,13 @@ select
   -- Data de referência: quando foi executada; na falta, quando foi aberta.
   coalesce(d.data_planejada, d.data_abertura, d.created_at::date)                    as data,
   to_char(coalesce(d.data_planejada, d.data_abertura, d.created_at::date), 'YYYY-MM') as mes,
-  -- Nome oficial do cadastro quando houver: senão "AEGEA" e "ÁGUAS DO RIO" viram
-  -- dois clientes no ranking do mesmo cliente. Quando a demanda é antiga e não tem FK,
+  -- Nome oficial do cadastro quando houver: senão "AGUAS DO RIO" e "ÁGUAS DO RIO" viram
+  -- duas linhas do mesmo cliente no ranking. Quando a demanda é antiga e não tem FK,
   -- ainda dá para unificar pelo apelido — foi para isso que o apelido existe.
+  --
+  -- Isto só junta o que o CADASTRO diz ser a mesma empresa. Apelido errado (duas
+  -- empresas do mesmo grupo cadastradas como uma) some com a diferença aqui — é por
+  -- isso que a tela de Cadastros avisa o que apelido é e o que não é.
   coalesce(c.nome, ca.nome, d.cliente_nome)                                         as cliente,
   d.equipamento_nome                                                                as equipamento,
   d.local                                                                           as localidade,

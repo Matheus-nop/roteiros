@@ -26,7 +26,8 @@ export function ModalNovaDemanda({ aberto, onFechar }: { aberto: boolean; onFech
 
   // Ordem da lista: primeiro o que a equipe mais usa, depois o resto do cadastro. Quem
   // lança dez demandas por dia digita quase sempre os mesmos cinco nomes.
-  // Os apelidos entram no fim: quem digita "AEGEA" precisa achar "ÁGUAS DO RIO".
+  // Os apelidos entram no fim: quem digita "AGUAS DO RIO" (sem acento) precisa achar
+  // "ÁGUAS DO RIO". Apelido é variação de escrita do mesmo cliente, não empresa parente.
   const nomesCliente = useMemo(
     () => juntarSemRepetir(clientesUsados, clientes.map(c => c.nome), clientes.flatMap(c => c.apelidos ?? [])),
     [clientesUsados, clientes])

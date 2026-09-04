@@ -29,8 +29,13 @@ insert into expedidores (nome) values
   ('Silvio'), ('Adonai'), ('Hugo'), ('Arthur'), ('Outros')
 on conflict (nome) do nothing;
 
+-- Apelido é para VARIAÇÃO DE ESCRITA do mesmo cliente (acento, abreviação, erro de
+-- digitação) — nunca para agrupar empresas parentes. ÁGUAS DO RIO e AEGEA são clientes
+-- diferentes, ainda que do mesmo grupo: juntar os dois some com a diferença no relatório
+-- e faz a demanda de um sair no nome do outro.
 insert into clientes (nome, apelidos) values
-  ('ÁGUAS DO RIO',                  array['AEGEA','AEGEA SANEAMENTO','AGUAS DO RIO']),
+  ('ÁGUAS DO RIO',                  array['AGUAS DO RIO']),
+  ('AEGEA',                         array['AEGEA SANEAMENTO']),
   ('CONSTRUTORA AFFONSECA',         array['AFFONSECA','LYTORÂNEA','LYTORANEA']),
   ('R2X',                           array['R2X ENGENHARIA']),
   ('JC MORAES',                     array['JC MORAES CONSTRUÇÕES']),
