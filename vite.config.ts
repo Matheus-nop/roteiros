@@ -3,8 +3,24 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
 
+/**
+ * Carimbo desta build. Vai para dentro do pacote (via `define`) e também para um
+ * `version.json` publicado ao lado dele. Comparar os dois é o que permite descobrir que
+ * saiu versão nova SEM depender do service worker — que é justamente o que pode travar.
+ */
+const VERSAO = new Date().toISOString()
+
 export default defineConfig({
+  define: { __VERSAO__: JSON.stringify(VERSAO) },
   plugins: [
+    {
+      // Arquivo minúsculo, fora do precache (o workbox só guarda js/css/html/svg/png/woff2):
+      // ele precisa vir sempre da rede para servir de referência.
+      name: 'carimbo-de-versao',
+      generateBundle() {
+        this.emitFile({ type: 'asset', fileName: 'version.json', source: JSON.stringify({ versao: VERSAO }) })
+      },
+    },
     react(),
     tailwindcss(),
     VitePWA({
@@ -42,7 +58,7 @@ export default defineConfig({
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
         // Sem isso o cache da versão anterior fica no disco do usuário para sempre.
         cleanupOutdatedCaches: true,
-        navigateFallbackDenylist: [/^\/rest/, /^\/auth/],
+        navigateFallbackDenylist: [/^\/rest/, /^\/auth/, /^\/version\.json$/],
       },
     }),
   ],
