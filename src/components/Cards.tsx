@@ -5,7 +5,7 @@ import { CSS as CSSdnd } from '@dnd-kit/utilities'
 import { ChevronDown, Package, MapPin, CalendarDays, GripVertical, EyeOff, Eye, RotateCcw } from 'lucide-react'
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { Demanda } from '../lib/types'
-import { fmtData, fmtPatrimonio, rotuloEspera } from '../lib/format'
+import { fmtData, fmtDataCurta, fmtPatrimonio, diasDesde } from '../lib/format'
 import { PRIORIDADE_TONE, SEPARACAO_LABEL, SEPARACAO_TONE, STATUS_LABEL, STATUS_TONE } from '../lib/status'
 import { Badge, BadgeTipo, Checkbox, cx } from './ui'
 
@@ -117,16 +117,30 @@ export function GrupoCard({ titulo, subtitulo, chips, contagem, direita, childre
  * "não deu para fazer e voltou" é a informação que muda a decisão do PCM ao montar o
  * próximo roteiro, e antes ela se perdia no meio dos detalhes.
  */
-export function BadgeReagendada({ d, completo }: { d: Pick<Demanda, 'data_reagendada' | 'data_planejada' | 'pendente_desde'>; completo?: boolean }) {
-  // A espera é a informação que decide prioridade: "reagendada" sozinho não distingue
-  // a que falhou ontem da que está sendo empurrada há duas semanas.
-  const espera = rotuloEspera(d.pendente_desde)
-  const data = d.data_reagendada ?? d.data_planejada
+/**
+ * Marca de demanda reagendada, sempre com a data.
+ *
+ * "REAGENDADA" sozinho não distingue a que falhou ontem da que está sendo empurrada há
+ * duas semanas — e é essa diferença que decide a prioridade do PCM.
+ *
+ * Os dois rótulos dizem coisas diferentes e por isso não se misturam:
+ *   desde  quando ela começou a esperar (`pendente_desde`)
+ *   para   a data para onde foi jogada, quando não se sabe desde quando espera
+ *
+ * A partir de dois dias o número entra junto: aí a data sozinha exige conta de cabeça.
+ */
+export function BadgeReagendada({ d }: { d: Pick<Demanda, 'data_reagendada' | 'data_planejada' | 'pendente_desde'> }) {
+  const dias = diasDesde(d.pendente_desde)
+  const desde = d.pendente_desde ? fmtDataCurta(d.pendente_desde.slice(0, 10)) : null
+  const para = d.data_reagendada ?? d.data_planejada
+
+  const detalhe = desde
+    ? `desde ${desde}${dias !== null && dias >= 2 ? ` · ${dias} dias` : ''}`
+    : para ? `para ${fmtDataCurta(para)}` : null
+
   return (
     <Badge tone="bg-orange-100 text-orange-800 ring-orange-300">
-      <RotateCcw size={10} className="mr-0.5 inline" />REAGENDADA
-      {espera && espera !== 'hoje' ? ` · ${espera}` : ''}
-      {completo && data ? ` · para ${fmtData(data)}` : ''}
+      <RotateCcw size={10} className="mr-0.5 inline" />REAGENDADA{detalhe ? ` · ${detalhe}` : ''}
     </Badge>
   )
 }
