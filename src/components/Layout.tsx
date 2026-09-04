@@ -32,7 +32,7 @@ const MENU: ItemMenu[] = [
 export function Layout() {
   const { usuario, sair, modoDemo, pode } = useAuth()
   const { conectado, recarregar, carregando } = useData()
-  const { podeInstalar, instalar, temAtualizacao, atualizar, versao } = usePwa()
+  const { podeInstalar, instalar, temAtualizacao, falhouAtualizar, atualizar, adiar, versao } = usePwa()
   const [nova, setNova] = useState(false)
   const [menu, setMenu] = useState(false)
   const [gaveta, setGaveta] = useState(false)
@@ -163,10 +163,23 @@ export function Layout() {
         </div>
       )}
 
+      {/* O aviso sempre tem como sair da tela: "Depois" cala esta versão, e se a recarga
+          forçada não trouxer a versão nova o texto muda em vez de repetir o mesmo botão. */}
       {temAtualizacao && (
-        <div className="flex items-center justify-center gap-3 bg-brand-700 px-4 py-2 text-[13px] text-white print:hidden">
-          <span>Uma versão nova do app está pronta.</span>
-          <button onClick={() => atualizar()} className="rounded-md bg-acento-500 px-2.5 py-1 text-[12px] font-bold text-brand-900 hover:bg-acento-400">Atualizar agora</button>
+        <div className={cx('flex flex-wrap items-center justify-center gap-x-3 gap-y-1.5 px-4 py-2 text-[13px] text-white print:hidden',
+          falhouAtualizar ? 'bg-amber-600' : 'bg-brand-700')}>
+          {falhouAtualizar ? (
+            <>
+              <span className="text-center">Não consegui atualizar sozinho. Feche o app por completo e abra de novo.</span>
+              <button onClick={() => adiar()} className="rounded-md bg-white/20 px-2.5 py-1 text-[12px] font-bold hover:bg-white/30">Entendi</button>
+            </>
+          ) : (
+            <>
+              <span className="text-center">Uma versão nova do app está pronta.</span>
+              <button onClick={() => atualizar()} className="rounded-md bg-acento-500 px-2.5 py-1 text-[12px] font-bold text-brand-900 hover:bg-acento-400">Atualizar agora</button>
+              <button onClick={() => adiar()} className="rounded-md px-2 py-1 text-[12px] font-medium text-white/80 underline-offset-2 hover:text-white hover:underline">Depois</button>
+            </>
+          )}
         </div>
       )}
 
