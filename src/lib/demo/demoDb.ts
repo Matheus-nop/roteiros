@@ -2,7 +2,8 @@
 // Simula: trigger de histórico, updated_at, numeração e realtime (inclusive entre abas do navegador).
 import type { Db, EventoTabela, Filtro } from '../db'
 import { DbError } from '../db'
-import type { Demanda, Historico, Papel, Usuario } from '../types'
+import type { Demanda, Historico, Papel, Tecnico, Usuario } from '../types'
+import { daDemanda } from '../relatorios'
 import { clientesSeed, equipamentosSeed, expedidoresSeed, gerarDemandasSeed, tecnicosSeed, veiculosSeed } from './seed'
 
 type Linha = Record<string, any>
@@ -108,19 +109,38 @@ export class DemoDb implements Db {
     this.emitirLocal('historico', { tipo: 'INSERT', novo: h as unknown as Record<string, unknown> })
   }
 
-  async select<T>(tabela: string, f?: Filtro): Promise<T[]> {
-    // `v_localidades` é view no Postgres; aqui é derivada na hora, do mesmo jeito.
-    if (tabela === 'v_localidades') {
+  /** Views do Postgres, derivadas na hora — mesma saída, para a tela não saber a diferença. */
+  private view(tabela: string): Linha[] | null {
+    const contar = (campo: string) => {
       const contagem = new Map<string, number>()
       for (const d of this.tabela('demandas')) {
-        const local = String(d.local ?? '').trim()
-        if (local) contagem.set(local, (contagem.get(local) ?? 0) + 1)
+        const v = String(d[campo] ?? '').trim()
+        if (v) contagem.set(v, (contagem.get(v) ?? 0) + 1)
       }
-      return Array.from(contagem.entries())
-        .map(([nome, usos]) => ({ nome, usos }))
-        .sort((a, b) => b.usos - a.usos) as T[]
+      return Array.from(contagem.entries()).map(([nome, usos]) => ({ nome, usos })).sort((a, b) => b.usos - a.usos)
     }
-    let rows = [...this.tabela(tabela)]
+    if (tabela === 'v_localidades') return contar('local')
+    if (tabela === 'v_clientes_uso') return contar('cliente_nome')
+    if (tabela === 'v_equipamentos_uso') return contar('equipamento_nome')
+    if (tabela === 'v_rel_demandas') {
+      const tecnicos = new Map((this.tabela('tecnicos') as Tecnico[]).map(t => [t.id, t.nome]))
+      return (this.tabela('demandas') as Demanda[]).map(d => daDemanda(d, id => (id ? tecnicos.get(id) ?? null : null)))
+    }
+    return null
+  }
+
+  async select<T>(tabela: string, f?: Filtro): Promise<T[]> {
+    const daView = this.view(tabela)
+    if (daView) {
+      // As views passam pelo mesmo filtro das tabelas: é assim que o recorte por `mes`
+      // do relatório funciona igual aqui e no banco.
+      return this.filtrar(daView, f) as T[]
+    }
+    return this.filtrar([...this.tabela(tabela)], f) as T[]
+  }
+
+  private filtrar(linhas: Linha[], f?: Filtro): Linha[] {
+    let rows = linhas
     if (f?.eq) for (const [k, v] of Object.entries(f.eq)) rows = rows.filter(r => r[k] === v)
     if (f?.in) for (const [k, v] of Object.entries(f.in)) rows = rows.filter(r => v.includes(r[k]))
     if (f?.notIn) for (const [k, v] of Object.entries(f.notIn)) rows = rows.filter(r => !v.includes(r[k]))
@@ -131,8 +151,9 @@ export class DemoDb implements Db {
     if (f?.order) {
       for (const o of [...f.order].reverse()) rows.sort((a, b) => (o.asc ?? true ? 1 : -1) * cmp(a[o.col], b[o.col]))
     }
+    if (f?.offset) rows = rows.slice(f.offset)
     if (f?.limit) rows = rows.slice(0, f.limit)
-    return structuredClone(rows) as T[]
+    return structuredClone(rows)
   }
 
   async insert<T>(tabela: string, linhas: Record<string, unknown>[]): Promise<T[]> {

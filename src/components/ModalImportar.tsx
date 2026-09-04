@@ -65,7 +65,7 @@ export function ModalImportar({ aberto, onFechar }: { aberto: boolean; onFechar(
     const linhas: NovaDemanda[] = r.data.map(row => {
       const g = (k: string) => { const c = cols.find(c => c.k === k); return c ? (row[c.h] ?? '').toString().trim() : '' }
       const nCli = normalizar(g('cliente'))
-      const cli = clientes.find(c => normalizar(c.nome) === nCli || c.apelidos.some(a => normalizar(a) === nCli))
+      const cli = clientes.find(c => normalizar(c.nome) === nCli || (c.apelidos ?? []).some(a => normalizar(a) === nCli))
       const nEq = normalizar(g('equipamento')); const pat = g('patrimonio')
       const eq = equipamentos.find(e => normalizar(e.nome) === nEq && (pat ? normalizar(e.patrimonio) === normalizar(pat) : true))
       const qtd = Number(g('quantidade').replace(',', '.')) || 1
@@ -93,7 +93,10 @@ export function ModalImportar({ aberto, onFechar }: { aberto: boolean; onFechar(
     setSalvando(true)
     try {
       const { criadas, duplicadas } = await acoes.lancar(parse.linhas, demandas)
-      toast(`${criadas.length} importada(s)${duplicadas.length ? `, ${duplicadas.length} duplicada(s) ignorada(s)` : ''}.`)
+      // Importação é onde mais chega nome que ainda não existe no cadastro.
+      const novos = await acoes.aprenderCadastros(criadas, clientes, equipamentos)
+      const aprendeu = novos.clientes.length + novos.equipamentos.length
+      toast(`${criadas.length} importada(s)${duplicadas.length ? `, ${duplicadas.length} duplicada(s) ignorada(s)` : ''}${aprendeu ? `, ${aprendeu} cadastro(s) novo(s)` : ''}.`)
       setTexto(''); onFechar()
     } catch (e) { erro(e) } finally { setSalvando(false) }
   }

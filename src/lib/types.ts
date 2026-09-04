@@ -34,6 +34,8 @@ export interface Cliente {
   id: string
   nome: string
   apelidos: string[]
+  /** Nasceu de um nome digitado no lançamento, não de um cadastro feito à mão (0008). */
+  criado_automaticamente?: boolean
 }
 
 export interface Equipamento {
@@ -42,6 +44,8 @@ export interface Equipamento {
   patrimonio: string | null
   controlado_por_quantidade: boolean
   unidade: string | null
+  /** Nasceu de um nome digitado no lançamento, não de um cadastro feito à mão (0008). */
+  criado_automaticamente?: boolean
 }
 
 export interface Expedidor {

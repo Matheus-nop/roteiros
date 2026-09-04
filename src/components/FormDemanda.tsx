@@ -9,7 +9,7 @@ import { fmtDataHora, hojeISO, normalizar } from '../lib/format'
 import { encontrarDuplicata } from '../lib/actions'
 import { Botao, Campo, Input, Modal, Select } from './ui'
 import { CampoSugestao } from './CampoSugestao'
-import { useLocalidades } from '../hooks/useLocalidades'
+import { useClientesMaisUsados, useEquipamentosMaisUsados, useLocalidades, juntarSemRepetir } from '../hooks/useVocabulario'
 
 type Linha = { om: string; cliente: string; local: string; tipo: Tipo; equipamento: string; patrimonio: string; quantidade: string; observacao: string }
 const vazia = (): Linha => ({ om: '', cliente: '', local: '', tipo: 'ENTREGA', equipamento: '', patrimonio: '', quantidade: '1', observacao: '' })
@@ -20,14 +20,23 @@ export function ModalNovaDemanda({ aberto, onFechar }: { aberto: boolean; onFech
   const [linhas, setLinhas] = useState<Linha[]>([vazia()])
   const [salvando, setSalvando] = useState(false)
 
-  const nomesEquip = useMemo(() => Array.from(new Set(equipamentos.map(e => e.nome))).sort(), [equipamentos])
   const localidades = useLocalidades()
-  // Apelidos entram na lista: quem digita "AEGEA" precisa achar "ÁGUAS DO RIO".
-  const nomesCliente = useMemo(() => clientes.flatMap(c => [c.nome, ...c.apelidos]), [clientes])
+  const clientesUsados = useClientesMaisUsados()
+  const equipsUsados = useEquipamentosMaisUsados()
+
+  // Ordem da lista: primeiro o que a equipe mais usa, depois o resto do cadastro. Quem
+  // lança dez demandas por dia digita quase sempre os mesmos cinco nomes.
+  // Os apelidos entram no fim: quem digita "AEGEA" precisa achar "ÁGUAS DO RIO".
+  const nomesCliente = useMemo(
+    () => juntarSemRepetir(clientesUsados, clientes.map(c => c.nome), clientes.flatMap(c => c.apelidos ?? [])),
+    [clientesUsados, clientes])
+  const nomesEquip = useMemo(
+    () => juntarSemRepetir(equipsUsados, [...equipamentos.map(e => e.nome)].sort()),
+    [equipsUsados, equipamentos])
 
   const resolverCliente = (nome: string) => {
     const n = normalizar(nome)
-    return clientes.find(c => normalizar(c.nome) === n || c.apelidos.some(a => normalizar(a) === n))
+    return clientes.find(c => normalizar(c.nome) === n || (c.apelidos ?? []).some(a => normalizar(a) === n))
   }
   const resolverEquip = (nome: string, pat: string) => {
     const n = normalizar(nome)
@@ -69,7 +78,17 @@ export function ModalNovaDemanda({ aberto, onFechar }: { aberto: boolean; onFech
       const { criadas, duplicadas } = await acoes.lancar(validas.map(montar), demandas)
       if (criadas.length) toast(`${criadas.length} demanda(s) lançada(s).`)
       if (duplicadas.length) toast(`${duplicadas.length} ignorada(s) por duplicidade (mesmo equipamento + patrimônio + OM + cliente ainda ativo).`, 'erro')
-      if (criadas.length) { setLinhas([vazia()]); onFechar() }
+      if (criadas.length) {
+        // O que foi digitado à mão vira cadastro — e o aviso diz o quê, para ninguém
+        // descobrir depois que o sistema andou criando linha sozinho.
+        const novos = await acoes.aprenderCadastros(criadas, clientes, equipamentos)
+        const partes = [
+          novos.clientes.length ? `${novos.clientes.length} cliente(s)` : '',
+          novos.equipamentos.length ? `${novos.equipamentos.length} equipamento(s)` : '',
+        ].filter(Boolean)
+        if (partes.length) toast(`Cadastrado automaticamente: ${partes.join(' e ')}.`)
+        setLinhas([vazia()]); onFechar()
+      }
     } catch (e) { erro(e) } finally { setSalvando(false) }
   }
 
@@ -110,6 +129,8 @@ export function ModalNovaDemanda({ aberto, onFechar }: { aberto: boolean; onFech
 export function ModalEditarDemanda({ d, onFechar }: { d: Demanda | null; onFechar(): void }) {
   const { acoes, clientes, nomeDoUsuario } = useData()
   const localidades = useLocalidades()
+  const clientesUsados = useClientesMaisUsados()
+  const equipsUsados = useEquipamentosMaisUsados()
   const { toast, erro } = useToast()
   const [f, setF] = useState<Partial<Demanda>>({})
   const v = { ...d, ...f } as Demanda
@@ -118,7 +139,7 @@ export function ModalEditarDemanda({ d, onFechar }: { d: Demanda | null; onFecha
   const salvar = async () => {
     try {
       const n = normalizar(v.cliente_nome)
-      const cli = clientes.find(c => normalizar(c.nome) === n || c.apelidos.some(a => normalizar(a) === n))
+      const cli = clientes.find(c => normalizar(c.nome) === n || (c.apelidos ?? []).some(a => normalizar(a) === n))
       await acoes.editar(d.id, { ...f, cliente_id: cli?.id ?? d.cliente_id, cliente_nome: cli?.nome ?? v.cliente_nome })
       toast('Demanda atualizada.'); onFechar()
     } catch (e) { erro(e) }
@@ -127,10 +148,10 @@ export function ModalEditarDemanda({ d, onFechar }: { d: Demanda | null; onFecha
     <Modal aberto onFechar={onFechar} titulo={`Editar demanda #${d.numero}`} largura="max-w-3xl" rodape={<><Botao onClick={onFechar}>Cancelar</Botao><Botao variante="primario" onClick={salvar}>Salvar</Botao></>}>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <Campo rotulo="OM / OS"><Input value={v.om ?? ''} onChange={e => set('om', e.target.value)} className="om" /></Campo>
-        <Campo rotulo="Cliente" className="md:col-span-2"><CampoSugestao valor={v.cliente_nome ?? ''} onChange={x => set('cliente_nome', x)} sugestoes={clientes.flatMap(c => [c.nome, ...c.apelidos])} /></Campo>
+        <Campo rotulo="Cliente" className="md:col-span-2"><CampoSugestao valor={v.cliente_nome ?? ''} onChange={x => set('cliente_nome', x)} sugestoes={juntarSemRepetir(clientesUsados, clientes.map(c => c.nome), clientes.flatMap(c => c.apelidos ?? []))} /></Campo>
         <Campo rotulo="Local" className="md:col-span-2"><CampoSugestao valor={v.local ?? ''} onChange={x => set('local', x)} sugestoes={localidades} placeholder="comece a digitar: duque…" /></Campo>
         <Campo rotulo="Tipo"><Select value={v.tipo} onChange={e => set('tipo', e.target.value)}>{TIPOS.map(t => <option key={t}>{t}</option>)}</Select></Campo>
-        <Campo rotulo="Equipamento" className="md:col-span-2"><Input value={v.equipamento_nome ?? ''} onChange={e => set('equipamento_nome', e.target.value)} /></Campo>
+        <Campo rotulo="Equipamento" className="md:col-span-2"><CampoSugestao valor={v.equipamento_nome ?? ''} onChange={x => set('equipamento_nome', x)} sugestoes={equipsUsados} /></Campo>
         <Campo rotulo="Patrimônio"><Input value={v.patrimonio ?? ''} onChange={e => set('patrimonio', e.target.value || null)} /></Campo>
         <Campo rotulo="Quantidade"><Input type="number" value={v.quantidade} onChange={e => set('quantidade', Number(e.target.value))} /></Campo>
         <Campo rotulo="Unidade"><Input value={v.unidade ?? ''} onChange={e => set('unidade', e.target.value || null)} /></Campo>

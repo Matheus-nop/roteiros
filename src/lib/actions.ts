@@ -1,7 +1,7 @@
 // Operações de negócio sobre `demandas`. Todas identificam registros por uuid.
 import type { Db } from './db'
 import { DbError } from './db'
-import type { Demanda, Fechamento, NovaDemanda, Status, Historico, StatusSeparacao, EtiquetaAvulsa, RoteiroArquivado } from './types'
+import type { Cliente, Demanda, Equipamento, Fechamento, NovaDemanda, Status, Historico, StatusSeparacao, EtiquetaAvulsa, RoteiroArquivado } from './types'
 import { STATUS_ARQUIVADOS, STATUS_EM_ROTA, proximaTriagem } from './status'
 import { hojeISO, normalizar, ordenarParadas } from './format'
 import { contarDesfechos, montarParadas } from './arquivo'
@@ -36,6 +36,87 @@ export function criarAcoes(db: Db) {
       }
       const criadas = aceitas.length ? await db.insert<Demanda>(T, aceitas) : []
       return { criadas, duplicadas }
+    },
+
+    /**
+     * Cliente ou equipamento digitado à mão vira cadastro, e a demanda passa a apontar
+     * para ele.
+     *
+     * POR QUE ISSO EXISTE
+     *
+     * O nome digitado já é a verdade: a demanda foi lançada com ele e vai ser executada
+     * com ele. Deixar de fora do cadastro só garante que a próxima pessoa digite de novo,
+     * com outra grafia — e aí o mesmo equipamento aparece três vezes no relatório.
+     * Cadastrar na hora é o que faz a sugestão da próxima vez já estar pronta.
+     *
+     * DUAS SALVAGUARDAS
+     *
+     * 1. Só entra o que passou pelo `lancar` — nome de linha duplicada ou recusada não
+     *    vira cadastro.
+     * 2. Nasce marcado com `criado_automaticamente`, e o Cadastros mostra a marca. Erro
+     *    de digitação vira cadastro, sim; o que não pode é virar cadastro invisível.
+     *
+     * Falha de escrita não derruba o lançamento: a demanda já está salva, e o cadastro é
+     * conveniência. Devolve o que criou para a tela poder contar.
+     */
+    async aprenderCadastros(criadas: Demanda[], clientes: Cliente[], equipamentos: Equipamento[]) {
+      const nomeConhecido = new Set(clientes.flatMap(c => [c.nome, ...c.apelidos]).map(normalizar))
+      const equipConhecido = new Set(equipamentos.map(e => `${normalizar(e.nome)}|${normalizar(e.patrimonio)}`))
+
+      const clientesNovos = new Map<string, string>()
+      const equipsNovos = new Map<string, { nome: string; patrimonio: string | null; controlado_por_quantidade: boolean; unidade: string | null }>()
+
+      for (const d of criadas) {
+        // Nome com uma ou duas letras é quase sempre engano de digitação, não cadastro.
+        const cli = (d.cliente_nome ?? '').trim()
+        if (!d.cliente_id && cli.length >= 3 && !nomeConhecido.has(normalizar(cli)) && !clientesNovos.has(normalizar(cli))) {
+          clientesNovos.set(normalizar(cli), cli.toUpperCase())
+        }
+        const eq = (d.equipamento_nome ?? '').trim()
+        const chaveEq = `${normalizar(eq)}|${normalizar(d.patrimonio)}`
+        if (!d.equipamento_id && eq.length >= 3 && !equipConhecido.has(chaveEq) && !equipsNovos.has(chaveEq)) {
+          equipsNovos.set(chaveEq, {
+            nome: eq.toUpperCase(),
+            patrimonio: d.patrimonio?.trim() || null,
+            // Sem patrimônio, o item é controlado por quantidade — é a mesma regra que o
+            // formulário aplica ao montar a demanda.
+            controlado_por_quantidade: !d.patrimonio?.trim(),
+            unidade: d.unidade ?? (!d.patrimonio?.trim() ? 'UNIDADE' : null),
+          })
+        }
+      }
+
+      const inserir = async <T,>(tabela: string, linhas: Record<string, unknown>[]): Promise<T[]> => {
+        if (!linhas.length) return []
+        try { return await db.insert<T>(tabela, linhas.map(l => ({ ...l, criado_automaticamente: true }))) }
+        // Sem a coluna `criado_automaticamente` (migração 0008 não rodou) ou sem
+        // permissão: o cadastro é conveniência, o lançamento já está salvo.
+        catch { try { return await db.insert<T>(tabela, linhas) } catch { return [] } }
+      }
+
+      // `apelidos: []` explícito: a coluna tem default no banco, mas a lista de sugestão
+      // percorre `c.apelidos` e uma linha sem o campo quebraria o formulário inteiro.
+      const novosClientes = await inserir<Cliente>('clientes', Array.from(clientesNovos.values()).map(nome => ({ nome, apelidos: [] })))
+      const novosEquips = await inserir<Equipamento>('equipamentos', Array.from(equipsNovos.values()))
+
+      // Amarra as demandas recém-criadas nos cadastros recém-criados: sem isso elas
+      // ficariam para sempre com o nome solto e fora do agrupamento por FK.
+      const porNomeCliente = new Map(novosClientes.map(c => [normalizar(c.nome), c.id]))
+      const porChaveEquip = new Map(novosEquips.map(e => [`${normalizar(e.nome)}|${normalizar(e.patrimonio)}`, e.id]))
+      await Promise.all(criadas.map(async d => {
+        const p: Record<string, unknown> = {}
+        if (!d.cliente_id) {
+          const id = porNomeCliente.get(normalizar(d.cliente_nome))
+          if (id) p.cliente_id = id
+        }
+        if (!d.equipamento_id) {
+          const id = porChaveEquip.get(`${normalizar(d.equipamento_nome)}|${normalizar(d.patrimonio)}`)
+          if (id) p.equipamento_id = id
+        }
+        if (Object.keys(p).length) { try { await patch(d.id, p) } catch { /* segue */ } }
+      }))
+
+      return { clientes: novosClientes.map(c => c.nome), equipamentos: novosEquips.map(e => e.nome) }
     },
 
     async avancarTriagem(d: Demanda) {

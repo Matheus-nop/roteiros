@@ -11,6 +11,19 @@ import { PAPEL_LABEL } from '../lib/status'
 
 type Aba = 'clientes' | 'equipamentos' | 'expedidores' | 'usuarios'
 
+/**
+ * Marca a linha que o próprio sistema criou a partir de um nome digitado no lançamento.
+ * Cadastro que nasce sozinho precisa aparecer: é assim que erro de digitação vira algo
+ * que alguém conserta, em vez de virar um segundo nome do mesmo equipamento no relatório.
+ */
+function BadgeAuto({ de }: { de: { criado_automaticamente?: boolean } }) {
+  if (!de.criado_automaticamente) return null
+  return <Badge tone="bg-violet-50 text-violet-800 ring-violet-200" className="ml-1.5" >do lançamento</Badge>
+}
+
+/** Quantos cadastros nasceram de um lançamento — vira o aviso de "confira estes". */
+const contarAuto = (linhas: { criado_automaticamente?: boolean }[]) => linhas.filter(l => l.criado_automaticamente).length
+
 export function Cadastros() {
   const { pode, usuario } = useAuth()
   const [aba, setAba] = useState<Aba>('clientes')
@@ -35,14 +48,14 @@ function Clientes({ editar }: { editar: boolean }) {
   const { toast, erro } = useToast()
   const [f, setF] = useState<{ id?: string; nome: string; apelidos: string } | null>(null)
   const [busca, setBusca] = useState('')
-  const lista = clientes.filter(c => !busca || (c.nome + ' ' + c.apelidos.join(' ')).toLowerCase().includes(busca.toLowerCase()))
+  const lista = clientes.filter(c => !busca || (c.nome + ' ' + (c.apelidos ?? []).join(' ')).toLowerCase().includes(busca.toLowerCase()))
   const salvar = async () => {
     if (!f?.nome.trim()) return
     const dados = { nome: f.nome.trim().toUpperCase(), apelidos: f.apelidos.split(/[,;\n]/).map(s => s.trim().toUpperCase()).filter(Boolean) }
     try { if (f.id) await db.update('clientes', f.id, dados); else await db.insert('clientes', [dados]); toast('Cliente salvo.'); setF(null) } catch (e) { erro(e) }
   }
   return (
-    <Cartao titulo={<span>Clientes <span className="font-normal text-slate-500">· apelidos unificam nomes diferentes do mesmo cliente</span></span>} acoes={<>
+    <Cartao titulo={<span>Clientes <span className="font-normal text-slate-500">· apelidos unificam nomes diferentes do mesmo cliente{contarAuto(clientes) ? ` · ${contarAuto(clientes)} veio do lançamento` : ''}</span></span>} acoes={<>
       <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar…" className="w-48" />
       {editar && <Botao tamanho="sm" variante="primario" onClick={() => setF({ nome: '', apelidos: '' })}><Plus size={13} />Novo cliente</Botao>}
     </>}>
@@ -50,10 +63,10 @@ function Clientes({ editar }: { editar: boolean }) {
         <thead><tr><th>Cliente</th><th>Apelidos</th><th>Demandas ativas</th><th /></tr></thead>
         <tbody>{lista.map(c => (
           <tr key={c.id}>
-            <td className="font-medium">{c.nome}</td>
-            <td className="text-xs text-slate-600">{c.apelidos.length ? c.apelidos.map(a => <Badge key={a} className="mr-1">{a}</Badge>) : '—'}</td>
+            <td className="font-medium">{c.nome}<BadgeAuto de={c} /></td>
+            <td className="text-xs text-slate-600">{(c.apelidos ?? []).length ? (c.apelidos ?? []).map(a => <Badge key={a} className="mr-1">{a}</Badge>) : '—'}</td>
             <td className="tabular-nums">{demandas.filter(d => d.cliente_id === c.id).length}</td>
-            <td className="text-right">{editar && <Botao tamanho="sm" variante="fantasma" onClick={() => setF({ id: c.id, nome: c.nome, apelidos: c.apelidos.join(', ') })}><Pencil size={13} /></Botao>}</td>
+            <td className="text-right">{editar && <Botao tamanho="sm" variante="fantasma" onClick={() => setF({ id: c.id, nome: c.nome, apelidos: (c.apelidos ?? []).join(', ') })}><Pencil size={13} /></Botao>}</td>
           </tr>))}</tbody>
       </table></div>
       <Modal aberto={!!f} onFechar={() => setF(null)} titulo={f?.id ? 'Editar cliente' : 'Novo cliente'} rodape={<><Botao onClick={() => setF(null)}>Cancelar</Botao><Botao variante="primario" onClick={salvar}>Salvar</Botao></>}>
@@ -79,7 +92,7 @@ function Equipamentos({ editar }: { editar: boolean }) {
     try { if (f.id) await db.update('equipamentos', f.id, dados); else await db.insert('equipamentos', [dados]); toast('Equipamento salvo.'); setF(null) } catch (e) { erro(e) }
   }
   return (
-    <Cartao titulo={<span>Equipamentos <span className="font-normal text-slate-500">· {equipamentos.length} cadastrados</span></span>} acoes={<>
+    <Cartao titulo={<span>Equipamentos <span className="font-normal text-slate-500">· {equipamentos.length} cadastrados{contarAuto(equipamentos) ? ` · ${contarAuto(equipamentos)} veio do lançamento` : ''}</span></span>} acoes={<>
       <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar nome ou patrimônio…" className="w-56" />
       {editar && <Botao tamanho="sm" variante="primario" onClick={() => setF({ controlado_por_quantidade: false })}><Plus size={13} />Novo equipamento</Botao>}
     </>}>
@@ -88,7 +101,7 @@ function Equipamentos({ editar }: { editar: boolean }) {
           <thead><tr><th>Equipamento</th><th>Patrimônio</th><th>Controle</th><th>Unidade</th><th /></tr></thead>
           <tbody>{lista.map(e => (
             <tr key={e.id}>
-              <td className="font-medium">{e.nome}</td>
+              <td className="font-medium">{e.nome}<BadgeAuto de={e} /></td>
               <td className="font-mono text-xs">{e.patrimonio ?? '—'}</td>
               <td>{e.controlado_por_quantidade ? <Badge tone="bg-sky-50 text-sky-800 ring-sky-200">por quantidade</Badge> : <Badge>patrimônio</Badge>}</td>
               <td className="text-xs">{e.unidade ?? '—'}</td>

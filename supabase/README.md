@@ -20,6 +20,25 @@ VITE_SUPABASE_URL=...
 VITE_SUPABASE_ANON_KEY=...
 ```
 
+## Migrações
+
+Rode na ordem, uma vez cada, no SQL Editor. Todas são idempotentes — rodar de novo não
+quebra nada.
+
+| Arquivo | O que traz |
+|---|---|
+| `0001_schema.sql` | tabelas, índices, triggers (updated_at, histórico), perfis, RLS, realtime |
+| `0002_expedicao_prioridade.sql` | prioridade da demanda e etiquetas avulsas |
+| `0003_roteiros_arquivo.sql` | arquivo digital do roteiro, como foi montado |
+| `0004_rls_tecnico.sql` | o técnico só enxerga o roteiro dele |
+| `0005_autoria.sql` | quem lançou a demanda (`created_by` com default) |
+| `0006_localidades.sql` | `v_localidades` — sugestão do campo Local |
+| `0007_marcos_de_tempo.sql` | `pendente_desde` e `reagendado_em` |
+| `0008_relatorios_e_vocabulario.sql` | `v_rel_demandas` (relatórios), `v_clientes_uso`, `v_equipamentos_uso`, cadastro criado no lançamento |
+
+Scripts avulsos ficam em `scripts/` e **não** fazem parte da sequência: são correções
+pontuais e testes, cada um com a explicação no topo do arquivo.
+
 ## Erro `column "veiculo_padrao" of relation "tecnicos" does not exist`
 
 Acontece quando o projeto já tinha uma tabela `tecnicos` (ou outra do app) com
@@ -39,7 +58,7 @@ não altera tabelas existentes. Duas saídas:
 |------------|------------------------------------------------------------------------|
 | ADMIN      | Tudo, incluindo usuários                                               |
 | PCM        | Fila, planejamento, roteiros, pendências, cadastros, histórico         |
-| COMERCIAL  | Lançar e triar demandas na fila                                        |
+| COMERCIAL  | Lançar e triar demandas na fila; **criar** (não editar) cliente e equipamento |
 | EXPEDICAO  | Expedição e pré-carga (separação, fechamento do dia)                   |
 | TECNICO    | Imp. técnico e roteiro (finalizar / pendente)                          |
 
@@ -48,6 +67,11 @@ A migração foi validada num PostgreSQL 16 local com um shim do schema `auth`
 
 A RLS libera leitura para qualquer usuário autenticado e restringe escrita por papel.
 O front esconde/desabilita o que o papel não pode fazer, mas a proteção real é no banco.
+
+O COMERCIAL ganhou INSERT em `clientes` e `equipamentos` na 0008, e só INSERT: é o que
+faz o cadastro automático do lançamento funcionar sem abrir a porta para renomear ou
+apagar cadastro (renomear reescreve o passado de todo mundo). A prova disso está em
+`scripts/testar-rls-0008.sql`, que roda num Postgres local e espera 18 "OK".
 
 ## Auditoria
 
