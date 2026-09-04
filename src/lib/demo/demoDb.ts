@@ -151,6 +151,27 @@ export class DemoDb implements Db {
     return structuredClone(out) as T[]
   }
 
+  async upsert<T>(tabela: string, linhas: Record<string, unknown>[], onConflict: string): Promise<T[]> {
+    const chaves = onConflict.split(',').map(c => c.trim())
+    const t = this.tabela(tabela)
+    const out: Linha[] = []
+    for (const l of linhas) {
+      const i = t.findIndex(r => chaves.every(k => r[k] === l[k]))
+      if (i >= 0) {
+        t[i] = { ...t[i], ...l }
+        out.push(t[i])
+        this.emitir(tabela, { tipo: 'UPDATE', novo: structuredClone(t[i]) })
+      } else {
+        const row: Linha = { ...l, id: (l.id as string) ?? uuid(), created_at: new Date().toISOString() }
+        t.push(row)
+        out.push(row)
+        this.emitir(tabela, { tipo: 'INSERT', novo: structuredClone(row) })
+      }
+    }
+    this.persistir()
+    return structuredClone(out) as T[]
+  }
+
   async update<T>(tabela: string, id: string, patch: Record<string, unknown>): Promise<T> {
     const t = this.tabela(tabela)
     const i = t.findIndex(r => r.id === id)

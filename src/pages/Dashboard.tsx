@@ -27,7 +27,7 @@ export function Dashboard() {
   const { demandas, tecnicos, carregando } = useData()
   const nav = useNavigate()
   const hoje = hojeISO()
-  const encerradasHoje = useEncerradas(hoje, null, true)
+  const encerradasHoje = useEncerradas(useMemo(() => [hoje], [hoje]), null, true)
 
   const m = useMemo(() => {
     const fila = demandas.filter(d => STATUS_FILA.includes(d.status))

@@ -1,3 +1,7 @@
+// Rotas. Cada tela é carregada sob demanda (`lazy`): quem abre o app no 4G do canteiro
+// baixa a tela que vai usar, não as catorze. O técnico, que só usa /meu-roteiro, para de
+// pagar pelo peso do planejamento, da expedição e do histórico.
+import { Suspense, lazy } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { AuthProvider, useAuth } from './hooks/useAuth'
 import { DataProvider } from './hooks/useData'
@@ -5,20 +9,26 @@ import { ToastProvider } from './hooks/useToast'
 import { PrintProvider } from './components/Print'
 import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
-import { Dashboard } from './pages/Dashboard'
-import { MeuRoteiro } from './pages/MeuRoteiro'
-import { Fila } from './pages/Fila'
-import { Planejamento } from './pages/Planejamento'
-import { PreRoteiro } from './pages/PreRoteiro'
-import { Expedicao } from './pages/Expedicao'
-import { PreCarga } from './pages/PreCarga'
-import { Roteiro } from './pages/Roteiro'
-import { ImpTecnico } from './pages/ImpTecnico'
-import { Pendencias } from './pages/Pendencias'
-import { Tecnicos } from './pages/Tecnicos'
-import { Cadastros } from './pages/Cadastros'
-import { Historico } from './pages/Historico'
 import { Carregando } from './components/ui'
+
+// O `lazy` precisa de export default; as telas exportam nomeado, daí o `.then`.
+const tela = <T extends string>(carregar: () => Promise<Record<T, React.ComponentType>>, nome: T) =>
+  lazy(() => carregar().then(m => ({ default: m[nome] })))
+
+const Dashboard = tela(() => import('./pages/Dashboard'), 'Dashboard')
+const MeuRoteiro = tela(() => import('./pages/MeuRoteiro'), 'MeuRoteiro')
+const Fila = tela(() => import('./pages/Fila'), 'Fila')
+const Planejamento = tela(() => import('./pages/Planejamento'), 'Planejamento')
+const PreRoteiro = tela(() => import('./pages/PreRoteiro'), 'PreRoteiro')
+const Expedicao = tela(() => import('./pages/Expedicao'), 'Expedicao')
+const PreCarga = tela(() => import('./pages/PreCarga'), 'PreCarga')
+const Roteiro = tela(() => import('./pages/Roteiro'), 'Roteiro')
+const ImpTecnico = tela(() => import('./pages/ImpTecnico'), 'ImpTecnico')
+const Pendencias = tela(() => import('./pages/Pendencias'), 'Pendencias')
+const Tecnicos = tela(() => import('./pages/Tecnicos'), 'Tecnicos')
+const Cadastros = tela(() => import('./pages/Cadastros'), 'Cadastros')
+const Historico = tela(() => import('./pages/Historico'), 'Historico')
+const Arquivo = tela(() => import('./pages/Arquivo'), 'Arquivo')
 
 function Protegido() {
   const { usuario, carregando } = useAuth()
@@ -42,6 +52,7 @@ function Protegido() {
           <Route path="pendencias" element={<Pendencias />} />
           <Route path="tecnicos" element={<Tecnicos />} />
           <Route path="cadastros" element={<Cadastros />} />
+          <Route path="arquivo" element={<Arquivo />} />
           <Route path="historico" element={<Historico />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
@@ -56,7 +67,11 @@ export default function App() {
       <ToastProvider>
         <PrintProvider>
           <AuthProvider>
-            <Protegido />
+            {/* O Suspense fica dentro dos provedores: trocar de tela não pode
+                desmontar os dados nem a sessão. */}
+            <Suspense fallback={<Carregando texto="Abrindo…" />}>
+              <Protegido />
+            </Suspense>
           </AuthProvider>
         </PrintProvider>
       </ToastProvider>

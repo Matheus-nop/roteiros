@@ -2,7 +2,7 @@
 import { DndContext, DragOverlay, PointerSensor, closestCorners, useDroppable, useSensor, useSensors, type DragEndEvent, type DragStartEvent } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS as CSSdnd } from '@dnd-kit/utilities'
-import { ChevronDown, Package, MapPin, CalendarDays, GripVertical, EyeOff, Eye } from 'lucide-react'
+import { ChevronDown, Package, MapPin, CalendarDays, GripVertical, EyeOff, Eye, RotateCcw } from 'lucide-react'
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { Demanda } from '../lib/types'
 import { fmtData, fmtPatrimonio } from '../lib/format'
@@ -23,6 +23,7 @@ export function CardDemanda({ d, selecionado, onSelecionar, acoes, extra, mostra
   vertical?: boolean
 }) {
   const badges = <>
+    {d.herdado_de_pendencia && <BadgeReagendada d={d} />}
     {d.prioridade && d.prioridade !== 'NORMAL' && <Badge tone={PRIORIDADE_TONE[d.prioridade]}>{d.prioridade}</Badge>}
     <BadgeTipo tipo={d.tipo} />
     {mostrarStatus && <Badge tone={STATUS_TONE[d.status]}>{STATUS_LABEL[d.status]}</Badge>}
@@ -34,7 +35,6 @@ export function CardDemanda({ d, selecionado, onSelecionar, acoes, extra, mostra
       <span>·</span><span className="om">OS {d.om ?? '—'}</span>
       {d.data_planejada && !vertical && <><span>·</span><span className="inline-flex items-center gap-0.5"><CalendarDays size={10} />{fmtData(d.data_planejada)}</span></>}
       {d.veiculo && !vertical && <><span>·</span><span>🚗 {d.veiculo}</span></>}
-      {d.herdado_de_pendencia && <span className="font-medium text-orange-700">↩ reagendada</span>}
       {d.observacao && !vertical && <span className="truncate text-slate-400" title={d.observacao}>· {d.observacao}</span>}
     </div>
   )
@@ -101,6 +101,20 @@ export function GrupoCard({ titulo, subtitulo, chips, contagem, direita, childre
       </header>
       {open && <div className="divide-y divide-slate-100 border-t border-slate-100">{children}</div>}
     </section>
+  )
+}
+
+/**
+ * Marca de demanda reagendada. É badge, e não uma nota discreta no rodapé do card:
+ * "não deu para fazer e voltou" é a informação que muda a decisão do PCM ao montar o
+ * próximo roteiro, e antes ela se perdia no meio dos detalhes.
+ */
+export function BadgeReagendada({ d, completo }: { d: Pick<Demanda, 'data_reagendada' | 'data_planejada'>; completo?: boolean }) {
+  const data = d.data_reagendada ?? d.data_planejada
+  return (
+    <Badge tone="bg-orange-100 text-orange-800 ring-orange-300">
+      <RotateCcw size={10} className="mr-0.5 inline" />REAGENDADA{completo && data ? ` · ${fmtData(data)}` : ''}
+    </Badge>
   )
 }
 

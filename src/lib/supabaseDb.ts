@@ -50,6 +50,13 @@ export class SupabaseDb implements Db {
     return (data ?? []) as T[]
   }
 
+  async upsert<T>(tabela: string, linhas: Record<string, unknown>[], onConflict: string): Promise<T[]> {
+    const { data, error } = await this.client.from(tabela).upsert(linhas, { onConflict }).select('*')
+    if (error) erro(error)
+    for (const r of data ?? []) this.emitirLocal(tabela, { tipo: 'INSERT', novo: r })
+    return (data ?? []) as T[]
+  }
+
   async update<T>(tabela: string, id: string, patch: Record<string, unknown>): Promise<T> {
     const { data, error } = await this.client.from(tabela).update(patch).eq('id', id).select('*').single()
     if (error) erro(error)

@@ -1,9 +1,10 @@
 // Operações de negócio sobre `demandas`. Todas identificam registros por uuid.
 import type { Db } from './db'
 import { DbError } from './db'
-import type { Demanda, Fechamento, NovaDemanda, Status, Historico, StatusSeparacao, EtiquetaAvulsa } from './types'
+import type { Demanda, Fechamento, NovaDemanda, Status, Historico, StatusSeparacao, EtiquetaAvulsa, RoteiroArquivado } from './types'
 import { STATUS_ARQUIVADOS, STATUS_EM_ROTA, proximaTriagem } from './status'
 import { hojeISO, normalizar, ordenarParadas } from './format'
+import { contarDesfechos, montarParadas } from './arquivo'
 
 const T = 'demandas'
 
@@ -141,6 +142,57 @@ export function criarAcoes(db: Db) {
       const alvo: Status = f.tipo === 'PRE_CARGA' ? 'ROTEIRIZADO' : 'EM_DESLOCAMENTO'
       await patchMany(f.demanda_ids, { status: alvo })
       await db.update<Fechamento>('fechamentos', f.id, { estornado: true })
+    },
+
+    // ---------------- Arquivo digital dos roteiros ----------------
+    /**
+     * Arquiva o roteiro se não sobrou nada em rota; se ainda há item aberto, não faz nada.
+     *
+     * Recebe os **ids que compunham o roteiro** (lidos pela tela antes da ação), não um
+     * filtro por data: a demanda reagendada já mudou de data quando esta função roda, e
+     * um filtro por data a perderia — justamente o item cuja falta explica por que o
+     * roteiro fechou. Reler por id devolve o desfecho real de cada um.
+     *
+     * Idempotente por (técnico, data): reabrir e fechar de novo reescreve o registro.
+     */
+    async arquivarSeCompleto(p: { tecnicoId: string; tecnicoNome: string; data: string; ids: string[]; veiculo?: string | null; usuarioId: string | null; automatico?: boolean }): Promise<RoteiroArquivado | null> {
+      if (!p.ids.length || !p.tecnicoId || !p.data) return null
+      const linhas = await db.select<Demanda>(T, { in: { id: p.ids } })
+      if (!linhas.length) return null
+      // Aberto = ainda em rota E ainda neste dia. Reagendada para outro dia não segura o arquivo.
+      const aberto = linhas.some(d => STATUS_EM_ROTA.includes(d.status) && d.data_planejada === p.data)
+      if (aberto) return null
+
+      const paradas = montarParadas(linhas, p.data)
+      const [row] = await db.upsert<RoteiroArquivado>('roteiros_arquivo', [{
+        tecnico_id: p.tecnicoId,
+        tecnico_nome: p.tecnicoNome,
+        data: p.data,
+        veiculo: p.veiculo ?? linhas.find(d => d.veiculo)?.veiculo ?? null,
+        arquivado_por: p.usuarioId,
+        automatico: p.automatico ?? true,
+        paradas,
+        ...contarDesfechos(paradas),
+      }], 'tecnico_id,data')
+      return row ?? null
+    },
+
+    /**
+     * Desfaz o roteiro inteiro: todo item em rota volta ao planejamento.
+     *
+     * Mantém técnico e data — o PCM quase sempre quer remontar o mesmo dia, e limpar
+     * isso jogaria tudo na coluna "sem técnico" para ser reatribuído um a um. Some a
+     * ordem das paradas e a separação, que eram deste roteiro e não valem mais.
+     * O que já foi executado não volta: finalizado é fato consumado.
+     */
+    async desfazerRoteiro(itens: Demanda[]) {
+      const ids = itens.filter(d => STATUS_EM_ROTA.includes(d.status)).map(d => d.id)
+      if (!ids.length) throw new DbError('Não há item em rota neste roteiro para devolver ao planejamento.')
+      await patchMany(ids, {
+        status: 'AGUARDANDO_ROTEIRIZACAO', ordem_parada: null,
+        status_separacao: 'NAO_SEPARADO', separado_por: null, data_separacao: null,
+      })
+      return ids.length
     },
 
     // ---------------- Roteiro / Imp. técnico ----------------
