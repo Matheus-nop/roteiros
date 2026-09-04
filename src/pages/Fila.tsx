@@ -1,5 +1,5 @@
 // Fila em modo kanban: colunas por etapa da triagem, arrastar entre colunas muda o status.
-import { ArrowRight, Upload, Pencil, Send, Copy, XCircle, Search, LayoutGrid, List, Plus } from 'lucide-react'
+import { ArrowRight, Upload, Pencil, Send, Copy, XCircle, Search, LayoutGrid, List, Plus, FileStack } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useAuth } from '../hooks/useAuth'
@@ -7,6 +7,7 @@ import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
 import { ModalEditarDemanda, ModalNovaDemanda } from '../components/FormDemanda'
 import { ModalImportar } from '../components/ModalImportar'
+import { ModalImportarContrato } from '../components/ModalImportarContrato'
 import { BarraSelecao } from '../components/TabelaDemandas'
 import { CardDemanda, Chip, GrupoCard, LocalData, Quadro, type Coluna } from '../components/Cards'
 import { Botao, Confirmar, Input, Pagina, Select, cx } from '../components/ui'
@@ -28,6 +29,7 @@ export function Fila() {
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [nova, setNova] = useState(false)
   const [importar, setImportar] = useState(false)
+  const [contrato, setContrato] = useState(false)
   const [editando, setEditando] = useState<Demanda | null>(null)
   const [cancelar, setCancelar] = useState<string[] | null>(null)
   const auditar = params.get('auditar') === '1'
@@ -68,7 +70,8 @@ export function Fila() {
         <button onClick={() => mudarVisao('kanban')} className={cx('flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium', visao === 'kanban' ? 'bg-[#1a56db] text-white' : 'bg-white text-slate-600')}><LayoutGrid size={13} />Kanban</button>
         <button onClick={() => mudarVisao('lista')} className={cx('flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium', visao === 'lista' ? 'bg-[#1a56db] text-white' : 'bg-white text-slate-600')}><List size={13} />Por parada</button>
       </div>
-      {pode('fila.lancar') && <Botao onClick={() => setImportar(true)}><Upload size={14} />Importar</Botao>}
+      {pode('fila.lancar') && <Botao onClick={() => setImportar(true)} title="Colar linhas de planilha (uma demanda por linha)"><Upload size={14} />Importar planilha</Botao>}
+      {pode('fila.lancar') && <Botao onClick={() => setContrato(true)} title="Contrato com quantidade e blocos de patrimônio"><FileStack size={14} />Importar contrato</Botao>}
       <Botao variante={auditar ? 'primario' : 'secundario'} onClick={() => setParams(auditar ? {} : { auditar: '1' })} title="Mostrar só possíveis duplicatas (mesmo equipamento + patrimônio + OM + cliente)"><Search size={14} />Auditar{duplicatas.size ? ` (${duplicatas.size})` : ''}</Botao>
       {pode('fila.enviar_planejamento') && <Botao variante="sucesso" disabled={!prontos.length} onClick={() => run(() => acoes.enviarParaPlanejamento(prontos.map(d => d.id)), `${prontos.length} enviada(s) ao planejamento.`)} title="Envia ao planejamento todos os itens prontos para planejar e encaminhados"><Send size={14} />Enviar prontos ({prontos.length})</Botao>}
       {pode('fila.lancar') && <Botao variante="primario" onClick={() => setNova(true)}><Plus size={14} />Lançar demanda</Botao>}
@@ -111,6 +114,7 @@ export function Fila() {
 
       <ModalNovaDemanda aberto={nova} onFechar={() => setNova(false)} />
       <ModalImportar aberto={importar} onFechar={() => setImportar(false)} />
+      <ModalImportarContrato aberto={contrato} onFechar={() => setContrato(false)} />
       <ModalEditarDemanda d={editando} onFechar={() => setEditando(null)} />
       <Confirmar aberto={!!cancelar} titulo="Cancelar demanda(s)" perigo confirmarTexto="Cancelar demanda(s)" onFechar={() => setCancelar(null)}
         texto={<>Cancelar {cancelar?.length} demanda(s)? Elas saem das telas ativas, mas ficam no histórico e podem ser restauradas.</>}

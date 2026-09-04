@@ -28,7 +28,11 @@ const aplicarAtualizacao = registerSW({
   onNeedRefresh: () => emitir({ temAtualizacao: true }),
   onRegisteredSW: (_url, registro) => {
     if (!registro) return
-    setInterval(() => { registro.update().catch(() => { /* offline: tenta na próxima */ }) }, INTERVALO_CHECAGEM)
+    const checar = () => { registro.update().catch(() => { /* offline: tenta na próxima */ }) }
+    setInterval(checar, INTERVALO_CHECAGEM)
+    // Quem deixa o app aberto o dia todo só descobriria a versão nova na virada da hora.
+    // Voltar para a aba é o momento natural de perguntar ao servidor.
+    document.addEventListener('visibilitychange', () => { if (!document.hidden) checar() })
   },
 })
 

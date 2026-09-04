@@ -40,6 +40,8 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // Sem isso o cache da versão anterior fica no disco do usuário para sempre.
+        cleanupOutdatedCaches: true,
         navigateFallbackDenylist: [/^\/rest/, /^\/auth/],
       },
     }),
