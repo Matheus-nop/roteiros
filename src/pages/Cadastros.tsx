@@ -55,7 +55,7 @@ function Clientes({ editar }: { editar: boolean }) {
     try { if (f.id) await db.update('clientes', f.id, dados); else await db.insert('clientes', [dados]); toast('Cliente salvo.'); setF(null) } catch (e) { erro(e) }
   }
   return (
-    <Cartao titulo={<span>Clientes <span className="font-normal text-slate-500">· apelidos unificam nomes diferentes do mesmo cliente{contarAuto(clientes) ? ` · ${contarAuto(clientes)} veio do lançamento` : ''}</span></span>} acoes={<>
+    <Cartao titulo={<span>Clientes <span className="font-normal text-slate-500">· apelido é variação de escrita do mesmo cliente — não use para juntar empresas do mesmo grupo{contarAuto(clientes) ? ` · ${contarAuto(clientes)} veio do lançamento` : ''}</span></span>} acoes={<>
       <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar…" className="w-48" />
       {editar && <Botao tamanho="sm" variante="primario" onClick={() => setF({ nome: '', apelidos: '' })}><Plus size={13} />Novo cliente</Botao>}
     </>}>
@@ -72,7 +72,7 @@ function Clientes({ editar }: { editar: boolean }) {
       <Modal aberto={!!f} onFechar={() => setF(null)} titulo={f?.id ? 'Editar cliente' : 'Novo cliente'} rodape={<><Botao onClick={() => setF(null)}>Cancelar</Botao><Botao variante="primario" onClick={salvar}>Salvar</Botao></>}>
         {f && <div className="space-y-3">
           <Campo rotulo="Nome oficial"><Input value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} /></Campo>
-          <Campo rotulo="Apelidos (separados por vírgula)"><Input value={f.apelidos} onChange={e => setF({ ...f, apelidos: e.target.value })} placeholder="AEGEA, AGUAS DO RIO" /></Campo>
+          <Campo rotulo="Apelidos — variações de escrita do MESMO cliente (separadas por vírgula)"><Input value={f.apelidos} onChange={e => setF({ ...f, apelidos: e.target.value })} placeholder="AGUAS DO RIO, AGUAS RIO" /></Campo>
         </div>}
       </Modal>
     </Cartao>

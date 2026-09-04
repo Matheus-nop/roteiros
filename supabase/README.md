@@ -37,7 +37,13 @@ quebra nada.
 | `0008_relatorios_e_vocabulario.sql` | `v_rel_demandas` (relatórios), `v_clientes_uso`, `v_equipamentos_uso`, cadastro criado no lançamento |
 
 Scripts avulsos ficam em `scripts/` e **não** fazem parte da sequência: são correções
-pontuais e testes, cada um com a explicação no topo do arquivo.
+pontuais e testes, cada um com a explicação no topo do arquivo. Um deles é obrigatório
+em quem instalou antes desta correção: `scripts/separar-aegea-de-aguas-do-rio.sql` — o
+seed antigo cadastrava AEGEA como apelido de ÁGUAS DO RIO, e são clientes diferentes.
+
+> **Apelido é variação de escrita do MESMO cliente** — acento, abreviação, erro de
+> digitação. Nunca use apelido para juntar empresas parentes: o formulário troca o nome
+> digitado pelo oficial, e a demanda de uma passa a sair no nome da outra.
 
 ## Erro `column "veiculo_padrao" of relation "tecnicos" does not exist`
 
