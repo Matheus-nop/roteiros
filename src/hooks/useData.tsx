@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { db } from '../lib'
 import { criarAcoes, type Acoes } from '../lib/actions'
-import type { Cliente, Demanda, Equipamento, Expedidor, Fechamento, Tecnico, Veiculo } from '../lib/types'
+import type { Cliente, Demanda, Equipamento, Expedidor, Fechamento, Perfil, Tecnico, Veiculo } from '../lib/types'
 import type { EventoTabela } from '../lib/db'
 import { STATUS_ARQUIVADOS } from '../lib/status'
 
@@ -22,6 +22,8 @@ interface DataCtx {
   recarregar(): Promise<void>
   acoes: Acoes
   tecnicoPorId(id: string | null | undefined): Tecnico | undefined
+  /** Nome de quem operou (lançou, alterou). Cai no e-mail e, em último caso, em '—'. */
+  nomeDoUsuario(id: string | null | undefined): string
 }
 
 const Ctx = createContext<DataCtx | null>(null)
@@ -85,6 +87,8 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const equipamentos = useTabelaRealtime<Equipamento>('equipamentos', { order: [{ col: 'nome' }] })
   const expedidores = useTabelaRealtime<Expedidor>('expedidores', { order: [{ col: 'nome' }] })
   const fechamentos = useTabelaRealtime<Fechamento>('fechamentos', { order: [{ col: 'fechado_em', asc: false }], limit: 200 })
+  // Tabela de dez linhas: carregar inteira sai mais barato que consultar por autor.
+  const perfis = useTabelaRealtime<Perfil>('perfis', { order: [{ col: 'nome' }] })
 
   const [ultima, setUltima] = useState<Date | null>(null)
   const tickTotal = demandas.tick + tecnicos.tick + fechamentos.tick
@@ -92,6 +96,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
 
   const acoes = useMemo(() => criarAcoes(db), [])
   const tecMap = useMemo(() => new Map(tecnicos.linhas.map(t => [t.id, t])), [tecnicos.linhas])
+  const perfilMap = useMemo(() => new Map(perfis.linhas.map(p => [p.id, p])), [perfis.linhas])
 
   const value: DataCtx = {
     demandas: demandas.linhas,
@@ -110,6 +115,11 @@ export function DataProvider({ children }: { children: ReactNode }) {
     },
     acoes,
     tecnicoPorId: (id) => (id ? tecMap.get(id) : undefined),
+    nomeDoUsuario: (id) => {
+      if (!id) return '—'
+      const p = perfilMap.get(id)
+      return p?.nome || p?.email?.split('@')[0] || '—'
+    },
   }
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }

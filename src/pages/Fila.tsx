@@ -19,7 +19,7 @@ import type { Demanda, Status } from '../lib/types'
 const COR_COLUNA: Record<string, string> = { FILA: '#94a3b8', AGUARDANDO_TRIAGEM: '#64748b', EM_ANALISE: '#d97706', PRONTO_PARA_PLANEJAR: '#0284c7', ENCAMINHADO: '#0f766e' }
 
 export function Fila() {
-  const { demandas, acoes } = useData()
+  const { demandas, acoes, nomeDoUsuario } = useData()
   const { pode } = useAuth()
   const { toast, erro } = useToast()
   const [params, setParams] = useSearchParams()
@@ -53,6 +53,12 @@ export function Fila() {
   const toggle = (id: string, v: boolean) => setSel(s => { const n = new Set(s); v ? n.add(id) : n.delete(id); return n })
   const mudarVisao = (v: 'kanban' | 'lista') => { setVisao(v); localStorage.setItem('fila-visao', v) }
 
+  // Só aparece quando há autor: as demandas anteriores à migração 0005 têm o campo nulo,
+  // e um "lançada por —" repetido em toda a fila seria só ruído.
+  const autor = (d: Demanda) => d.created_by
+    ? <span className="mt-1 block truncate text-[10.5px] text-slate-400">lançada por {nomeDoUsuario(d.created_by)}</span>
+    : undefined
+
   const acoesItem = (d: Demanda) => <>
     {duplicatas.has(d.id) && <span title="Possível duplicata" className="text-amber-600"><Copy size={13} /></span>}
     {triar && proximaTriagem(d.status) && <Botao tamanho="sm" variante="fantasma" title={`Avançar para ${STATUS_LABEL[proximaTriagem(d.status)!]}`} onClick={() => run(() => acoes.avancarTriagem(d), `→ ${STATUS_LABEL[proximaTriagem(d.status)!]}`)}><ArrowRight size={13} /></Botao>}
@@ -84,7 +90,7 @@ export function Fila() {
       {visao === 'kanban' ? (
         <Quadro colunas={colunas} larguraColuna={320} podeArrastar={triar}
           onMover={async (d, _de, para) => { if (para !== d.status) await run(() => acoes.definirStatus([d.id], para as Status), `→ ${STATUS_LABEL[para as Status]}`) }}
-          renderItem={(d) => <CardDemanda d={d} vertical mostrarCliente mostrarStatus={false} selecionado={sel.has(d.id)} onSelecionar={v => toggle(d.id, v)} acoes={acoesItem(d)} />}
+          renderItem={(d) => <CardDemanda d={d} vertical mostrarCliente mostrarStatus={false} selecionado={sel.has(d.id)} onSelecionar={v => toggle(d.id, v)} acoes={acoesItem(d)} extra={autor(d)} />}
         />
       ) : (
         <div className="space-y-3">
@@ -97,7 +103,7 @@ export function Fila() {
               <GrupoCard key={chaveParada(g0)} titulo={g0.cliente_nome ?? 'Sem cliente'} subtitulo={<LocalData local={g0.local} data={g0.data_abertura} />} contagem={grupo.length}
                 selecionado={todos} onSelecionar={v => setSel(s => { const n = new Set(s); grupo.forEach(d => v ? n.add(d.id) : n.delete(d.id)); return n })}
                 chips={<>{Array.from(porTipo).map(([t, l]) => <Chip key={t} tone="bg-violet-50 text-violet-800">{l.length} {t}</Chip>)}{Array.from(porStatus).map(([s, l]) => <Chip key={s} tone="bg-blue-50 text-blue-800">{l.length} {STATUS_LABEL[s]}</Chip>)}</>}>
-                {grupo.map(d => <CardDemanda key={d.id} d={d} selecionado={sel.has(d.id)} onSelecionar={v => toggle(d.id, v)} acoes={acoesItem(d)} onClick={pode('fila.lancar') ? () => setEditando(d) : undefined} />)}
+                {grupo.map(d => <CardDemanda key={d.id} d={d} selecionado={sel.has(d.id)} onSelecionar={v => toggle(d.id, v)} acoes={acoesItem(d)} extra={autor(d)} onClick={pode('fila.lancar') ? () => setEditando(d) : undefined} />)}
               </GrupoCard>
             )
           })}
