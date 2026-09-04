@@ -2,7 +2,7 @@
 
 App web de gestão de roteiros: da entrada da demanda (OM) ao planejamento, separação no galpão e execução em rota pelos técnicos.
 
-**Princípio central:** uma demanda é **um único registro** na tabela `demandas`. As telas (Fila, Planejamento, Expedição, Pré-carga, Roteiro, Imp. técnico, Pendências, Histórico) são **filtros por status** sobre essa tabela. Nada é copiado entre "abas", então nada descasa.
+**Princípio central:** uma demanda é **um único registro** na tabela `demandas`. As telas (Fila, Planejamento, Expedição, Pré-carga, Roteiro, Meu roteiro, Imp. técnico, Pendências, Histórico) são **filtros por status** sobre essa tabela. Nada é copiado entre "abas", então nada descasa.
 
 ## Stack
 
@@ -40,7 +40,30 @@ src/lib/demo/                         implementação em memória para o modo de
 src/hooks/useData.tsx                 fonte única de dados com Realtime
 src/pages/                            uma tela por arquivo, na ordem do menu
 src/components/Etiqueta.tsx           etiquetas EXP-/ROT- e folha de roteiro para impressão
+src/components/Cards.tsx              card de demanda e o quadro kanban (colunas fluidas)
+src/components/Logo.tsx               logomarca da empresa, símbolo do produto e o lockup da barra
+src/hooks/usePwa.ts                   service worker, aviso de versão nova e convite de instalação
+src/hooks/useEncerradas.ts            demandas já encerradas de uma data (o `useData` só traz as ativas)
 ```
+
+## Telas que merecem nota
+
+**Planejamento** — o quadro agrupa por **técnico**, **cliente** ou **localidade**. Por
+técnico é o quadro de sempre: arrastar entre colunas atribui o técnico e, dentro da mesma
+data, define a ordem das paradas. Por cliente/localidade não se arrasta — soltar um card em
+outra coluna significaria trocar o cliente da demanda, que não é decisão de planejamento;
+lá se marcam os cards e se usa *Técnico / veículo / data* para fechar tudo de uma vez. As
+colunas encolhem com a tela até 258px e param de crescer em 340px, então o quadro cabe do
+celular ao monitor grande sem rolar a página na horizontal.
+
+**Meu roteiro** (`/meu-roteiro`) — a tela do técnico em campo. Mostra **um roteiro por vez**:
+o do próprio técnico, na data escolhida. Cada item tem dois botões grandes, *Concluí* e
+*Não deu* (que pede a nova data e devolve a demanda ao planejamento). A parada resolvida
+recolhe sozinha e o contador do topo anda — é o que o PCM lê no painel, sem ninguém precisar
+ligar para ninguém. Quem é do PCM abre a mesma tela e escolhe de quem é o roteiro.
+
+O técnico **não** fecha o roteiro do dia por aqui: isso é do PCM/expedição, e a RLS de
+`fechamentos` nem deixaria gravar.
 
 ## Fluxo da demanda
 
@@ -65,7 +88,20 @@ Regras que o app garante por construção:
 
 ## Papéis
 
-ADMIN, PCM, COMERCIAL, EXPEDICAO, TECNICO. O menu e os botões se adaptam ao papel; a proteção real é a RLS no Postgres.
+ADMIN, PCM, COMERCIAL, EXPEDICAO, TECNICO. O menu e os botões se adaptam ao papel; a proteção real é a RLS no Postgres. Quem entra como TECNICO cai direto em `/meu-roteiro` e vê só essa tela — o dashboard é ferramenta de quem administra.
+
+> **Dívida conhecida:** a política `demandas_update` libera UPDATE para qualquer usuário com
+> perfil, inclusive TECNICO. Ou seja, hoje o banco deixaria um técnico alterar a demanda de
+> outro; só a interface o impede. Apertar isso exige uma migração nova (restringir o UPDATE
+> do papel TECNICO às linhas com `tecnico_id` igual ao do próprio usuário) e um teste que
+> prove o bloqueio.
+
+## PWA
+
+Instalável na tela inicial, com ícone próprio e atalhos para *Meu roteiro*, *Planejamento* e
+*Expedição*. A atualização é **por confirmação, não automática**: quando sai versão nova
+aparece uma faixa com *Atualizar agora*. Recarregar sozinho no meio de um roteiro apagaria o
+que o técnico estava marcando. O app reconsulta o service worker de hora em hora.
 
 ## Deploy
 

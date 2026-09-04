@@ -6,6 +6,7 @@ import { PrintProvider } from './components/Print'
 import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
 import { Dashboard } from './pages/Dashboard'
+import { MeuRoteiro } from './pages/MeuRoteiro'
 import { Fila } from './pages/Fila'
 import { Planejamento } from './pages/Planejamento'
 import { PreRoteiro } from './pages/PreRoteiro'
@@ -23,11 +24,14 @@ function Protegido() {
   const { usuario, carregando } = useAuth()
   if (carregando) return <Carregando texto="Verificando sessão…" />
   if (!usuario) return <Login />
+  // O técnico abre o app já no roteiro dele. O dashboard é ferramenta de quem administra.
+  const tecnico = usuario.perfil.papel === 'TECNICO'
   return (
     <DataProvider>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={<Dashboard />} />
+          <Route index element={tecnico ? <Navigate to="/meu-roteiro" replace /> : <Dashboard />} />
+          <Route path="meu-roteiro" element={<MeuRoteiro />} />
           <Route path="fila" element={<Fila />} />
           <Route path="planejamento" element={<Planejamento />} />
           <Route path="pre-roteiro" element={<PreRoteiro />} />

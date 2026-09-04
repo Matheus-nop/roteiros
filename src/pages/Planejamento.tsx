@@ -1,6 +1,13 @@
-// Planejamento em kanban: uma coluna por técnico; arrastar um card para outra coluna atribui o técnico.
-// Dentro da coluna, os cards ficam agrupados por data; arrastar dentro do mesmo grupo reordena as paradas.
-import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, Search } from 'lucide-react'
+// Planejamento em kanban. A coluna é escolhida pelo PCM:
+//
+//   • por técnico    — a visão de sempre: arrastar um card para outra coluna atribui o técnico,
+//                      e dentro da mesma data arrastar reordena as paradas.
+//   • por cliente    — todas as demandas do mesmo cliente lado a lado, para fechar uma visita só.
+//   • por localidade — o mesmo pela região, para não mandar dois técnicos ao mesmo bairro.
+//
+// Nas visões por cliente/localidade não se arrasta: soltar um card em outra coluna significaria
+// trocar o cliente da demanda, que não é decisão de planejamento. Lá se seleciona e se atribui em lote.
+import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, Search, Users, Building2, MapPin, CheckSquare } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
@@ -14,7 +21,15 @@ import { STATUS_PLANEJAMENTO, STATUS_LABEL, STATUS_A_ROTEIRIZAR } from '../lib/s
 import { normalizar, textoBusca, agrupar, ordenarParadas, rotuloData, hojeISO } from '../lib/format'
 import { usePrint } from '../components/Print'
 import { FolhaRoteiro } from '../components/Etiqueta'
-import type { Demanda, Status } from '../lib/types'
+import type { Demanda, Status, Tecnico } from '../lib/types'
+
+type Agrupamento = 'tecnico' | 'cliente' | 'local'
+
+const VISOES: { id: Agrupamento; rotulo: string; icone: typeof Users }[] = [
+  { id: 'tecnico', rotulo: 'Técnico', icone: Users },
+  { id: 'cliente', rotulo: 'Cliente', icone: Building2 },
+  { id: 'local', rotulo: 'Localidade', icone: MapPin },
+]
 
 export function Planejamento() {
   const { demandas, tecnicos, acoes } = useData()
@@ -24,11 +39,15 @@ export function Planejamento() {
   const [busca, setBusca] = useState('')
   const [status, setStatus] = useState('')
   const [dataFiltro, setDataFiltro] = useState('')
+  const [agrupamento, setAgrupamento] = useState<Agrupamento>(() => (localStorage.getItem('plan-agrupar') as Agrupamento) || 'tecnico')
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [atribuir, setAtribuir] = useState<Demanda[] | null>(null)
   const [editando, setEditando] = useState<Demanda | null>(null)
   const [confirmar, setConfirmar] = useState<{ titulo: string; texto: string; fn(): Promise<unknown>; msg: string; perigo?: boolean } | null>(null)
   const editar = pode('planejamento.editar')
+  const porTecnico = agrupamento === 'tecnico'
+
+  const escolherVisao = (v: Agrupamento) => { setAgrupamento(v); localStorage.setItem('plan-agrupar', v) }
 
   const itens = useMemo(() => {
     const b = normalizar(busca)
@@ -37,15 +56,40 @@ export function Planejamento() {
 
   const colunas: Coluna<Demanda>[] = useMemo(() => {
     const ordenar = (l: Demanda[]) => [...l].sort((a, b) => (a.data_planejada ?? '9999').localeCompare(b.data_planejada ?? '9999') || ordenarParadas(a, b))
-    const cols: Coluna<Demanda>[] = [{ id: '__sem', titulo: 'Sem técnico', cor: '#94a3b8', itens: ordenar(itens.filter(d => !d.tecnico_id)) }]
-    for (const t of tecnicos.filter(t => t.ativo || itens.some(d => d.tecnico_id === t.id))) cols.push({ id: t.id, titulo: t.nome, cor: t.cor ?? '#64748b', itens: ordenar(itens.filter(d => d.tecnico_id === t.id)) })
-    return cols
-  }, [itens, tecnicos])
+
+    if (porTecnico) {
+      const cols: Coluna<Demanda>[] = [{ id: '__sem', titulo: 'Sem técnico', cor: '#94a3b8', itens: ordenar(itens.filter(d => !d.tecnico_id)) }]
+      for (const t of tecnicos.filter(t => t.ativo || itens.some(d => d.tecnico_id === t.id))) {
+        cols.push({ id: t.id, titulo: t.nome, cor: t.cor ?? '#64748b', itens: ordenar(itens.filter(d => d.tecnico_id === t.id)) })
+      }
+      return cols
+    }
+
+    // Cliente / localidade: a chave normalizada agrupa "AEGEA" e "Aegea " na mesma coluna,
+    // mas o título mostra o texto como está no cadastro.
+    const campo = (d: Demanda) => (agrupamento === 'cliente' ? d.cliente_nome : d.local)
+    const grupos = agrupar(itens, d => normalizar(campo(d)) || '__sem')
+    return Array.from(grupos.entries())
+      .map(([chave, lista]) => ({
+        id: chave,
+        titulo: chave === '__sem' ? (agrupamento === 'cliente' ? 'Sem cliente' : 'Sem localidade') : (campo(lista[0]) ?? chave),
+        cor: chave === '__sem' ? '#94a3b8' : undefined,
+        itens: ordenar(lista),
+      }))
+      // Maior volume primeiro: é onde há consolidação a fazer. "Sem X" vai para o fim.
+      .sort((a, b) => (a.id === '__sem' ? 1 : b.id === '__sem' ? -1 : 0) || b.itens.length - a.itens.length || String(a.titulo).localeCompare(String(b.titulo)))
+  }, [itens, tecnicos, agrupamento, porTecnico])
 
   const ids = Array.from(sel)
   const limpar = () => setSel(new Set())
   const run = async (fn: () => Promise<unknown>, msg: string) => { try { await fn(); toast(msg); limpar() } catch (e) { erro(e) } }
   const toggle = (id: string, v: boolean) => setSel(s => { const n = new Set(s); v ? n.add(id) : n.delete(id); return n })
+  const selecionarTodos = (lista: Demanda[]) => setSel(s => {
+    const n = new Set(s)
+    const todosJa = lista.every(d => n.has(d.id))
+    for (const d of lista) todosJa ? n.delete(d.id) : n.add(d.id)
+    return n
+  })
 
   const gerar = (its: Demanda[], rotulo: string) => {
     const aptos = its.filter(d => STATUS_A_ROTEIRIZAR.includes(d.status))
@@ -61,7 +105,7 @@ export function Planejamento() {
   }
 
   const onMover = async (d: Demanda, de: string, para: string, indice: number) => {
-    if (!editar) return
+    if (!editar || !porTecnico) return
     try {
       if (de !== para) {
         await acoes.atribuir([d.id], { tecnico_id: para === '__sem' ? null : para })
@@ -85,41 +129,74 @@ export function Planejamento() {
     {editar && <Botao tamanho="sm" variante="fantasma" title="Cancelar demanda" onClick={() => setConfirmar({ titulo: 'Cancelar demanda', texto: 'Cancelar esta demanda? Ela sai das telas ativas e fica no histórico (restaurável).', fn: () => acoes.cancelar([d.id], null), msg: 'Cancelada.', perigo: true })}><XCircle size={13} className="text-red-600" /></Botao>}
   </>
 
+  /** Chip do técnico: só aparece quando a coluna não é o técnico — senão seria repetir o cabeçalho. */
+  const chipTecnico = (t: Tecnico | undefined) => (
+    <span className="mt-1 inline-flex items-center gap-1 rounded-md bg-slate-100 px-1.5 py-0.5 text-[10px] font-bold text-slate-600">
+      <span className="h-1.5 w-1.5 rounded-full" style={{ background: t?.cor ?? '#cbd5e1' }} />{t?.nome ?? 'sem técnico'}
+    </span>
+  )
+
   const renderGrupo = (_k: string, lista: Demanda[], colunaId: string) => {
     const porData = Array.from(agrupar(lista, d => d.data_planejada ?? '').entries()).sort(([a], [b]) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)))
-    const tec = tecnicos.find(t => t.id === colunaId)
+    const tec = porTecnico ? tecnicos.find(t => t.id === colunaId) : undefined
     return <>
       {porData.map(([data, its]) => {
         const aRot = its.filter(d => STATUS_A_ROTEIRIZAR.includes(d.status)).length
         const atrasada = data && data < hojeISO()
         return (
           <div key={data || 'sem'} className="space-y-1.5">
-            <div className={cx('sticky top-0 z-10 flex items-center justify-between rounded-md px-2 py-1 text-[11px] font-bold', atrasada ? 'bg-red-50 text-red-700' : !data ? 'bg-slate-200/70 text-slate-500' : 'bg-slate-200/70 text-slate-700')}>
+            <div className={cx('sticky top-0 z-10 flex items-center justify-between rounded-md px-2 py-1 text-[11px] font-bold', atrasada ? 'bg-red-100 text-red-700' : !data ? 'bg-slate-200/90 text-slate-500' : 'bg-slate-200/90 text-slate-700')}>
               <span className="inline-flex items-center gap-1"><CalendarDays size={11} />{rotuloData(data || null)} · {its.length}</span>
               <span className="flex items-center gap-0.5">
-                <button className="rounded p-0.5 hover:bg-white" title="Imprimir lista" onClick={() => imprimir(<FolhaRoteiro tecnico={tec} data={data} itens={[...its].sort(ordenarParadas)} />)}><Printer size={12} /></button>
-                {editar && tec && data && aRot > 0 && <button className="rounded bg-[#1a56db] px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-[#1748c9]" onClick={() => gerar(its, `${tec.nome} em ${rotuloData(data)}`)}><Route size={10} className="mr-0.5 inline" />Gerar ({aRot})</button>}
+                {editar && <button className="rounded p-0.5 hover:bg-white" title="Selecionar / desmarcar este grupo" onClick={() => selecionarTodos(its)}><CheckSquare size={12} /></button>}
+                {porTecnico && <button className="rounded p-0.5 hover:bg-white" title="Imprimir lista" onClick={() => imprimir(<FolhaRoteiro tecnico={tec} data={data} itens={[...its].sort(ordenarParadas)} />)}><Printer size={12} /></button>}
+                {editar && porTecnico && tec && data && aRot > 0 && <button className="rounded bg-acao-500 px-1.5 py-0.5 text-[10px] font-bold text-white hover:bg-acao-600" onClick={() => gerar(its, `${tec.nome} em ${rotuloData(data)}`)}><Route size={10} className="mr-0.5 inline" />Gerar ({aRot})</button>}
               </span>
             </div>
-            {its.map(d => <ItemArrastavel key={d.id} id={d.id} desabilitado={!editar}><CardDemanda d={d} vertical mostrarCliente selecionado={sel.has(d.id)} onSelecionar={v => toggle(d.id, v)} acoes={acoesItem(d)} extra={d.ordem_parada ? <span className="text-[10px] font-bold text-slate-400">parada {d.ordem_parada / 10}</span> : undefined} /></ItemArrastavel>)}
+            {its.map(d => (
+              <ItemArrastavel key={d.id} id={d.id} desabilitado={!editar || !porTecnico}>
+                <CardDemanda d={d} vertical mostrarCliente cabecalho={porTecnico ? 'ambos' : agrupamento === 'cliente' ? 'local' : 'cliente'}
+                  selecionado={sel.has(d.id)} onSelecionar={v => toggle(d.id, v)} acoes={acoesItem(d)}
+                  extra={<>
+                    {!porTecnico && chipTecnico(tecnicos.find(t => t.id === d.tecnico_id))}
+                    {d.ordem_parada ? <span className="ml-1 text-[10px] font-bold text-slate-400">parada {d.ordem_parada / 10}</span> : null}
+                  </>} />
+              </ItemArrastavel>
+            ))}
           </div>
         )
       })}
     </>
   }
 
+  // A instrução comprida é útil, mas no celular empurraria o quadro para fora da tela.
+  const subtitulo = porTecnico
+    ? <>{itens.length} demandas · uma coluna por técnico<span className="hidden md:inline"> · arraste um card para outra coluna para atribuir o técnico; dentro da mesma data, arraste para definir a ordem das paradas</span></>
+    : <>{itens.length} demandas em {colunas.length} {agrupamento === 'cliente' ? 'cliente(s)' : 'localidade(s)'}<span className="hidden md:inline"> · marque os cards e use "Técnico / veículo / data" para fechar tudo de uma vez</span></>
+
   return (
-    <Pagina titulo="Planejamento (PCM)" subtitulo={`${itens.length} demandas · uma coluna por técnico · arraste um card para outra coluna para atribuir o técnico; dentro da mesma data, arraste para definir a ordem das paradas`} acoes={<>
-      {editar && <Botao variante="primario" onClick={gerarTodos}><Route size={14} />Gerar todos os roteiros</Botao>}
+    <Pagina titulo="Planejamento (PCM)" subtitulo={subtitulo} acoes={<>
+      {/* Seletor de visão: muda só o que vira coluna, os filtros e a seleção continuam valendo. */}
+      <div className="flex rounded-lg bg-slate-200/70 p-0.5">
+        {VISOES.map(v => (
+          <button key={v.id} onClick={() => escolherVisao(v.id)} title={`Agrupar por ${v.rotulo.toLowerCase()}`}
+            className={cx('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] font-semibold transition',
+              agrupamento === v.id ? 'bg-white text-brand-700 shadow-sm' : 'text-slate-600 hover:text-slate-900')}>
+            <v.icone size={13} /><span className="hidden sm:inline">{v.rotulo}</span>
+          </button>
+        ))}
+      </div>
+      {editar && porTecnico && <Botao variante="primario" onClick={gerarTodos}><Route size={14} />Gerar todos os roteiros</Botao>}
     </>}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
-        <div className="relative flex-1 min-w-[240px]"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por OS, cliente, local ou equipamento…" className="pl-8" /></div>
-        <Select value={status} onChange={e => setStatus(e.target.value)} className="w-48"><option value="">Todos os status</option>{STATUS_PLANEJAMENTO.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</Select>
+        <div className="relative min-w-[220px] flex-1"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por OS, cliente, local ou equipamento…" className="pl-8" /></div>
+        <Select value={status} onChange={e => setStatus(e.target.value)} className="w-44"><option value="">Todos os status</option>{STATUS_PLANEJAMENTO.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</Select>
         <Input type="date" value={dataFiltro} onChange={e => setDataFiltro(e.target.value)} className="w-40" title="Filtrar por data planejada" />
         {dataFiltro && <Botao tamanho="sm" variante="fantasma" onClick={() => setDataFiltro('')}>limpar data</Botao>}
       </div>
 
-      <Quadro colunas={colunas} larguraColuna={340} podeArrastar={editar} onMover={onMover} renderGrupo={renderGrupo}
+      <Quadro colunas={colunas} larguraColuna={340} podeArrastar={editar && porTecnico} onMover={onMover} renderGrupo={renderGrupo}
+        vazio={porTecnico ? 'Solte aqui' : 'Nada aqui'}
         renderItem={(d) => <CardDemanda d={d} vertical mostrarCliente />} />
 
       <BarraSelecao n={ids.length} onLimpar={limpar}>
