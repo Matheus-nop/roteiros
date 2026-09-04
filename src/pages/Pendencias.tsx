@@ -13,7 +13,7 @@ import { BarraSelecao } from '../components/TabelaDemandas'
 import { CardDemanda, GrupoCard, Chip } from '../components/Cards'
 import { Botao, Campo, Checkbox, Confirmar, Input, Modal, Pagina, Select, Vazio, cx } from '../components/ui'
 import { STATUS_A_ROTEIRIZAR, STATUS_ARQUIVADOS, STATUS_EM_ROTA } from '../lib/status'
-import { agrupar, normalizar, textoBusca, hojeISO, rotuloData } from '../lib/format'
+import { agrupar, normalizar, textoBusca, hojeISO, rotuloData, diasDesde, rotuloEspera, fmtDataHora } from '../lib/format'
 import type { Demanda } from '../lib/types'
 
 export function Pendencias() {
@@ -48,6 +48,8 @@ export function Pendencias() {
   const aguardando = itens.filter(d => STATUS_A_ROTEIRIZAR.includes(d.status)).length
   const jaEmRota = itens.filter(d => STATUS_EM_ROTA.includes(d.status)).length
   const vencidas = itens.filter(d => STATUS_A_ROTEIRIZAR.includes(d.status) && (d.data_reagendada ?? d.data_planejada ?? '') < hoje).length
+  // Esperando há mais de uma semana: é a fila que ninguém está resolvendo.
+  const arrastando = itens.filter(d => (diasDesde(d.pendente_desde) ?? 0) >= 7).length
 
   const ids = Array.from(sel)
   const run = async (fn: () => Promise<unknown>, msg: string) => { try { await fn(); toast(msg); setSel(new Set()) } catch (e) { erro(e) } }
@@ -60,11 +62,12 @@ export function Pendencias() {
 
   return (
     <Pagina titulo="Pendências" subtitulo="O que o técnico não conseguiu executar já voltou ao planejamento com a nova data — aqui é o acompanhamento do que ainda não foi remontado em roteiro">
-      <div className="mb-3 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
+      <div className="mb-3 grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-5">
         <Resumo rotulo="Reagendadas ativas" n={itens.length} />
         <Resumo rotulo="A remontar em roteiro" n={aguardando} tom="text-violet-700" />
         <Resumo rotulo="Já de volta em rota" n={jaEmRota} tom="text-emerald-700" icone={CheckCircle2} />
-        <Resumo rotulo="Com data vencida" n={vencidas} tom={vencidas ? 'text-red-700' : 'text-slate-700'} icone={vencidas ? AlertTriangle : undefined} />
+        <Resumo rotulo="Com data vencida" n={vencidas} tom={vencidas ? 'text-orange-700' : 'text-slate-700'} />
+        <Resumo rotulo="Esperando há 7+ dias" n={arrastando} tom={arrastando ? 'text-red-700' : 'text-slate-700'} icone={arrastando ? AlertTriangle : undefined} />
       </div>
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
@@ -92,6 +95,10 @@ export function Pendencias() {
                 {lista.map(d => (
                   <div key={d.id} className={cx('rounded-lg ring-1', sel.has(d.id) ? 'ring-brand-400' : 'ring-slate-200')}>
                     <CardDemanda d={d} vertical mostrarCliente selecionado={sel.has(d.id)} onSelecionar={editar ? v => alternar(d.id, v) : undefined}
+                      extra={<span className="mt-1 block text-[10.5px] text-slate-400">
+                        {d.pendente_desde ? `pendente desde ${fmtDataHora(d.pendente_desde)} (${rotuloEspera(d.pendente_desde)})` : 'pendente'}
+                        {d.reagendado_em ? ` · reagendada ${fmtDataHora(d.reagendado_em)}` : ''}
+                      </span>}
                       acoes={editar ? <>
                         <Botao tamanho="sm" variante="fantasma" title="Alterar a data" onClick={() => { setNova(d.data_reagendada ?? hojeISO()); setReagendar([d.id]) }}><CalendarClock size={13} /></Botao>
                         <Botao tamanho="sm" variante="fantasma" title="Cancelar a demanda" onClick={() => setCancelar([d.id])}><XCircle size={13} className="text-red-600" /></Botao>

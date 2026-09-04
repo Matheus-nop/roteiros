@@ -17,7 +17,7 @@ import { EspelhoRoteiro } from '../components/EspelhoRoteiro'
 import { usePrint } from '../components/Print'
 import { BadgeTipo, Select, Vazio, cx } from '../components/ui'
 import { STATUS_EM_ROTA } from '../lib/status'
-import { addDias, agrupar, chaveParada, fmtData, fmtPatrimonio, hojeISO, ordenarParadas } from '../lib/format'
+import { addDias, agrupar, chaveParada, fmtData, fmtPatrimonio, hojeISO, horaDe, ordenarParadas } from '../lib/format'
 import type { Demanda, Tecnico } from '../lib/types'
 
 export function MeuRoteiro() {
@@ -261,7 +261,7 @@ function Item({ d, executar, onFinalizar, onPendente }: { d: Demanda; executar: 
           </button>
         </div>
       )}
-      {feito && <div className="mt-1.5 pl-7 text-[11.5px] font-semibold text-emerald-700">Concluído</div>}
+      {feito && <div className="mt-1.5 pl-7 text-[11.5px] font-semibold text-emerald-700">Concluído{d.finalizado_em ? ` às ${horaDe(d.finalizado_em)}` : ''}</div>}
       {cancelado && <div className="mt-1.5 pl-7 text-[11.5px] font-semibold text-slate-500">Cancelado pelo PCM</div>}
     </div>
   )

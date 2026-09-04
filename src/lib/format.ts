@@ -115,3 +115,28 @@ export function ordenarParadas(a: Demanda, b: Demanda): number {
 export function plural(n: number, s: string, p: string): string {
   return `${n} ${n === 1 ? s : p}`
 }
+
+/** Dias inteiros desde um instante. Negativo vira 0 (relógio do aparelho adiantado). */
+export function diasDesde(ts: string | null | undefined): number | null {
+  if (!ts) return null
+  const d = new Date(ts)
+  if (isNaN(d.getTime())) return null
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000))
+}
+
+/** "hoje", "ontem", "há 5 dias" — como se fala, não "5 d". */
+export function rotuloEspera(ts: string | null | undefined): string | null {
+  const n = diasDesde(ts)
+  if (n === null) return null
+  if (n === 0) return 'hoje'
+  if (n === 1) return 'há 1 dia'
+  return `há ${n} dias`
+}
+
+/** Só a hora (HH:MM), para quando o dia já está claro pelo contexto. */
+export function horaDe(ts: string | null | undefined): string {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  if (isNaN(d.getTime())) return '—'
+  return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+}

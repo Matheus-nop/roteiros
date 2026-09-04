@@ -50,7 +50,12 @@ export function Layout() {
   return (
     <div className="flex min-h-screen flex-col bg-[#f5f7fa]">
       {/* Barra superior: identidade à esquerda, estado e ações à direita. */}
-      <header className="sticky top-0 z-40 flex h-14 items-center gap-2 bg-gradient-to-r from-brand-800 via-brand-700 to-brand-600 px-3 text-white shadow-sm print:hidden sm:gap-3 sm:px-4">
+      {/* `h-[calc(...)]` + `pt-segura`: a faixa colorida cobre o recorte do sistema, mas os
+          botões ficam abaixo dele. Sem isso, no iPhone instalado o menu e o logotipo caem
+          debaixo da barra de status e não recebem toque. */}
+      <header
+        style={{ height: 'calc(var(--topo-h) + var(--safe-top))' }}
+        className="pt-segura sticky top-0 z-40 flex items-center gap-2 bg-gradient-to-r from-brand-800 via-brand-700 to-brand-600 px-3 text-white shadow-sm print:hidden sm:gap-3 sm:px-4">
         <button onClick={() => setGaveta(true)} className="-ml-1 rounded-lg p-2 hover:bg-white/10 lg:hidden" aria-label="Abrir menu"><Menu size={18} /></button>
         <button onClick={() => nav(inicio)} className="flex min-w-0 items-center rounded-lg py-1 pr-1 transition hover:opacity-90" aria-label="Ir para o início"><Marca /></button>
         {modoDemo && <span className="hidden shrink-0 rounded-full bg-acento-400/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-acento-300 ring-1 ring-acento-400/30 sm:inline">Demo</span>}
@@ -110,7 +115,9 @@ export function Layout() {
       </header>
 
       {/* Navegação: abas em telas grandes, gaveta no celular. */}
-      <nav className="sticky top-14 z-30 hidden border-b border-slate-200 bg-white shadow-[0_1px_0_rgba(15,23,42,0.04)] print:hidden lg:block">
+      <nav
+        style={{ top: 'calc(var(--topo-h) + var(--safe-top))' }}
+        className="sticky z-30 hidden border-b border-slate-200 bg-white shadow-[0_1px_0_rgba(15,23,42,0.04)] print:hidden lg:block">
         <div className="rolagem-fina mx-auto flex max-w-[1800px] items-center overflow-x-auto px-2">
           {itens.map(m => (
             <div key={m.to} className="flex items-center">
@@ -132,8 +139,8 @@ export function Layout() {
       {gaveta && (
         <div className="fixed inset-0 z-50 lg:hidden print:hidden" onMouseDown={e => { if (e.target === e.currentTarget) setGaveta(false) }}>
           <div className="absolute inset-0 bg-slate-900/50" />
-          <div className="pt-segura absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-white shadow-2xl">
-            <div className="flex h-14 items-center justify-between bg-gradient-to-r from-brand-800 to-brand-600 px-3 text-white">
+          <div className="absolute inset-y-0 left-0 flex w-[82%] max-w-xs flex-col bg-white shadow-2xl">
+            <div style={{ height: 'calc(var(--topo-h) + var(--safe-top))' }} className="pt-segura flex items-center justify-between bg-gradient-to-r from-brand-800 to-brand-600 px-3 text-white">
               <Marca />
               <button onClick={() => setGaveta(false)} className="rounded-lg p-2 hover:bg-white/10" aria-label="Fechar menu"><X size={18} /></button>
             </div>
