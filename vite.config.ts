@@ -8,19 +8,34 @@ export default defineConfig({
     react(),
     tailwindcss(),
     VitePWA({
-      registerType: 'autoUpdate',
-      includeAssets: ['logo.svg', 'favicon.svg'],
+      // 'prompt': quem decide a hora de recarregar é o usuário (ver src/hooks/usePwa.ts).
+      registerType: 'prompt',
+      includeAssets: ['favicon.svg', 'apple-touch-icon.png', 'logo.png', 'logo-branca.png'],
       manifest: {
+        id: '/',
         name: 'Roteiros — Grupo Nova Opção',
         short_name: 'Roteiros',
         description: 'Gestão de roteiros, expedição e execução técnica',
         theme_color: '#12365a',
         background_color: '#f5f6f8',
         display: 'standalone',
+        display_override: ['standalone', 'minimal-ui'],
+        orientation: 'portrait-primary',
+        scope: '/',
+        start_url: '/',
         lang: 'pt-BR',
+        dir: 'ltr',
+        categories: ['business', 'productivity'],
         icons: [
-          { src: 'icon-192.png', sizes: '192x192', type: 'image/png' },
-          { src: 'icon-512.png', sizes: '512x512', type: 'image/png' },
+          { src: 'icon-192.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: 'icon-maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+        ],
+        // Atalhos do ícone (segurar o app na tela inicial): cada papel entra direto no que usa.
+        shortcuts: [
+          { name: 'Meu roteiro', short_name: 'Meu roteiro', description: 'O roteiro do dia do técnico', url: '/meu-roteiro' },
+          { name: 'Planejamento', short_name: 'Planejar', description: 'Quadro do PCM', url: '/planejamento' },
+          { name: 'Expedição', short_name: 'Expedição', description: 'Separação do material', url: '/expedicao' },
         ],
       },
       workbox: {

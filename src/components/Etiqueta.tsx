@@ -163,8 +163,6 @@ export function FolhaRoteiro({ tecnico, data, itens }: { tecnico: Tecnico | unde
       </table>
       <div style={{ marginTop: 18, display: 'flex', gap: 40, fontSize: 11, color: '#475569' }}>
         <div>Saída: ____:____ &nbsp; Retorno: ____:____</div>
-        <div>Assinatura técnico: ______________________</div>
-        <div>Expedição: ______________________</div>
       </div>
     </div>
   )

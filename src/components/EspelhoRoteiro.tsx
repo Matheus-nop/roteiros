@@ -90,7 +90,7 @@ export function EspelhoRoteiro({ tecnico, data, itens }: { tecnico: Tecnico | un
         })}
       </div>
       <div className="esp-foot">
-        <div className="esp-ass"><span>Saída ____:____</span><span>Retorno ____:____</span><span>Técnico ______________________</span><span>Expedição ______________________</span></div>
+        <div className="esp-ass"><span>Saída ____:____</span><span>Retorno ____:____</span></div>
         <div>Grupo Nova Opção · gerado em {new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
       </div>
     </div>
