@@ -20,7 +20,7 @@ import { EspelhoRoteiro } from '../components/EspelhoRoteiro'
 import { usePrint } from '../components/Print'
 import { Badge, BadgeStatus, BadgeTipo, Botao, Campo, Confirmar, Input, Modal, Pagina, Select, Vazio, cx } from '../components/ui'
 import { STATUS_EM_ROTA } from '../lib/status'
-import { agrupar, chaveParada, fmtData, fmtPatrimonio, hojeISO, ordenarParadas, rotuloData, addDias } from '../lib/format'
+import { agrupar, chaveParada, fmtData, fmtPatrimonio, hojeISO, horaDe, ordenarParadas, rotuloData, addDias } from '../lib/format'
 import type { Demanda } from '../lib/types'
 
 export function ImpTecnico() {
@@ -137,6 +137,7 @@ export function ImpTecnico() {
                               <span className={cx('text-xs', d.patrimonio ? 'font-mono font-semibold' : 'text-slate-600', encerrado && 'text-slate-400')}>{fmtPatrimonio(d)}</span>
                               <span className={cx('om text-xs', encerrado ? 'text-slate-400' : 'text-slate-500')}>OM {d.om ?? '—'}</span>
                               <BadgeStatus status={d.status} />
+                              {feito && d.finalizado_em && <span className="text-xs font-semibold text-emerald-700">às {horaDe(d.finalizado_em)}</span>}
                               {d.observacao && <span className="text-xs text-slate-500">· {d.observacao}</span>}
                               {executar && !encerrado && <div className="ml-auto flex gap-1">
                                 <Botao tamanho="sm" variante="sucesso" onClick={() => run(() => acoes.finalizar([d.id]), 'Finalizado.', itens, data)}><Check size={13} />Finalizar</Botao>

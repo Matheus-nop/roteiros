@@ -25,6 +25,8 @@ export interface ItemArquivado {
   reagendado_para?: string | null
   observacao?: string | null
   finalizado_em?: string | null
+  /** Desde quando a demanda vinha sendo empurrada até este roteiro. */
+  pendente_desde?: string | null
 }
 
 export interface ParadaArquivada {
@@ -81,6 +83,7 @@ export function montarParadas(itens: Demanda[], data: string): ParadaArquivada[]
       reagendado_para: d.data_planejada !== data ? d.data_planejada : null,
       observacao: d.observacao,
       finalizado_em: d.finalizado_em,
+      pendente_desde: d.pendente_desde ?? null,
     })),
   }))
 }

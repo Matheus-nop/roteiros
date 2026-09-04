@@ -35,6 +35,12 @@ body { @apply bg-slate-50 text-slate-800 antialiased; }
 :root {
   --topo-h: 56px;
   --abas-h: 44px;
+
+  /* Recorte do sistema (notch, barra de status, barra de gestos). Em variável e não
+     em `env()` solto: assim o topo fixo e o topo das abas usam o MESMO valor, e dá
+     para simular um aparelho com recorte trocando a variável. Fora do PWA é 0. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Impressão: só a área de impressão aparece */
@@ -65,11 +71,9 @@ body { @apply bg-slate-50 text-slate-800 antialiased; }
 .rolagem-fina::-webkit-scrollbar-thumb:hover { @apply bg-slate-400; }
 }
 
-/* Área segura do iPhone quando instalado como PWA (barra inferior do sistema). */
-@supports (padding: env(safe-area-inset-bottom)) {
-  .pb-segura { padding-bottom: calc(env(safe-area-inset-bottom) + 0.5rem); }
-  .pt-segura { padding-top: env(safe-area-inset-top); }
-}
+/* Área segura do sistema (barra inferior de gestos, notch). */
+.pb-segura { padding-bottom: calc(var(--safe-bottom) + 0.5rem); }
+.pt-segura { padding-top: var(--safe-top); }
 
 /* Alvo de toque confortável nas telas de campo (dedo, não mouse). */
 @layer components {

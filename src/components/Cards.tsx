@@ -5,7 +5,7 @@ import { CSS as CSSdnd } from '@dnd-kit/utilities'
 import { ChevronDown, Package, MapPin, CalendarDays, GripVertical, EyeOff, Eye, RotateCcw } from 'lucide-react'
 import { useCallback, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { Demanda } from '../lib/types'
-import { fmtData, fmtPatrimonio } from '../lib/format'
+import { fmtData, fmtPatrimonio, rotuloEspera } from '../lib/format'
 import { PRIORIDADE_TONE, SEPARACAO_LABEL, SEPARACAO_TONE, STATUS_LABEL, STATUS_TONE } from '../lib/status'
 import { Badge, BadgeTipo, Checkbox, cx } from './ui'
 
@@ -109,11 +109,16 @@ export function GrupoCard({ titulo, subtitulo, chips, contagem, direita, childre
  * "não deu para fazer e voltou" é a informação que muda a decisão do PCM ao montar o
  * próximo roteiro, e antes ela se perdia no meio dos detalhes.
  */
-export function BadgeReagendada({ d, completo }: { d: Pick<Demanda, 'data_reagendada' | 'data_planejada'>; completo?: boolean }) {
+export function BadgeReagendada({ d, completo }: { d: Pick<Demanda, 'data_reagendada' | 'data_planejada' | 'pendente_desde'>; completo?: boolean }) {
+  // A espera é a informação que decide prioridade: "reagendada" sozinho não distingue
+  // a que falhou ontem da que está sendo empurrada há duas semanas.
+  const espera = rotuloEspera(d.pendente_desde)
   const data = d.data_reagendada ?? d.data_planejada
   return (
     <Badge tone="bg-orange-100 text-orange-800 ring-orange-300">
-      <RotateCcw size={10} className="mr-0.5 inline" />REAGENDADA{completo && data ? ` · ${fmtData(data)}` : ''}
+      <RotateCcw size={10} className="mr-0.5 inline" />REAGENDADA
+      {espera && espera !== 'hoje' ? ` · ${espera}` : ''}
+      {completo && data ? ` · para ${fmtData(data)}` : ''}
     </Badge>
   )
 }

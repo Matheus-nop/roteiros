@@ -78,6 +78,10 @@ export interface Demanda {
   herdado_de_pendencia: boolean
   observacao: string | null
   finalizado_em: string | null
+  /** Quando virou pendência pela primeira vez — mede há quanto tempo se arrasta. */
+  pendente_desde?: string | null
+  /** Quando recebeu data nova pela última vez. */
+  reagendado_em?: string | null
   created_at: string
   updated_at: string
   created_by: string | null

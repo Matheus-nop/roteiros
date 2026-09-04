@@ -183,12 +183,35 @@ export class DemoDb implements Db {
     return structuredClone(out) as T[]
   }
 
+  /**
+   * Espelha o gatilho `marcar_tempos` da migração 0007. Sem isto o modo demonstração
+   * mostraria "pendente há —" enquanto a produção mostra a espera de verdade.
+   */
+  private marcarTempos(antes: Linha, patch: Record<string, unknown>) {
+    const agora = new Date().toISOString()
+    const depois = { ...antes, ...patch }
+    if (depois.herdado_de_pendencia && !antes.herdado_de_pendencia) {
+      patch.pendente_desde = antes.pendente_desde ?? agora
+    }
+    if (patch.data_reagendada && patch.data_reagendada !== antes.data_reagendada) {
+      patch.reagendado_em = agora
+    }
+    if (depois.status === 'FINALIZADO' && antes.status !== 'FINALIZADO') {
+      patch.finalizado_em = patch.finalizado_em ?? agora
+      patch.pendente_desde = null
+    }
+    if (depois.status === 'CANCELADO' && antes.status !== 'CANCELADO') patch.pendente_desde = null
+    if (antes.status === 'FINALIZADO' && depois.status !== 'FINALIZADO') patch.finalizado_em = null
+    return patch
+  }
+
   async update<T>(tabela: string, id: string, patch: Record<string, unknown>): Promise<T> {
     const t = this.tabela(tabela)
     const i = t.findIndex(r => r.id === id)
     if (i < 0) throw new DbError(`Registro não encontrado em ${tabela}`)
     const antigo = structuredClone(t[i])
-    const novo = { ...t[i], ...patch }
+    const p = tabela === 'demandas' ? this.marcarTempos(antigo, { ...patch }) : patch
+    const novo = { ...t[i], ...p }
     if (tabela === 'demandas') novo.updated_at = new Date().toISOString()
     t[i] = novo
     if (tabela === 'demandas') this.registrarHistorico(antigo, novo)
