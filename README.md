@@ -96,6 +96,28 @@ ADMIN, PCM, COMERCIAL, EXPEDICAO, TECNICO. O menu e os botões se adaptam ao pap
 > do papel TECNICO às linhas com `tecnico_id` igual ao do próprio usuário) e um teste que
 > prove o bloqueio.
 
+## Cadastrar um técnico (sem e-mail próprio)
+
+O Supabase Auth exige e-mail e técnico de campo não tem e-mail corporativo. A saída é um
+endereço interno que nunca recebe mensagem: o técnico digita **só o usuário** na tela de
+login (`igor`) e o app completa com `@roteiros.local`. O domínio `.local` é reservado e
+não existe na internet — nenhuma senha vai parar numa caixa de verdade por engano.
+
+Para cada técnico, três passos:
+
+1. **Criar o usuário.** Supabase → Authentication → Users → *Add user* → *Create new user*.
+   E-mail `igor@roteiros.local`, defina a senha e **marque `Auto Confirm User`** (sem isso o
+   Supabase tenta enviar confirmação para um endereço que não existe e o login trava).
+2. **Cadastrar a pessoa** em *Técnicos*, se ainda não existir.
+3. **Ligar os dois** em *Cadastros → Usuários* (aba visível só para ADMIN): papel `Técnico`
+   e, na coluna ao lado, o nome do cadastro. O seletor só destrava depois que o papel é
+   TECNICO.
+
+Sem o passo 3 o técnico entra, mas `/meu-roteiro` não sabe quais paradas são dele e mostra
+um aviso pedindo o vínculo.
+
+Trocar senha: Authentication → Users → o usuário → *Reset password*.
+
 ## PWA
 
 Instalável na tela inicial, com ícone próprio e atalhos para *Meu roteiro*, *Planejamento* e

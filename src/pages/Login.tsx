@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react'
-import { useAuth } from '../hooks/useAuth'
+import { DOMINIO_INTERNO, useAuth } from '../hooks/useAuth'
 import { Logo } from '../components/Logo'
 import { Botao, Campo, Input } from '../components/ui'
 import type { Papel } from '../lib/types'
@@ -25,8 +25,15 @@ export function Login() {
         <div className="rounded-xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
           <h1 className="text-base font-semibold text-slate-900">Entrar</h1>
           <p className="mt-0.5 text-sm text-slate-500">Gestão de roteiros, expedição e execução técnica.</p>
+          <p className="mt-2 rounded-md bg-slate-50 px-2.5 py-1.5 text-[12px] text-slate-500 ring-1 ring-slate-200">
+            <b className="text-slate-700">Técnico:</b> digite só o seu usuário (ex.: <code>igor</code>). O app completa com <code>@{DOMINIO_INTERNO}</code>.
+          </p>
           <form onSubmit={submit} className="mt-4 space-y-3">
-            <Campo rotulo="E-mail"><Input type="email" value={email} onChange={e => setEmail(e.target.value)} autoComplete="username" required /></Campo>
+            <Campo rotulo="E-mail ou usuário">
+              {/* type="text", não "email": o técnico digita só o primeiro nome, e a
+                  validação do navegador barraria um valor sem "@". */}
+              <Input type="text" value={email} onChange={e => setEmail(e.target.value)} autoComplete="username" autoCapitalize="none" spellCheck={false} required placeholder="igor  ou  nome@empresa.com.br" />
+            </Campo>
             <Campo rotulo="Senha"><Input type="password" value={senha} onChange={e => setSenha(e.target.value)} autoComplete="current-password" required /></Campo>
             {erro && <p className="text-sm text-red-700">{erro}</p>}
             <Botao type="submit" variante="primario" className="w-full justify-center" disabled={carregando}>{carregando ? 'Entrando…' : 'Entrar'}</Botao>

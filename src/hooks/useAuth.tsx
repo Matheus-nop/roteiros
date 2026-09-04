@@ -13,6 +13,25 @@ interface AuthCtx {
   modoDemo: boolean
 }
 
+/**
+ * Domínio interno dos técnicos.
+ *
+ * O Supabase Auth exige e-mail, e técnico de campo não tem e-mail corporativo. A saída é
+ * um endereço interno que nunca recebe mensagem: o técnico digita só `igor` e o app
+ * completa. O domínio `.local` é reservado justamente para isso — não existe na internet,
+ * então nenhuma senha vaza para uma caixa de verdade por engano.
+ *
+ * O usuário precisa existir no Supabase com este mesmo endereço (ver README).
+ */
+export const DOMINIO_INTERNO = 'roteiros.local'
+
+/** `igor` → `igor@roteiros.local`; quem já digitou um e-mail passa intacto. */
+export function normalizarLogin(entrada: string): string {
+  const v = entrada.trim().toLowerCase()
+  if (!v || v.includes('@')) return v
+  return `${v.replace(/\s+/g, '')}@${DOMINIO_INTERNO}`
+}
+
 const Ctx = createContext<AuthCtx | null>(null)
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -28,7 +47,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthCtx = {
     usuario, carregando, modoDemo,
-    entrar: async (e, s) => { setUsuario(await db.auth.entrar(e, s)) },
+    entrar: async (e, s) => { setUsuario(await db.auth.entrar(normalizarLogin(e), s)) },
     entrarDemo: async (p) => { if (db.auth.entrarDemo) setUsuario(await db.auth.entrarDemo(p)) },
     sair: async () => { await db.auth.sair(); setUsuario(null) },
     pode: (a) => !usuario?.semPerfil && pode(usuario?.perfil.papel, a),
