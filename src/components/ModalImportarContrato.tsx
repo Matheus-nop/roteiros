@@ -11,6 +11,8 @@ import { useMemo, useState } from 'react'
 import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
 import { Botao, Campo, Input, Modal, Select, cx } from './ui'
+import { CampoSugestao } from './CampoSugestao'
+import { useLocalidades } from '../hooks/useLocalidades'
 import { TIPOS } from '../lib/status'
 import { normalizar, hojeISO } from '../lib/format'
 import { encontrarDuplicata } from '../lib/actions'
@@ -43,9 +45,8 @@ export function ModalImportarContrato({ aberto, onFechar }: { aberto: boolean; o
   const [salvando, setSalvando] = useState(false)
 
   const nomesCadastrados = useMemo(() => Array.from(new Set(equipamentos.map(e => e.nome))).sort(), [equipamentos])
-  const locaisConhecidos = useMemo(
-    () => Array.from(new Set(demandas.map(d => d.local).filter(Boolean) as string[])).sort(),
-    [demandas])
+  // Mesma fonte do formulário: sobrevive a um corte que arquive todas as demandas.
+  const locaisConhecidos = useLocalidades()
   /** Patrimônio é identidade: um número só pode ser um equipamento. */
   const porPatrimonio = useMemo(
     () => new Map(equipamentos.filter(e => e.patrimonio).map(e => [normalizar(e.patrimonio), e])),
@@ -172,8 +173,7 @@ export function ModalImportarContrato({ aberto, onFechar }: { aberto: boolean; o
             <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2 lg:grid-cols-5">
               <Campo rotulo="Cliente"><Input value={cliente} onChange={e => setCliente(e.target.value)} placeholder="nome do cliente" /></Campo>
               <Campo rotulo="Local (vai para o quadro)">
-                <Input list="dl-locais-contrato" value={local} onChange={e => setLocal(e.target.value)} placeholder="bairro - cidade" />
-                <datalist id="dl-locais-contrato">{locaisConhecidos.map(l => <option key={l} value={l} />)}</datalist>
+                <CampoSugestao valor={local} onChange={setLocal} sugestoes={locaisConhecidos} placeholder="bairro - cidade" />
               </Campo>
               <Campo rotulo="Contrato / OS"><Input value={os} onChange={e => setOs(e.target.value)} className="om" placeholder="nº da ficha" /></Campo>
               <Campo rotulo="Tipo"><Select value={tipo} onChange={e => setTipo(e.target.value as Tipo)}>{TIPOS.map(t => <option key={t}>{t}</option>)}</Select></Campo>

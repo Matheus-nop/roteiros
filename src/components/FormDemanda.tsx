@@ -8,6 +8,8 @@ import { TIPOS } from '../lib/status'
 import { fmtDataHora, hojeISO, normalizar } from '../lib/format'
 import { encontrarDuplicata } from '../lib/actions'
 import { Botao, Campo, Input, Modal, Select } from './ui'
+import { CampoSugestao } from './CampoSugestao'
+import { useLocalidades } from '../hooks/useLocalidades'
 
 type Linha = { om: string; cliente: string; local: string; tipo: Tipo; equipamento: string; patrimonio: string; quantidade: string; observacao: string }
 const vazia = (): Linha => ({ om: '', cliente: '', local: '', tipo: 'ENTREGA', equipamento: '', patrimonio: '', quantidade: '1', observacao: '' })
@@ -19,6 +21,9 @@ export function ModalNovaDemanda({ aberto, onFechar }: { aberto: boolean; onFech
   const [salvando, setSalvando] = useState(false)
 
   const nomesEquip = useMemo(() => Array.from(new Set(equipamentos.map(e => e.nome))).sort(), [equipamentos])
+  const localidades = useLocalidades()
+  // Apelidos entram na lista: quem digita "AEGEA" precisa achar "ÁGUAS DO RIO".
+  const nomesCliente = useMemo(() => clientes.flatMap(c => [c.nome, ...c.apelidos]), [clientes])
 
   const resolverCliente = (nome: string) => {
     const n = normalizar(nome)
@@ -73,8 +78,6 @@ export function ModalNovaDemanda({ aberto, onFechar }: { aberto: boolean; onFech
       <Botao onClick={onFechar}>Cancelar</Botao>
       <Botao variante="primario" onClick={salvar} disabled={salvando}>{salvando ? 'Salvando…' : `Lançar ${linhas.length > 1 ? linhas.length + ' demandas' : 'demanda'}`}</Botao>
     </>}>
-      <datalist id="dl-clientes">{clientes.map(c => <option key={c.id} value={c.nome} />)}</datalist>
-      <datalist id="dl-equip">{nomesEquip.map(n => <option key={n} value={n} />)}</datalist>
       <div className="space-y-2">
         {linhas.map((l, i) => {
           const dup = l.equipamento && encontrarDuplicata(montar(l) as Demanda, demandas)
@@ -82,10 +85,10 @@ export function ModalNovaDemanda({ aberto, onFechar }: { aberto: boolean; onFech
             <div key={i} className="rounded-md border border-slate-200 bg-slate-50/60 p-3">
               <div className="grid grid-cols-2 gap-2 md:grid-cols-4 lg:grid-cols-8">
                 <Campo rotulo="OM / OS"><Input value={l.om} onChange={e => set(i, 'om', e.target.value)} placeholder="1268-03/26" className="om" /></Campo>
-                <Campo rotulo="Cliente" className="lg:col-span-2"><Input list="dl-clientes" value={l.cliente} onChange={e => set(i, 'cliente', e.target.value)} /></Campo>
-                <Campo rotulo="Local" className="lg:col-span-2"><Input value={l.local} onChange={e => set(i, 'local', e.target.value)} placeholder="PENHA - ZONA NORTE" /></Campo>
+                <Campo rotulo="Cliente" className="lg:col-span-2"><CampoSugestao valor={l.cliente} onChange={v => set(i, 'cliente', v)} sugestoes={nomesCliente} /></Campo>
+                <Campo rotulo="Local" className="lg:col-span-2"><CampoSugestao valor={l.local} onChange={v => set(i, 'local', v)} sugestoes={localidades} placeholder="comece a digitar: duque…" /></Campo>
                 <Campo rotulo="Tipo"><Select value={l.tipo} onChange={e => set(i, 'tipo', e.target.value)}>{TIPOS.map(t => <option key={t}>{t}</option>)}</Select></Campo>
-                <Campo rotulo="Equipamento" className="lg:col-span-2"><Input list="dl-equip" value={l.equipamento} onChange={e => set(i, 'equipamento', e.target.value)} /></Campo>
+                <Campo rotulo="Equipamento" className="lg:col-span-2"><CampoSugestao valor={l.equipamento} onChange={v => set(i, 'equipamento', v)} sugestoes={nomesEquip} /></Campo>
                 <Campo rotulo="Patrimônio"><Input value={l.patrimonio} onChange={e => set(i, 'patrimonio', e.target.value)} placeholder="vazio = por qtd" /></Campo>
                 <Campo rotulo="Qtd"><Input value={l.quantidade} onChange={e => set(i, 'quantidade', e.target.value)} disabled={!!l.patrimonio.trim()} /></Campo>
                 <Campo rotulo="Observação" className="col-span-2 lg:col-span-5"><Input value={l.observacao} onChange={e => set(i, 'observacao', e.target.value)} /></Campo>
@@ -106,6 +109,7 @@ export function ModalNovaDemanda({ aberto, onFechar }: { aberto: boolean; onFech
 
 export function ModalEditarDemanda({ d, onFechar }: { d: Demanda | null; onFechar(): void }) {
   const { acoes, clientes, nomeDoUsuario } = useData()
+  const localidades = useLocalidades()
   const { toast, erro } = useToast()
   const [f, setF] = useState<Partial<Demanda>>({})
   const v = { ...d, ...f } as Demanda
@@ -121,11 +125,10 @@ export function ModalEditarDemanda({ d, onFechar }: { d: Demanda | null; onFecha
   }
   return (
     <Modal aberto onFechar={onFechar} titulo={`Editar demanda #${d.numero}`} largura="max-w-3xl" rodape={<><Botao onClick={onFechar}>Cancelar</Botao><Botao variante="primario" onClick={salvar}>Salvar</Botao></>}>
-      <datalist id="dl-clientes-ed">{clientes.map(c => <option key={c.id} value={c.nome} />)}</datalist>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
         <Campo rotulo="OM / OS"><Input value={v.om ?? ''} onChange={e => set('om', e.target.value)} className="om" /></Campo>
-        <Campo rotulo="Cliente" className="md:col-span-2"><Input list="dl-clientes-ed" value={v.cliente_nome ?? ''} onChange={e => set('cliente_nome', e.target.value)} /></Campo>
-        <Campo rotulo="Local" className="md:col-span-2"><Input value={v.local ?? ''} onChange={e => set('local', e.target.value)} /></Campo>
+        <Campo rotulo="Cliente" className="md:col-span-2"><CampoSugestao valor={v.cliente_nome ?? ''} onChange={x => set('cliente_nome', x)} sugestoes={clientes.flatMap(c => [c.nome, ...c.apelidos])} /></Campo>
+        <Campo rotulo="Local" className="md:col-span-2"><CampoSugestao valor={v.local ?? ''} onChange={x => set('local', x)} sugestoes={localidades} placeholder="comece a digitar: duque…" /></Campo>
         <Campo rotulo="Tipo"><Select value={v.tipo} onChange={e => set('tipo', e.target.value)}>{TIPOS.map(t => <option key={t}>{t}</option>)}</Select></Campo>
         <Campo rotulo="Equipamento" className="md:col-span-2"><Input value={v.equipamento_nome ?? ''} onChange={e => set('equipamento_nome', e.target.value)} /></Campo>
         <Campo rotulo="Patrimônio"><Input value={v.patrimonio ?? ''} onChange={e => set('patrimonio', e.target.value || null)} /></Campo>
