@@ -61,18 +61,24 @@ export function CardDemanda({ d, selecionado, onSelecionar, acoes, extra, mostra
     )
   }
 
+  // No celular vira duas linhas: texto em cima, etiquetas e ações embaixo. Numa linha só,
+  // as etiquetas (que não encolhem) espremiam o nome do equipamento a ~45px e ele quebrava
+  // letra por letra — foi o que apareceu no Roteiro, na Expedição e no Pré-roteiro.
   return (
-    <div className={cx('group flex items-center gap-2.5 bg-white px-3 transition hover:bg-slate-50', compacto ? 'py-1.5' : 'py-2.5', selecionado && 'bg-blue-50/60', onClick && 'cursor-pointer')} onClick={onClick}>
-      {onSelecionar && <span onClick={e => e.stopPropagation()}><Checkbox checked={!!selecionado} onChange={e => onSelecionar(e.target.checked)} /></span>}
-      {arrastavel && <GripVertical size={14} className="shrink-0 cursor-grab text-slate-300" />}
-      <Package size={15} className="shrink-0 text-amber-600/80" />
-      <div className="min-w-0 flex-1">
-        {mostrarCliente && <div className="truncate text-[12px] font-semibold text-slate-800">{d.cliente_nome ?? '—'} <span className="font-normal text-slate-500">· {d.local ?? '—'}</span></div>}
-        <div className="truncate text-[13px] font-semibold text-slate-800">{d.equipamento_nome ?? '—'}</div>
-        {detalhes}
-        {extra}
+    <div className={cx('group flex flex-col gap-1.5 bg-white px-3 transition hover:bg-slate-50 sm:flex-row sm:items-center sm:gap-2.5',
+      compacto ? 'py-2 sm:py-1.5' : 'py-2.5', selecionado && 'bg-blue-50/60', onClick && 'cursor-pointer')} onClick={onClick}>
+      <div className="flex min-w-0 flex-1 items-center gap-2.5">
+        {onSelecionar && <span onClick={e => e.stopPropagation()}><Checkbox checked={!!selecionado} onChange={e => onSelecionar(e.target.checked)} /></span>}
+        {arrastavel && <GripVertical size={14} className="shrink-0 cursor-grab text-slate-300" />}
+        <Package size={15} className="shrink-0 text-amber-600/80" />
+        <div className="min-w-0 flex-1">
+          {mostrarCliente && <div className="truncate text-[12px] font-semibold text-slate-800">{d.cliente_nome ?? '—'} <span className="font-normal text-slate-500">· {d.local ?? '—'}</span></div>}
+          <div className="truncate text-[13px] font-semibold text-slate-800">{d.equipamento_nome ?? '—'}</div>
+          {detalhes}
+          {extra}
+        </div>
       </div>
-      <div className="flex shrink-0 items-center gap-1.5" onClick={e => e.stopPropagation()}>
+      <div className="flex flex-wrap items-center gap-1.5 pl-[26px] sm:shrink-0 sm:pl-0" onClick={e => e.stopPropagation()}>
         {badges}
         {acoes && <div className="flex items-center gap-0.5 opacity-60 transition group-hover:opacity-100">{acoes}</div>}
       </div>
@@ -88,15 +94,17 @@ export function GrupoCard({ titulo, subtitulo, chips, contagem, direita, childre
   const [open, setOpen] = useState(aberto)
   return (
     <section className={cx('overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm', className)} style={cor ? { borderLeft: `4px solid ${cor}` } : undefined}>
-      <header className="flex items-center gap-3 px-4 py-3">
+      {/* `flex-wrap` + `basis-full`: no celular os botões caem para a linha de baixo. Numa
+          linha só eles passavam por cima do subtítulo e o último saía da tela. */}
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         {onSelecionar && <Checkbox checked={!!selecionado} onChange={e => onSelecionar(e.target.checked)} />}
-        <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1 basis-full sm:basis-0">
           <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5"><span className="text-[15px] font-bold text-slate-900">{titulo}</span>{subtitulo && <span className="text-[12px] text-slate-500">{subtitulo}</span>}</div>
           {chips && <div className="mt-1 flex flex-wrap gap-1">{chips}</div>}
         </div>
-        <div className="flex items-center gap-2">{direita}
+        <div className="flex flex-wrap items-center gap-2">{direita}
           {contagem !== undefined && <span className="rounded-full bg-emerald-500 px-2.5 py-0.5 text-[11px] font-bold text-white">{contagem} {contagem === 1 ? 'item' : 'itens'}</span>}
-          <button onClick={() => setOpen(o => !o)} className="rounded p-1 text-slate-400 hover:bg-slate-100"><ChevronDown size={16} className={cx('transition', !open && '-rotate-90')} /></button>
+          <button onClick={() => setOpen(o => !o)} className="ml-auto rounded p-1 text-slate-400 hover:bg-slate-100"><ChevronDown size={16} className={cx('transition', !open && '-rotate-90')} /></button>
         </div>
       </header>
       {open && <div className="divide-y divide-slate-100 border-t border-slate-100">{children}</div>}

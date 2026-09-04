@@ -18,8 +18,9 @@ export function Cadastros() {
   const editar = pode('cadastros.editar')
   return (
     <Pagina titulo="Cadastros" subtitulo="Clientes, equipamentos, expedidores e usuários">
-      <div className="mb-4 flex gap-1 border-b border-slate-200">
-        {abas.map(a => <button key={a.k} onClick={() => setAba(a.k)} className={cx('-mb-px border-b-2 px-3 py-2 text-sm font-medium', aba === a.k ? 'border-brand-700 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700')}>{a.r}</button>)}
+      {/* Quatro abas não cabem em 390px: a faixa rola em vez de empurrar a página. */}
+      <div className="rolagem-fina mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
+        {abas.map(a => <button key={a.k} onClick={() => setAba(a.k)} className={cx('-mb-px shrink-0 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium', aba === a.k ? 'border-brand-700 text-brand-700' : 'border-transparent text-slate-500 hover:text-slate-700')}>{a.r}</button>)}
       </div>
       {aba === 'clientes' && <Clientes editar={editar} />}
       {aba === 'equipamentos' && <Equipamentos editar={editar} />}
@@ -45,7 +46,7 @@ function Clientes({ editar }: { editar: boolean }) {
       <Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar…" className="w-48" />
       {editar && <Botao tamanho="sm" variante="primario" onClick={() => setF({ nome: '', apelidos: '' })}><Plus size={13} />Novo cliente</Botao>}
     </>}>
-      <table className="tabela w-full">
+      <div className="overflow-x-auto"><table className="tabela w-full min-w-[560px]">
         <thead><tr><th>Cliente</th><th>Apelidos</th><th>Demandas ativas</th><th /></tr></thead>
         <tbody>{lista.map(c => (
           <tr key={c.id}>
@@ -54,7 +55,7 @@ function Clientes({ editar }: { editar: boolean }) {
             <td className="tabular-nums">{demandas.filter(d => d.cliente_id === c.id).length}</td>
             <td className="text-right">{editar && <Botao tamanho="sm" variante="fantasma" onClick={() => setF({ id: c.id, nome: c.nome, apelidos: c.apelidos.join(', ') })}><Pencil size={13} /></Botao>}</td>
           </tr>))}</tbody>
-      </table>
+      </table></div>
       <Modal aberto={!!f} onFechar={() => setF(null)} titulo={f?.id ? 'Editar cliente' : 'Novo cliente'} rodape={<><Botao onClick={() => setF(null)}>Cancelar</Botao><Botao variante="primario" onClick={salvar}>Salvar</Botao></>}>
         {f && <div className="space-y-3">
           <Campo rotulo="Nome oficial"><Input value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} /></Campo>
@@ -83,7 +84,7 @@ function Equipamentos({ editar }: { editar: boolean }) {
       {editar && <Botao tamanho="sm" variante="primario" onClick={() => setF({ controlado_por_quantidade: false })}><Plus size={13} />Novo equipamento</Botao>}
     </>}>
       <div className="max-h-[70vh] overflow-auto">
-        <table className="tabela w-full">
+        <div className="overflow-x-auto"><table className="tabela w-full min-w-[560px]">
           <thead><tr><th>Equipamento</th><th>Patrimônio</th><th>Controle</th><th>Unidade</th><th /></tr></thead>
           <tbody>{lista.map(e => (
             <tr key={e.id}>
@@ -93,7 +94,7 @@ function Equipamentos({ editar }: { editar: boolean }) {
               <td className="text-xs">{e.unidade ?? '—'}</td>
               <td className="text-right">{editar && <><Botao tamanho="sm" variante="fantasma" onClick={() => setF(e)}><Pencil size={13} /></Botao><Botao tamanho="sm" variante="fantasma" onClick={() => setExcluir(e)}><Trash2 size={13} className="text-red-600" /></Botao></>}</td>
             </tr>))}</tbody>
-        </table>
+        </table></div>
       </div>
       <Modal aberto={!!f} onFechar={() => setF(null)} titulo={f?.id ? 'Editar equipamento' : 'Novo equipamento'} rodape={<><Botao onClick={() => setF(null)}>Cancelar</Botao><Botao variante="primario" onClick={salvar}>Salvar</Botao></>}>
         {f && <div className="grid grid-cols-2 gap-3">
@@ -135,7 +136,7 @@ function Usuarios() {
   return (
     <Cartao titulo="Usuários e papéis">
       <p className="px-4 pt-3 text-xs text-slate-500">Usuários são criados no painel do Supabase (Authentication → Users). O primeiro vira ADMIN; os demais entram como PCM e podem ser ajustados aqui.{modoDemo && ' No modo demonstração não há usuários reais.'}</p>
-      <table className="tabela mt-2 w-full">
+      <div className="overflow-x-auto"><table className="tabela w-full min-w-[560px]">
         <thead><tr><th>Nome</th><th>E-mail</th><th>Papel</th><th>Técnico vinculado</th></tr></thead>
         <tbody>
           {perfis.length === 0 && <tr><td colSpan={4} className="py-6 text-center text-slate-500">Nenhum perfil.</td></tr>}
@@ -147,7 +148,7 @@ function Usuarios() {
               <td><Select value={p.tecnico_id ?? ''} onChange={e => mudar(p, { tecnico_id: e.target.value || null })} className="w-44" disabled={p.papel !== 'TECNICO'}><option value="">—</option>{tecnicos.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}</Select></td>
             </tr>))}
         </tbody>
-      </table>
+      </table></div>
     </Cartao>
   )
 }

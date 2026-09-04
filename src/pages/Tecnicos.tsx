@@ -31,7 +31,7 @@ export function Tecnicos() {
     <Pagina titulo="Técnicos" subtitulo="Cadastro de técnicos de campo e veículos">
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
         <Cartao className="lg:col-span-3" titulo="Técnicos" acoes={editar && <Botao tamanho="sm" variante="primario" onClick={() => setTec({ ativo: true, cor: '#2563eb' })}><Plus size={13} />Novo técnico</Botao>}>
-          <table className="tabela w-full">
+          <div className="overflow-x-auto"><table className="tabela w-full min-w-[560px]">
             <thead><tr><th>Técnico</th><th>Veículo padrão</th><th>Ativas</th><th>Status</th><th /></tr></thead>
             <tbody>
               {tecnicos.map(t => (
@@ -44,10 +44,10 @@ export function Tecnicos() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </Cartao>
         <Cartao className="lg:col-span-2" titulo="Veículos" acoes={editar && <Botao tamanho="sm" variante="primario" onClick={() => setVei({ ativo: true })}><Plus size={13} />Novo veículo</Botao>}>
-          <table className="tabela w-full">
+          <div className="overflow-x-auto"><table className="tabela w-full min-w-[560px]">
             <thead><tr><th>Veículo</th><th>Placa</th><th>Status</th><th /></tr></thead>
             <tbody>
               {veiculos.map(v => (
@@ -59,7 +59,7 @@ export function Tecnicos() {
                 </tr>
               ))}
             </tbody>
-          </table>
+          </table></div>
         </Cartao>
       </div>
 
