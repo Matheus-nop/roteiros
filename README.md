@@ -96,6 +96,17 @@ ADMIN, PCM, COMERCIAL, EXPEDICAO, TECNICO. O menu e os botões se adaptam ao pap
 > do papel TECNICO às linhas com `tecnico_id` igual ao do próprio usuário) e um teste que
 > prove o bloqueio.
 
+## Scripts de operação (`supabase/scripts/`)
+
+Não são migrações: são scripts pontuais, para colar no SQL Editor quando fizer sentido.
+
+| Script | Para quê |
+|---|---|
+| `criar-usuarios-tecnicos.sql` | Cria de uma vez o login de todos os técnicos ativos que ainda não têm, já com perfil e vínculo |
+| `limpar-para-comecar.sql` | Manda tudo que está em circulação para o histórico, para começar a operar limpo |
+
+Os dois são idempotentes e começam com um passo de pré-voo só de leitura.
+
 ## Cadastrar um técnico (sem e-mail próprio)
 
 O Supabase Auth exige e-mail e técnico de campo não tem e-mail corporativo. A saída é um
@@ -103,7 +114,8 @@ endereço interno que nunca recebe mensagem: o técnico digita **só o usuário*
 login (`igor`) e o app completa com `@roteiros.local`. O domínio `.local` é reservado e
 não existe na internet — nenhuma senha vai parar numa caixa de verdade por engano.
 
-Para cada técnico, três passos:
+Para criar **todos de uma vez**, use `supabase/scripts/criar-usuarios-tecnicos.sql`.
+Manualmente, para cada técnico, são três passos:
 
 1. **Criar o usuário.** Supabase → Authentication → Users → *Add user* → *Create new user*.
    E-mail `igor@roteiros.local`, defina a senha e **marque `Auto Confirm User`** (sem isso o
