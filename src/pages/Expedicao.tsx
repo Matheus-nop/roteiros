@@ -55,24 +55,30 @@ export function Expedicao() {
 
   const Linha = ({ d }: { d: Demanda }) => {
     const liberado = d.status !== 'ROTEIRIZADO'
+    // Os dois selects têm largura fixa e não encolhem: numa linha só eles esmagavam o
+    // nome do equipamento no celular. Empilham abaixo de `sm`.
     return (
-      <div className={cx('flex items-center gap-3 px-4 py-2.5', d.status_separacao === 'SEPARADO' && 'bg-emerald-50/40', sel.has(d.id) && 'bg-blue-50/60')}>
-        <input type="checkbox" checked={sel.has(d.id)} onChange={e => setSel(s => { const x = new Set(s); e.target.checked ? x.add(d.id) : x.delete(d.id); return x })} className="h-4 w-4 rounded border-slate-300" />
+      <div className={cx('flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3', d.status_separacao === 'SEPARADO' && 'bg-emerald-50/40', sel.has(d.id) && 'bg-blue-50/60')}>
+        <div className="flex min-w-0 flex-1 items-start gap-3">
+        <input type="checkbox" checked={sel.has(d.id)} onChange={e => setSel(s => { const x = new Set(s); e.target.checked ? x.add(d.id) : x.delete(d.id); return x })} className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 text-[13px] font-bold text-slate-800">{d.cliente_nome ?? '—'} <LocalData local={d.local} /></div>
           <div className="flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-slate-500">📦 {d.equipamento_nome} · <span className={d.patrimonio ? 'font-mono' : ''}>{fmtPatrimonio(d)}</span> · <span className="om">OS {d.om ?? '—'}</span>{todas && <> · 📅 {fmtData(d.data_planejada)}</>}{d.ordem_parada ? <> · parada {d.ordem_parada / 10}</> : null}</div>
         </div>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 pl-7 sm:shrink-0 sm:pl-0">
         <BadgeTipo tipo={d.tipo} />
         {liberado && <Badge tone="bg-indigo-50 text-indigo-800 ring-indigo-200">▶ liberado</Badge>}
         {separar ? (
           <Select value={d.status_separacao} disabled={liberado} onChange={e => run(() => acoes.definirSeparacao(d.id, e.target.value as StatusSeparacao, d.separado_por ?? quem()))}
-            className={cx('!w-40 !py-1 !text-xs font-bold', d.status_separacao === 'SEPARADO' ? '!bg-emerald-50 !text-emerald-800 !border-emerald-300' : d.status_separacao === 'EM_SEPARACAO' ? '!bg-amber-50 !text-amber-800 !border-amber-300' : '!bg-red-50 !text-red-800 !border-red-300')}>
+            className={cx('!w-full !py-1 !text-xs font-bold sm:!w-40', d.status_separacao === 'SEPARADO' ? '!bg-emerald-50 !text-emerald-800 !border-emerald-300' : d.status_separacao === 'EM_SEPARACAO' ? '!bg-amber-50 !text-amber-800 !border-amber-300' : '!bg-red-50 !text-red-800 !border-red-300')}>
             {(Object.keys(SEPARACAO_LABEL) as StatusSeparacao[]).map(s => <option key={s} value={s}>{SEPARACAO_LABEL[s].toUpperCase()}</option>)}
           </Select>
         ) : <Badge>{SEPARACAO_LABEL[d.status_separacao]}</Badge>}
-        {separar && <Select value={d.separado_por ?? ''} disabled={liberado} onChange={e => run(() => acoes.definirSeparadoPor(d.id, e.target.value || null))} className="!w-36 !py-1 !text-xs">
+        {separar && <Select value={d.separado_por ?? ''} disabled={liberado} onChange={e => run(() => acoes.definirSeparadoPor(d.id, e.target.value || null))} className="!w-full !py-1 !text-xs sm:!w-36">
           <option value="">quem separou</option>{expedidores.filter(x => x.ativo || x.nome === d.separado_por).map(x => <option key={x.id} value={x.nome}>{x.nome}</option>)}{d.separado_por && !expedidores.some(x => x.nome === d.separado_por) && <option value={d.separado_por}>{d.separado_por}</option>}
         </Select>}
+        </div>
       </div>
     )
   }
