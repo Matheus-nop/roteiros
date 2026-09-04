@@ -5,7 +5,7 @@ import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
 import type { Demanda, NovaDemanda, Tipo } from '../lib/types'
 import { TIPOS } from '../lib/status'
-import { hojeISO, normalizar } from '../lib/format'
+import { fmtDataHora, hojeISO, normalizar } from '../lib/format'
 import { encontrarDuplicata } from '../lib/actions'
 import { Botao, Campo, Input, Modal, Select } from './ui'
 
@@ -105,7 +105,7 @@ export function ModalNovaDemanda({ aberto, onFechar }: { aberto: boolean; onFech
 }
 
 export function ModalEditarDemanda({ d, onFechar }: { d: Demanda | null; onFechar(): void }) {
-  const { acoes, clientes } = useData()
+  const { acoes, clientes, nomeDoUsuario } = useData()
   const { toast, erro } = useToast()
   const [f, setF] = useState<Partial<Demanda>>({})
   const v = { ...d, ...f } as Demanda
@@ -133,6 +133,14 @@ export function ModalEditarDemanda({ d, onFechar }: { d: Demanda | null; onFecha
         <Campo rotulo="Unidade"><Input value={v.unidade ?? ''} onChange={e => set('unidade', e.target.value || null)} /></Campo>
         <Campo rotulo="Data de abertura"><Input type="date" value={v.data_abertura ?? ''} onChange={e => set('data_abertura', e.target.value || null)} /></Campo>
         <Campo rotulo="Observação" className="col-span-2 md:col-span-3"><Input value={v.observacao ?? ''} onChange={e => set('observacao', e.target.value || null)} /></Campo>
+      </div>
+
+      {/* Procedência: responde "quem lançou isso?" sem sair da tela. */}
+      <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1 border-t border-slate-100 pt-3 text-[11.5px] text-slate-500">
+        <span>Lançada por <b className="text-slate-700">{nomeDoUsuario(d.created_by)}</b> em {fmtDataHora(d.created_at)}</span>
+        {d.origem && <span>· origem <b className="text-slate-700">{d.origem}</b></span>}
+        {d.updated_at !== d.created_at && <span>· última alteração em {fmtDataHora(d.updated_at)}</span>}
+        <span className="text-slate-400">· nº {d.numero}</span>
       </div>
     </Modal>
   )

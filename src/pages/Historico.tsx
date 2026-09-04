@@ -149,7 +149,7 @@ function Arquivadas({ restaurar }: { restaurar: boolean }) {
 
 // ---------------------------------------------------------------- auditoria
 function Eventos({ restaurar }: { restaurar: boolean }) {
-  const { acoes, demandas } = useData()
+  const { acoes, demandas, nomeDoUsuario } = useData()
   const { toast, erro } = useToast()
   const [lista, setLista] = useState<Evento[]>([])
   const [busca, setBusca] = useState('')
@@ -161,12 +161,12 @@ function Eventos({ restaurar }: { restaurar: boolean }) {
   const ativos = useMemo(() => new Set(demandas.map(d => d.id)), [demandas])
   const itens = useMemo(() => {
     const b = normalizar(busca)
-    return lista.filter(h => !b || normalizar([h.snapshot?.om, h.snapshot?.cliente_nome, h.snapshot?.equipamento_nome, h.snapshot?.patrimonio, h.acao].join(' ')).includes(b))
-  }, [lista, busca])
+    return lista.filter(h => !b || normalizar([h.snapshot?.om, h.snapshot?.cliente_nome, h.snapshot?.equipamento_nome, h.snapshot?.patrimonio, h.acao, nomeDoUsuario(h.alterado_por)].join(' ')).includes(b))
+  }, [lista, busca, nomeDoUsuario])
 
   return (
     <>
-      <div className="mb-3 relative"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar OS, equipamento, cliente, ação…" className="pl-8" /></div>
+      <div className="mb-3 relative"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar OS, equipamento, cliente, ação, pessoa…" className="pl-8" /></div>
       {itens.length === 0 && <Vazio titulo="Nenhum evento" texto="Cada mudança de status de demanda entra aqui automaticamente." />}
 
       {/* Linha do tempo: um card por evento, o mais recente no topo. */}
@@ -184,6 +184,7 @@ function Eventos({ restaurar }: { restaurar: boolean }) {
                 <div className="flex flex-wrap items-center gap-x-2 text-[11.5px] text-slate-500">
                   {s && <><span className="om">OS {s.om ?? '—'}</span><span>·</span><span className={s.patrimonio ? 'font-mono' : ''}>{s.patrimonio ? fmtPatrimonio(s as Demanda) : `Qtd ${s.quantidade}`}</span></>}
                   {h.acao && <><span>·</span><span className="font-medium text-slate-600">{h.acao}</span></>}
+                  <span>·</span><span className="font-semibold text-brand-700">{nomeDoUsuario(h.alterado_por)}</span>
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">

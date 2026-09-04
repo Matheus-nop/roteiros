@@ -220,6 +220,14 @@ export class DemoDb implements Db {
         perfil: { id: `demo-${papel.toLowerCase()}`, nome: papel === 'TECNICO' ? 'Victor' : `Usuário ${papel}`, email, papel, tecnico_id: papel === 'TECNICO' ? tecnicosSeed[0].id : null },
       }
       this.usuario = u
+      // Espelha o perfil na tabela: é dela que as telas tiram o nome de quem lançou
+      // ou alterou. No Supabase isso já existe; aqui precisa ser criado à mão.
+      const perfis = this.tabela('perfis')
+      if (!perfis.some(p => p.id === u.id)) {
+        perfis.push({ ...u.perfil })
+        this.persistir()
+        this.emitir('perfis', { tipo: 'INSERT', novo: { ...u.perfil } })
+      }
       localStorage.setItem(CHAVE_USER, JSON.stringify(u))
       this.authOuvintes.forEach(cb => cb(u))
       return u
