@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { LayoutDashboard, Inbox, CalendarRange, Route, PackageCheck, Truck, Map, ClipboardCheck, Clock, Users, Database, History, Archive, LogOut, RefreshCw, Plus, ChevronDown, Menu, X, Wifi, WifiOff, Smartphone } from 'lucide-react'
+import { LayoutDashboard, Inbox, CalendarRange, Route, PackageCheck, Truck, Map, ClipboardCheck, Clock, Users, Database, History, Archive, LogOut, RefreshCw, Plus, ChevronDown, Menu, X, Wifi, WifiOff, Smartphone, DownloadCloud } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Marca } from './Logo'
 import { useAuth } from '../hooks/useAuth'
@@ -32,7 +32,7 @@ const MENU: ItemMenu[] = [
 export function Layout() {
   const { usuario, sair, modoDemo, pode } = useAuth()
   const { conectado, recarregar, carregando } = useData()
-  const { podeInstalar, instalar, temAtualizacao, atualizar } = usePwa()
+  const { podeInstalar, instalar, temAtualizacao, atualizar, versao } = usePwa()
   const [nova, setNova] = useState(false)
   const [menu, setMenu] = useState(false)
   const [gaveta, setGaveta] = useState(false)
@@ -94,7 +94,15 @@ export function Layout() {
                     <Smartphone size={14} className="text-brand-600" />Instalar o app
                   </button>
                 )}
+                <button onClick={() => atualizar()} title="Baixa a versão mais recente, descartando o que estiver guardado no navegador"
+                  className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-medium hover:bg-slate-100">
+                  <DownloadCloud size={14} className="text-brand-600" />Buscar versão mais recente
+                </button>
                 <button onClick={sair} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] hover:bg-slate-100"><LogOut size={14} />Sair</button>
+              </div>
+              {/* Serve de conferência no suporte: "qual versão você está vendo?" */}
+              <div className="border-t border-slate-100 px-4 py-2 text-[10.5px] text-slate-400">
+                versão {versao.slice(0, 16).replace('T', ' ')}
               </div>
             </div>
           )}
@@ -151,7 +159,7 @@ export function Layout() {
       {temAtualizacao && (
         <div className="flex items-center justify-center gap-3 bg-brand-700 px-4 py-2 text-[13px] text-white print:hidden">
           <span>Uma versão nova do app está pronta.</span>
-          <button onClick={atualizar} className="rounded-md bg-acento-500 px-2.5 py-1 text-[12px] font-bold text-brand-900 hover:bg-acento-400">Atualizar agora</button>
+          <button onClick={() => atualizar()} className="rounded-md bg-acento-500 px-2.5 py-1 text-[12px] font-bold text-brand-900 hover:bg-acento-400">Atualizar agora</button>
         </div>
       )}
 
