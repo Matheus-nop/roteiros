@@ -29,6 +29,10 @@
 -- é caminho não documentado. Funciona e é largamente usado, mas se um dia o Supabase
 -- mudar essas tabelas o script pode precisar de ajuste. Por isso ele termina com uma
 -- conferência: se algum login não aparecer lá, crie aquele no painel.
+--
+-- Se o login responder "Database error querying schema", rode
+-- `corrigir-login-tecnicos.sql`: é sinal de usuário criado por uma versão anterior
+-- deste script, que deixava colunas de token nulas.
 
 
 -- ---------------------------------------------------------------------
@@ -88,14 +92,20 @@ begin
       insert into auth.users (
         instance_id, id, aud, role, email, encrypted_password,
         email_confirmed_at, created_at, updated_at,
-        raw_app_meta_data, raw_user_meta_data
+        raw_app_meta_data, raw_user_meta_data,
+        -- Estas precisam ser STRING VAZIA, nunca nulas: o Supabase as lê como texto
+        -- obrigatório, e um nulo aqui derruba o login com
+        -- "Database error querying schema" — erro que não diz nada sobre a causa.
+        confirmation_token, recovery_token, email_change,
+        email_change_token_new, email_change_token_current, email_change_confirm_status
       ) values (
         '00000000-0000-0000-0000-000000000000', novo_id, 'authenticated', 'authenticated',
         r.email, extensions.crypt(senha_inicial, extensions.gen_salt('bf')),
         now(),                                   -- e-mail já confirmado: não há caixa para receber link
         now(), now(),
         '{"provider":"email","providers":["email"]}'::jsonb,
-        jsonb_build_object('nome', r.nome, 'papel', 'TECNICO')
+        jsonb_build_object('nome', r.nome, 'papel', 'TECNICO'),
+        '', '', '', '', '', 0
       );
 
       -- Sem a identidade o GoTrue recusa o login por senha, mesmo com o usuário criado.
