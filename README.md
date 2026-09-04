@@ -46,6 +46,23 @@ src/hooks/usePwa.ts                   service worker, aviso de versão nova e co
 src/hooks/useEncerradas.ts            demandas já encerradas de uma data (o `useData` só traz as ativas)
 ```
 
+## Campo Local: sugere, não obriga
+
+`local` é texto livre e precisa continuar sendo — aparece endereço novo toda semana. Mas
+digitar do zero produz "DUQUE DE CAXIAS - JD. PRIMAVERA", "Duque de Caxias JD PRIMAVERA" e
+"DUQUE CAXIAS - PRIMAVERA" para o mesmo lugar, e o quadro agrupado por localidade mostra
+três colunas onde deveria haver uma.
+
+O campo sugere o que a equipe já usou (`CampoSugestao` + view `v_localidades`), casando em
+**qualquer parte** do texto e ignorando acento: "duque", "primavera" ou "mage" chegam todos
+a "MAGÉ - PIABETÁ" / "DUQUE DE CAXIAS - JD. PRIMAVERA". Digitar algo novo continua valendo.
+
+Não é `<datalist>` de propósito: cada navegador decide se casa pelo começo ou pelo meio,
+trata acento de um jeito e mostra a lista de outro no celular.
+
+A view lê **todas** as demandas, inclusive arquivadas — é o que faz a sugestão sobreviver a
+um corte que mande tudo para o histórico.
+
 ## Telas que merecem nota
 
 **Planejamento** — o quadro agrupa por **técnico**, **cliente** ou **localidade**. Por

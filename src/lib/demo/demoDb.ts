@@ -109,6 +109,17 @@ export class DemoDb implements Db {
   }
 
   async select<T>(tabela: string, f?: Filtro): Promise<T[]> {
+    // `v_localidades` é view no Postgres; aqui é derivada na hora, do mesmo jeito.
+    if (tabela === 'v_localidades') {
+      const contagem = new Map<string, number>()
+      for (const d of this.tabela('demandas')) {
+        const local = String(d.local ?? '').trim()
+        if (local) contagem.set(local, (contagem.get(local) ?? 0) + 1)
+      }
+      return Array.from(contagem.entries())
+        .map(([nome, usos]) => ({ nome, usos }))
+        .sort((a, b) => b.usos - a.usos) as T[]
+    }
     let rows = [...this.tabela(tabela)]
     if (f?.eq) for (const [k, v] of Object.entries(f.eq)) rows = rows.filter(r => r[k] === v)
     if (f?.in) for (const [k, v] of Object.entries(f.in)) rows = rows.filter(r => v.includes(r[k]))
