@@ -13,7 +13,9 @@ function aplicarFiltro(q: any, f?: Filtro) {
     q = q.or(f.busca.colunas.map(c => `${c}.ilike.%${t}%`).join(','))
   }
   if (f.order) for (const o of f.order) q = q.order(o.col, { ascending: o.asc ?? true })
-  if (f.limit) q = q.limit(f.limit)
+  // `range` em vez de `limit` quando há offset: é o único jeito de paginar no PostgREST.
+  if (f.offset) q = q.range(f.offset, f.offset + (f.limit ?? 1000) - 1)
+  else if (f.limit) q = q.limit(f.limit)
   return q
 }
 

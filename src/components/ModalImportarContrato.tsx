@@ -12,7 +12,7 @@ import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
 import { Botao, Campo, Input, Modal, Select, cx } from './ui'
 import { CampoSugestao } from './CampoSugestao'
-import { useLocalidades } from '../hooks/useLocalidades'
+import { useLocalidades } from '../hooks/useVocabulario'
 import { TIPOS } from '../lib/status'
 import { normalizar, hojeISO } from '../lib/format'
 import { encontrarDuplicata } from '../lib/actions'
@@ -72,7 +72,7 @@ export function ModalImportarContrato({ aberto, onFechar }: { aberto: boolean; o
 
     // Cliente: casa com o cadastro (inclusive apelidos) para não criar um cliente quase igual.
     const nCli = normalizar(cab.cliente)
-    const achado = clientes.find(c => normalizar(c.nome) === nCli || c.apelidos.some(a => normalizar(a) === nCli))
+    const achado = clientes.find(c => normalizar(c.nome) === nCli || (c.apelidos ?? []).some(a => normalizar(a) === nCli))
     setCliente(achado?.nome ?? cab.cliente)
     setLocal(melhorLocal(cab.bairro, cab.cidade, locaisConhecidos) || localTextual(cab))
     setOs(cab.ficha)
@@ -81,7 +81,7 @@ export function ModalImportarContrato({ aberto, onFechar }: { aberto: boolean; o
   /** As demandas que serão lançadas, mais o que precisa de atenção antes disso. */
   const previa = useMemo(() => {
     if (!lido) return null
-    const cli = clientes.find(c => normalizar(c.nome) === normalizar(cliente) || c.apelidos.some(a => normalizar(a) === normalizar(cliente)))
+    const cli = clientes.find(c => normalizar(c.nome) === normalizar(cliente) || (c.apelidos ?? []).some(a => normalizar(a) === normalizar(cliente)))
 
     const linhas: NovaDemanda[] = []
     const divergencias: { patrimonio: string; escolhido: string; cadastrado: string }[] = []
@@ -131,7 +131,10 @@ export function ModalImportarContrato({ aberto, onFechar }: { aberto: boolean; o
     setSalvando(true)
     try {
       const { criadas, duplicadas } = await acoes.lancar(previa.linhas, demandas)
-      toast(`${criadas.length} item(ns) importado(s) para a fila${duplicadas.length ? `, ${duplicadas.length} duplicado(s) ignorado(s)` : ''}.`)
+      // Um contrato traz dezenas de patrimônios que ainda não existem no cadastro.
+      const novos = await acoes.aprenderCadastros(criadas, clientes, equipamentos)
+      const aprendeu = novos.clientes.length + novos.equipamentos.length
+      toast(`${criadas.length} item(ns) importado(s) para a fila${duplicadas.length ? `, ${duplicadas.length} duplicado(s) ignorado(s)` : ''}${aprendeu ? `, ${aprendeu} cadastro(s) novo(s)` : ''}.`)
       fechar()
     } catch (e) { erro(e) } finally { setSalvando(false) }
   }

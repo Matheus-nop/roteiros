@@ -11,6 +11,8 @@ export type Filtro = {
   notIn?: Record<string, unknown[]>
   order?: { col: string; asc?: boolean }[]
   limit?: number
+  /** Pula as N primeiras linhas. Com `limit`, é o que permite paginar. */
+  offset?: number
   /** Busca textual (ilike) em qualquer uma das colunas. */
   busca?: { colunas: string[]; termo: string }
 }

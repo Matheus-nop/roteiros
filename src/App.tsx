@@ -28,6 +28,7 @@ const Pendencias = tela(() => import('./pages/Pendencias'), 'Pendencias')
 const Tecnicos = tela(() => import('./pages/Tecnicos'), 'Tecnicos')
 const Cadastros = tela(() => import('./pages/Cadastros'), 'Cadastros')
 const Historico = tela(() => import('./pages/Historico'), 'Historico')
+const Relatorios = tela(() => import('./pages/Relatorios'), 'Relatorios')
 const Arquivo = tela(() => import('./pages/Arquivo'), 'Arquivo')
 
 function Protegido() {
@@ -54,6 +55,7 @@ function Protegido() {
           <Route path="cadastros" element={<Cadastros />} />
           <Route path="arquivo" element={<Arquivo />} />
           <Route path="historico" element={<Historico />} />
+          <Route path="relatorios" element={<Relatorios />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
