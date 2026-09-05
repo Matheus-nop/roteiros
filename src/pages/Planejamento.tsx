@@ -9,6 +9,12 @@
 // coluna; nas outras duas, o que ainda não tem responsável ficava misturado ao resto, e a
 // pergunta "o que falta atribuir em Duque de Caxias?" não tinha resposta na tela.
 //
+// O filtro de macrorregião corta do mesmo jeito, um nível acima da localidade: o dia se monta
+// por direção ("hoje a Baixada", "hoje a Zona Oeste"), e não bairro a bairro — eram dezenas de
+// colunas na visão por localidade para responder isso. A região é lida do texto livre de
+// `local` (lib/regioes.ts); o que ela não reconhece aparece em "Sem região identificada", com
+// a contagem, para nada sumir de vista.
+//
 // Nas visões por cliente/localidade não se arrasta: soltar um card em outra coluna significaria
 // trocar o cliente da demanda, que não é decisão de planejamento. Lá se seleciona e se atribui em lote.
 import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, Search, Users, Building2, MapPin, CheckSquare, UserX } from 'lucide-react'
@@ -23,6 +29,7 @@ import { CardDemanda, ItemArrastavel, Quadro, type Coluna } from '../components/
 import { Botao, Confirmar, Input, Pagina, Select, cx } from '../components/ui'
 import { STATUS_PLANEJAMENTO, STATUS_LABEL, STATUS_A_ROTEIRIZAR } from '../lib/status'
 import { normalizar, textoBusca, agrupar, ordenarParadas, rotuloData, hojeISO } from '../lib/format'
+import { REGIAO_LABEL, REGIOES, regiaoDe, type Regiao } from '../lib/regioes'
 import { usePrint } from '../components/Print'
 import { FolhaRoteiro } from '../components/Etiqueta'
 import type { Demanda, Status, Tecnico } from '../lib/types'
@@ -43,6 +50,7 @@ export function Planejamento() {
   const [busca, setBusca] = useState('')
   const [status, setStatus] = useState('')
   const [dataFiltro, setDataFiltro] = useState('')
+  const [regiao, setRegiao] = useState<Regiao | ''>('')
   // Transitório de propósito: filtro ativo que sobrevive ao recarregar vira armadilha —
   // o quadro aparece pela metade e ninguém lembra por quê. O agrupamento, sim, é lembrado.
   const [soSemTecnico, setSoSemTecnico] = useState(false)
@@ -61,9 +69,19 @@ export function Planejamento() {
     return demandas.filter(d => STATUS_PLANEJAMENTO.includes(d.status) && (!status || d.status === status) && (!dataFiltro || d.data_planejada === dataFiltro) && (!b || textoBusca(d).includes(b)))
   }, [demandas, busca, status, dataFiltro])
 
-  // Contado antes do próprio filtro: é o número que o botão mostra quando está desligado.
-  const semTecnico = useMemo(() => base.filter(d => !d.tecnico_id).length, [base])
-  const itens = useMemo(() => (soSemTecnico ? base.filter(d => !d.tecnico_id) : base), [base, soSemTecnico])
+  // Cada recorte é contado sem si mesmo — o número ao lado do controle é o que ele traria se
+  // fosse ligado agora, e não o que já está na tela.
+  const contagem = useMemo(() => {
+    const lista = soSemTecnico ? base.filter(d => !d.tecnico_id) : base
+    const m = agrupar(lista, d => regiaoDe(d.local))
+    // A região escolhida continua na lista mesmo zerada: senão o select ficaria em branco
+    // com o filtro ligado, e o quadro vazio sem explicação.
+    return REGIOES.map(r => [r, m.get(r)?.length ?? 0] as const).filter(([r, n]) => n > 0 || r === regiao)
+  }, [base, soSemTecnico, regiao])
+
+  const noRecorte = useMemo(() => (regiao ? base.filter(d => regiaoDe(d.local) === regiao) : base), [base, regiao])
+  const semTecnico = useMemo(() => noRecorte.filter(d => !d.tecnico_id).length, [noRecorte])
+  const itens = useMemo(() => (soSemTecnico ? noRecorte.filter(d => !d.tecnico_id) : noRecorte), [noRecorte, soSemTecnico])
 
   const colunas: Coluna<Demanda>[] = useMemo(() => {
     const ordenar = (l: Demanda[]) => [...l].sort((a, b) => (a.data_planejada ?? '9999').localeCompare(b.data_planejada ?? '9999') || ordenarParadas(a, b))
@@ -181,7 +199,10 @@ export function Planejamento() {
   }
 
   // A instrução comprida é útil, mas no celular empurraria o quadro para fora da tela.
-  const recorte = soSemTecnico ? <b className="text-acento-600"> · só sem técnico</b> : null
+  const recorte = <>
+    {regiao ? <b className="text-acento-600"> · {REGIAO_LABEL[regiao]}</b> : null}
+    {soSemTecnico ? <b className="text-acento-600"> · só sem técnico</b> : null}
+  </>
   const subtitulo = porTecnico
     ? <>{itens.length} demandas · uma coluna por técnico{recorte}<span className="hidden md:inline"> · arraste um card para outra coluna para atribuir o técnico; dentro da mesma data, arraste para definir a ordem das paradas</span></>
     : <>{itens.length} demandas em {colunas.length} {agrupamento === 'cliente' ? 'cliente(s)' : 'localidade(s)'}{recorte}<span className="hidden md:inline"> · marque os cards e use "Técnico / veículo / data" para fechar tudo de uma vez</span></>
@@ -203,6 +224,12 @@ export function Planejamento() {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por OS, cliente, local ou equipamento…" className="pl-8" /></div>
         <Select value={status} onChange={e => setStatus(e.target.value)} className="w-44"><option value="">Todos os status</option>{STATUS_PLANEJAMENTO.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</Select>
+        {/* Macrorregião: a pergunta do dia é "o que tem na Baixada?", não bairro a bairro.
+            A região sai do texto livre de `local` (lib/regioes.ts) — a demanda não muda. */}
+        <Select value={regiao} onChange={e => setRegiao(e.target.value as Regiao | '')} className="w-56" title="Filtrar por macrorregião">
+          <option value="">Todas as regiões</option>
+          {contagem.map(([r, n]) => <option key={r} value={r}>{REGIAO_LABEL[r]} ({n})</option>)}
+        </Select>
         <Input type="date" value={dataFiltro} onChange={e => setDataFiltro(e.target.value)} className="w-40" title="Filtrar por data planejada" />
         {dataFiltro && <Botao tamanho="sm" variante="fantasma" onClick={() => setDataFiltro('')}>limpar data</Botao>}
         {/* Vale nos três agrupamentos: é o que responde "o que falta atribuir aqui?"
