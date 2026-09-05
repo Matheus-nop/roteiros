@@ -6,7 +6,12 @@ import type { Demanda } from '../lib/types'
 import { addDias, hojeISO } from '../lib/format'
 import { Botao, Campo, Input, Modal } from './ui'
 
-export function ModalPendente({ itens, onFechar, titulo = 'Marcar pendente' }: { itens: Demanda[]; onFechar(): void; titulo?: string }) {
+export function ModalPendente({ itens, onFechar, onSalvo, titulo = 'Marcar pendente' }: {
+  itens: Demanda[]; onFechar(): void
+  /** Chamado só quando o reagendamento gravou — é o gancho do "desfazer" de quem tocou errado. */
+  onSalvo?(anteriores: Demanda[]): void
+  titulo?: string
+}) {
   const { acoes } = useData()
   const { toast, erro } = useToast()
   const [data, setData] = useState(addDias(hojeISO(), 1))
@@ -15,6 +20,7 @@ export function ModalPendente({ itens, onFechar, titulo = 'Marcar pendente' }: {
     try {
       await acoes.marcarPendente(itens.map(i => i.id), data, obs || null)
       toast(`${itens.length} item(ns) reagendado(s) para ${data.split('-').reverse().join('/')}.`)
+      onSalvo?.(itens)
       onFechar()
     } catch (e) { erro(e) }
   }

@@ -1,5 +1,9 @@
 // Espelho do roteiro para impressão: cabeçalho com técnico/veículo/data, paradas numeradas em cards,
 // equipamentos agrupados por tipo com patrimônios e OS em chips. Compacto: cabe em uma página mesmo com muitas demandas.
+//
+// É esta a folha que vai para a mão do técnico (Imp. técnico, Roteiro e Meu roteiro).
+// O número do card é a POSIÇÃO DA PARADA — três itens no mesmo endereço são a parada 1, e o
+// próximo cliente é a 2, não a 4 (ver numerosDeParada, em lib/format.ts).
 import type { Demanda, Tecnico } from '../lib/types'
 import { agrupar, chaveParada, fmtData, fmtNum, ordenarParadas } from '../lib/format'
 import { veiculosDoGrupo } from './GrupoTecnico'
@@ -32,8 +36,7 @@ const CSS = `
 .esp-pat{font-family:ui-monospace,Menlo,monospace;font-size:8.5px;background:#fff;border:1px solid #cbd5e1;border-radius:3px;padding:0 4px}
 .esp-os{font-size:8.5px;background:#dbeafe;color:#1e40af;border-radius:3px;padding:0 4px;font-weight:700}
 .esp-chk{width:10px;height:10px;border:1.5px solid #64748b;border-radius:2px;display:inline-block;margin-left:auto;flex-shrink:0}
-.esp-foot{margin-top:8px;display:flex;justify-content:space-between;font-size:9px;color:#475569;border-top:1px solid #e2e8f0;padding-top:5px}
-.esp-ass{display:flex;gap:18px}
+.esp-foot{margin-top:8px;display:flex;justify-content:flex-end;font-size:9px;color:#475569;border-top:1px solid #e2e8f0;padding-top:5px}
 @media print{@page{margin:7mm} .esp-head{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 `
 
@@ -89,8 +92,9 @@ export function EspelhoRoteiro({ tecnico, data, itens }: { tecnico: Tecnico | un
           )
         })}
       </div>
+      {/* Sem "Saída ___ / Retorno ___": esses horários o técnico registra no app, e a linha
+          em branco no papel só convida a existir uma segunda versão da mesma hora. */}
       <div className="esp-foot">
-        <div className="esp-ass"><span>Saída ____:____</span><span>Retorno ____:____</span></div>
         <div>Grupo Nova Opção · gerado em {new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</div>
       </div>
     </div>
