@@ -3,37 +3,59 @@
 //   • por técnico    — a visão de sempre: arrastar um card para outra coluna atribui o técnico,
 //                      e dentro da mesma data arrastar reordena as paradas.
 //   • por cliente    — todas as demandas do mesmo cliente lado a lado, para fechar uma visita só.
-//   • por localidade — o mesmo pela região, para não mandar dois técnicos ao mesmo bairro.
+//   • por região     — as macrorregiões (Baixada, Zona Oeste, Zona Sul…) como colunas: quatro
+//                      ou cinco, em ordem fixa, para ver como o dia se divide por direção.
+//   • por localidade — o mesmo pelo bairro, para não mandar dois técnicos ao mesmo lugar.
 //
-// O filtro "Sem técnico" corta em qualquer uma das três. Por técnico ele já existia como
-// coluna; nas outras duas, o que ainda não tem responsável ficava misturado ao resto, e a
-// pergunta "o que falta atribuir em Duque de Caxias?" não tinha resposta na tela.
+// O filtro "Sem técnico" corta em qualquer uma das quatro. Por técnico ele já existia como
+// coluna; nas outras, o que ainda não tem responsável ficava misturado ao resto, e a pergunta
+// "o que falta atribuir em Duque de Caxias?" não tinha resposta na tela.
 //
-// Nas visões por cliente/localidade não se arrasta: soltar um card em outra coluna significaria
-// trocar o cliente da demanda, que não é decisão de planejamento. Lá se seleciona e se atribui em lote.
-import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, Search, Users, Building2, MapPin, CheckSquare, UserX } from 'lucide-react'
-import { useMemo, useState } from 'react'
+// O filtro de macrorregião corta do mesmo jeito, um nível acima da localidade: o dia se monta
+// por direção ("hoje a Baixada", "hoje a Zona Oeste"), e não bairro a bairro. A região é lida
+// do texto livre de `local` (lib/regioes.ts); o que ela não reconhece aparece em "Sem região
+// identificada", com a contagem, para nada sumir de vista.
+//
+// O filtro por técnico responde a outra pergunta — "como está o dia do Rafael?" — e vale
+// também fora da visão por técnico, que é onde ele não teria coluna. Ele e o "Sem técnico" são
+// o mesmo recorte visto de dois jeitos: ligar um desliga o outro, senão a tela ficaria vazia.
+//
+// Fora da visão por técnico não se arrasta: soltar um card em outra coluna significaria trocar o
+// cliente ou o endereço da demanda, que não é decisão de planejamento. Lá se seleciona e se
+// atribui em lote.
+import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, Search, Users, Building2, MapPin, Compass, CheckSquare, UserX } from 'lucide-react'
+import { useCallback, useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
 import { ModalAtribuir } from '../components/ModalAtribuir'
 import { ModalEditarDemanda } from '../components/FormDemanda'
 import { BarraSelecao } from '../components/TabelaDemandas'
+import { SeletorTecnico } from '../components/Filtros'
 import { CardDemanda, ItemArrastavel, Quadro, type Coluna } from '../components/Cards'
 import { Botao, Confirmar, Input, Pagina, Select, cx } from '../components/ui'
 import { STATUS_PLANEJAMENTO, STATUS_LABEL, STATUS_A_ROTEIRIZAR } from '../lib/status'
 import { normalizar, textoBusca, agrupar, ordenarParadas, rotuloData, hojeISO } from '../lib/format'
+import { REGIAO_COR, REGIAO_LABEL, REGIOES, regiaoDe, type Regiao } from '../lib/regioes'
 import { usePrint } from '../components/Print'
 import { FolhaRoteiro } from '../components/Etiqueta'
 import type { Demanda, Status, Tecnico } from '../lib/types'
 
-type Agrupamento = 'tecnico' | 'cliente' | 'local'
+type Agrupamento = 'tecnico' | 'cliente' | 'local' | 'regiao'
 
 const VISOES: { id: Agrupamento; rotulo: string; icone: typeof Users }[] = [
   { id: 'tecnico', rotulo: 'Técnico', icone: Users },
   { id: 'cliente', rotulo: 'Cliente', icone: Building2 },
+  { id: 'regiao', rotulo: 'Região', icone: Compass },
   { id: 'local', rotulo: 'Localidade', icone: MapPin },
 ]
+
+/** O que a coluna diz quando não é técnico — entra no subtítulo e no rótulo do "Sem X". */
+const ROTULO_GRUPO: Record<Exclude<Agrupamento, 'tecnico'>, { plural: string; sem: string }> = {
+  cliente: { plural: 'cliente(s)', sem: 'Sem cliente' },
+  local: { plural: 'localidade(s)', sem: 'Sem localidade' },
+  regiao: { plural: 'região(ões)', sem: REGIAO_LABEL.OUTRAS },
+}
 
 export function Planejamento() {
   const { demandas, tecnicos, acoes } = useData()
@@ -43,6 +65,8 @@ export function Planejamento() {
   const [busca, setBusca] = useState('')
   const [status, setStatus] = useState('')
   const [dataFiltro, setDataFiltro] = useState('')
+  const [regiao, setRegiao] = useState<Regiao | ''>('')
+  const [tecnicoFiltro, setTecnicoFiltro] = useState('')
   // Transitório de propósito: filtro ativo que sobrevive ao recarregar vira armadilha —
   // o quadro aparece pela metade e ninguém lembra por quê. O agrupamento, sim, é lembrado.
   const [soSemTecnico, setSoSemTecnico] = useState(false)
@@ -61,9 +85,24 @@ export function Planejamento() {
     return demandas.filter(d => STATUS_PLANEJAMENTO.includes(d.status) && (!status || d.status === status) && (!dataFiltro || d.data_planejada === dataFiltro) && (!b || textoBusca(d).includes(b)))
   }, [demandas, busca, status, dataFiltro])
 
-  // Contado antes do próprio filtro: é o número que o botão mostra quando está desligado.
-  const semTecnico = useMemo(() => base.filter(d => !d.tecnico_id).length, [base])
-  const itens = useMemo(() => (soSemTecnico ? base.filter(d => !d.tecnico_id) : base), [base, soSemTecnico])
+  // Recorte de quem: um técnico específico ou "só o que não tem ninguém" — nunca os dois,
+  // que daria sempre lista vazia. Escolher um desliga o outro.
+  const deQuem = useCallback((d: Demanda) => (!tecnicoFiltro || d.tecnico_id === tecnicoFiltro) && (!soSemTecnico || !d.tecnico_id), [tecnicoFiltro, soSemTecnico])
+  const escolherTecnico = (v: string) => { setTecnicoFiltro(v); if (v) setSoSemTecnico(false) }
+  const alternarSemTecnico = () => setSoSemTecnico(v => { if (!v) setTecnicoFiltro(''); return !v })
+
+  // Cada recorte é contado sem si mesmo — o número ao lado do controle é o que ele traria se
+  // fosse ligado agora, e não o que já está na tela.
+  const contagem = useMemo(() => {
+    const m = agrupar(base.filter(deQuem), d => regiaoDe(d.local))
+    // A região escolhida continua na lista mesmo zerada: senão o select ficaria em branco
+    // com o filtro ligado, e o quadro vazio sem explicação.
+    return REGIOES.map(r => [r, m.get(r)?.length ?? 0] as const).filter(([r, n]) => n > 0 || r === regiao)
+  }, [base, deQuem, regiao])
+
+  const naRegiao = useMemo(() => (regiao ? base.filter(d => regiaoDe(d.local) === regiao) : base), [base, regiao])
+  const semTecnico = useMemo(() => naRegiao.filter(d => !d.tecnico_id).length, [naRegiao])
+  const itens = useMemo(() => naRegiao.filter(deQuem), [naRegiao, deQuem])
 
   const colunas: Coluna<Demanda>[] = useMemo(() => {
     const ordenar = (l: Demanda[]) => [...l].sort((a, b) => (a.data_planejada ?? '9999').localeCompare(b.data_planejada ?? '9999') || ordenarParadas(a, b))
@@ -76,6 +115,13 @@ export function Planejamento() {
       return cols
     }
 
+    // Região: a ordem das colunas é fixa (lib/regioes.ts), não por volume. O quadro é lido
+    // todo dia no mesmo lugar — Baixada à esquerda, sempre — e região vazia não vira coluna.
+    if (agrupamento === 'regiao') {
+      const grupos = agrupar(itens, d => regiaoDe(d.local))
+      return REGIOES.filter(r => grupos.has(r)).map(r => ({ id: r, titulo: REGIAO_LABEL[r], cor: REGIAO_COR[r], itens: ordenar(grupos.get(r)!) }))
+    }
+
     // Cliente / localidade: a chave normalizada agrupa "AEGEA" e "Aegea " na mesma coluna,
     // mas o título mostra o texto como está no cadastro.
     const campo = (d: Demanda) => (agrupamento === 'cliente' ? d.cliente_nome : d.local)
@@ -83,7 +129,7 @@ export function Planejamento() {
     return Array.from(grupos.entries())
       .map(([chave, lista]) => ({
         id: chave,
-        titulo: chave === '__sem' ? (agrupamento === 'cliente' ? 'Sem cliente' : 'Sem localidade') : (campo(lista[0]) ?? chave),
+        titulo: chave === '__sem' ? ROTULO_GRUPO[agrupamento].sem : (campo(lista[0]) ?? chave),
         cor: chave === '__sem' ? '#94a3b8' : undefined,
         itens: ordenar(lista),
       }))
@@ -166,7 +212,7 @@ export function Planejamento() {
             </div>
             {its.map(d => (
               <ItemArrastavel key={d.id} id={d.id} desabilitado={!editar || !porTecnico}>
-                <CardDemanda d={d} vertical mostrarCliente cabecalho={porTecnico ? 'ambos' : agrupamento === 'cliente' ? 'local' : 'cliente'}
+                <CardDemanda d={d} vertical mostrarCliente cabecalho={agrupamento === 'cliente' ? 'local' : agrupamento === 'local' ? 'cliente' : 'ambos'}
                   selecionado={sel.has(d.id)} onSelecionar={v => toggle(d.id, v)} acoes={acoesItem(d)}
                   extra={<>
                     {!porTecnico && chipTecnico(tecnicos.find(t => t.id === d.tecnico_id))}
@@ -181,10 +227,14 @@ export function Planejamento() {
   }
 
   // A instrução comprida é útil, mas no celular empurraria o quadro para fora da tela.
-  const recorte = soSemTecnico ? <b className="text-acento-600"> · só sem técnico</b> : null
+  const recorte = <>
+    {regiao ? <b className="text-acento-600"> · {REGIAO_LABEL[regiao]}</b> : null}
+    {tecnicoFiltro ? <b className="text-acento-600"> · só {tecnicos.find(t => t.id === tecnicoFiltro)?.nome}</b> : null}
+    {soSemTecnico ? <b className="text-acento-600"> · só sem técnico</b> : null}
+  </>
   const subtitulo = porTecnico
     ? <>{itens.length} demandas · uma coluna por técnico{recorte}<span className="hidden md:inline"> · arraste um card para outra coluna para atribuir o técnico; dentro da mesma data, arraste para definir a ordem das paradas</span></>
-    : <>{itens.length} demandas em {colunas.length} {agrupamento === 'cliente' ? 'cliente(s)' : 'localidade(s)'}{recorte}<span className="hidden md:inline"> · marque os cards e use "Técnico / veículo / data" para fechar tudo de uma vez</span></>
+    : <>{itens.length} demandas em {colunas.length} {ROTULO_GRUPO[agrupamento].plural}{recorte}<span className="hidden md:inline"> · marque os cards e use "Técnico / veículo / data" para fechar tudo de uma vez</span></>
 
   return (
     <Pagina titulo="Planejamento (PCM)" subtitulo={subtitulo} acoes={<>
@@ -203,11 +253,18 @@ export function Planejamento() {
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="relative min-w-[220px] flex-1"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar por OS, cliente, local ou equipamento…" className="pl-8" /></div>
         <Select value={status} onChange={e => setStatus(e.target.value)} className="w-44"><option value="">Todos os status</option>{STATUS_PLANEJAMENTO.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</Select>
+        {/* Macrorregião: a pergunta do dia é "o que tem na Baixada?", não bairro a bairro.
+            A região sai do texto livre de `local` (lib/regioes.ts) — a demanda não muda. */}
+        <Select value={regiao} onChange={e => setRegiao(e.target.value as Regiao | '')} className="w-56" title="Filtrar por macrorregião">
+          <option value="">Todas as regiões</option>
+          {contagem.map(([r, n]) => <option key={r} value={r}>{REGIAO_LABEL[r]} ({n})</option>)}
+        </Select>
         <Input type="date" value={dataFiltro} onChange={e => setDataFiltro(e.target.value)} className="w-40" title="Filtrar por data planejada" />
         {dataFiltro && <Botao tamanho="sm" variante="fantasma" onClick={() => setDataFiltro('')}>limpar data</Botao>}
         {/* Vale nos três agrupamentos: é o que responde "o que falta atribuir aqui?"
             enquanto se olha por localidade ou por cliente. */}
-        <Botao variante={soSemTecnico ? 'primario' : 'secundario'} onClick={() => setSoSemTecnico(v => !v)}
+        <SeletorTecnico valor={tecnicoFiltro} onChange={escolherTecnico} itens={naRegiao} />
+        <Botao variante={soSemTecnico ? 'primario' : 'secundario'} onClick={alternarSemTecnico}
           title="Mostrar só as demandas que ainda não têm técnico">
           <UserX size={14} />Sem técnico{!soSemTecnico && semTecnico > 0 ? ` (${semTecnico})` : ''}
         </Botao>
