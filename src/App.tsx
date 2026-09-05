@@ -10,6 +10,7 @@ import { PrintProvider } from './components/Print'
 import { Layout } from './components/Layout'
 import { Login } from './pages/Login'
 import { Carregando } from './components/ui'
+import { inicioDoPapel } from './lib/status'
 
 // O `lazy` precisa de export default; as telas exportam nomeado, daí o `.then`.
 const tela = <T extends string>(carregar: () => Promise<Record<T, React.ComponentType>>, nome: T) =>
@@ -35,13 +36,14 @@ function Protegido() {
   const { usuario, carregando } = useAuth()
   if (carregando) return <Carregando texto="Verificando sessão…" />
   if (!usuario) return <Login />
-  // O técnico abre o app já no roteiro dele. O dashboard é ferramenta de quem administra.
-  const tecnico = usuario.perfil.papel === 'TECNICO'
+  // Cada papel abre na sua tela de trabalho (lib/status.ts). O painel é ferramenta de quem
+  // administra — e quem não o tem no menu não deve cair nele pelo endereço raiz.
+  const inicio = inicioDoPapel(usuario.perfil.papel)
   return (
     <DataProvider>
       <Routes>
         <Route element={<Layout />}>
-          <Route index element={tecnico ? <Navigate to="/meu-roteiro" replace /> : <Dashboard />} />
+          <Route index element={inicio === '/' ? <Dashboard /> : <Navigate to={inicio} replace />} />
           <Route path="meu-roteiro" element={<MeuRoteiro />} />
           <Route path="fila" element={<Fila />} />
           <Route path="planejamento" element={<Planejamento />} />

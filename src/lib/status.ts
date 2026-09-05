@@ -114,6 +114,16 @@ export function proximaTriagem(status: Status): Status | null {
 // ---------------------------------------------------------------------
 // Permissões por papel (o front esconde; a RLS protege de verdade)
 // ---------------------------------------------------------------------
+/**
+ * Onde cada papel abre o app. Quem tem uma tela só de trabalho não passa pelo painel:
+ * o técnico cai no roteiro dele, a expedição cai na separação. O resto começa no painel.
+ */
+const INICIO_POR_PAPEL: Partial<Record<Papel, string>> = {
+  TECNICO: '/meu-roteiro',
+  EXPEDICAO: '/expedicao',
+}
+export const inicioDoPapel = (papel: Papel | undefined): string => (papel && INICIO_POR_PAPEL[papel]) ?? '/'
+
 export type Acao =
   | 'fila.lancar' | 'fila.triar' | 'fila.enviar_planejamento'
   | 'planejamento.editar' | 'planejamento.gerar_roteiro'

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Marca } from './Logo'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
-import { PAPEL_LABEL } from '../lib/status'
+import { PAPEL_LABEL, inicioDoPapel } from '../lib/status'
 import type { Papel } from '../lib/types'
 import { cx } from './ui'
 import { ModalNovaDemanda } from './FormDemanda'
@@ -12,22 +12,27 @@ import { usePwa } from '../hooks/usePwa'
 
 type ItemMenu = { to: string; rotulo: string; icone: typeof Inbox; papeis?: Papel[]; sep?: boolean }
 
+// Quem vê o quê. A expedição fica com as três telas que ela opera — separar, conferir a
+// carga e saber se o técnico já saiu. Painel, arquivo e histórico saíram: são leitura de
+// quem administra, e menu comprido no galpão é menu que se erra com a mão suja.
+// Isto é organização de tela, não controle de acesso: quem manda no que pode ser gravado
+// são as permissões (lib/status.ts) e as regras do banco.
 const MENU: ItemMenu[] = [
   { to: '/meu-roteiro', rotulo: 'Meu roteiro', icone: Map, papeis: ['TECNICO'] },
-  { to: '/', rotulo: 'Dashboard', icone: LayoutDashboard, papeis: ['ADMIN', 'PCM', 'COMERCIAL', 'EXPEDICAO'] },
+  { to: '/', rotulo: 'Dashboard', icone: LayoutDashboard, papeis: ['ADMIN', 'PCM', 'COMERCIAL'] },
   { to: '/fila', rotulo: 'Fila', icone: Inbox, papeis: ['ADMIN', 'PCM', 'COMERCIAL'], sep: true },
   { to: '/planejamento', rotulo: 'Planejamento', icone: CalendarRange, papeis: ['ADMIN', 'PCM', 'COMERCIAL'] },
   { to: '/pre-roteiro', rotulo: 'Pré-roteiro', icone: Route, papeis: ['ADMIN', 'PCM'] },
   { to: '/expedicao', rotulo: 'Expedição', icone: PackageCheck, papeis: ['ADMIN', 'PCM', 'EXPEDICAO'] },
   { to: '/pre-carga', rotulo: 'Pré-carga', icone: Truck, papeis: ['ADMIN', 'PCM', 'EXPEDICAO'] },
   { to: '/roteiro', rotulo: 'Roteiro', icone: Map, papeis: ['ADMIN', 'PCM', 'COMERCIAL', 'EXPEDICAO'] },
-  { to: '/imp-tecnico', rotulo: 'Imp. técnico', icone: ClipboardCheck, papeis: ['ADMIN', 'PCM', 'EXPEDICAO'] },
+  { to: '/imp-tecnico', rotulo: 'Imp. técnico', icone: ClipboardCheck, papeis: ['ADMIN', 'PCM'] },
   { to: '/pendencias', rotulo: 'Pendências', icone: Clock, papeis: ['ADMIN', 'PCM', 'COMERCIAL'] },
-  { to: '/arquivo', rotulo: 'Arquivo', icone: Archive, papeis: ['ADMIN', 'PCM', 'COMERCIAL', 'EXPEDICAO'], sep: true },
+  { to: '/arquivo', rotulo: 'Arquivo', icone: Archive, papeis: ['ADMIN', 'PCM', 'COMERCIAL'], sep: true },
   { to: '/tecnicos', rotulo: 'Técnicos', icone: Users, papeis: ['ADMIN', 'PCM'] },
   { to: '/cadastros', rotulo: 'Cadastros', icone: Database, papeis: ['ADMIN', 'PCM'] },
   { to: '/relatorios', rotulo: 'Relatórios', icone: BarChart3, papeis: ['ADMIN', 'PCM', 'COMERCIAL'] },
-  { to: '/historico', rotulo: 'Histórico', icone: History, papeis: ['ADMIN', 'PCM', 'COMERCIAL', 'EXPEDICAO'] },
+  { to: '/historico', rotulo: 'Histórico', icone: History, papeis: ['ADMIN', 'PCM', 'COMERCIAL'] },
 ]
 
 export function Layout() {
@@ -41,7 +46,7 @@ export function Layout() {
   const ref = useRef<HTMLDivElement>(null)
   const papel = usuario?.perfil.papel
   const itens = MENU.filter(m => !m.papeis || !papel || m.papeis.includes(papel))
-  const inicio = papel === 'TECNICO' ? '/meu-roteiro' : '/'
+  const inicio = inicioDoPapel(papel)
 
   useEffect(() => {
     const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setMenu(false) }
