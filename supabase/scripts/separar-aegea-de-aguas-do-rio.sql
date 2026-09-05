@@ -50,10 +50,9 @@ where upper(btrim(nome)) in ('ÁGUAS DO RIO', 'AGUAS DO RIO')
 -- ---------------------------------------------------------------------
 -- 3. AEGEA passa a existir por conta própria
 -- ---------------------------------------------------------------------
--- Se para vocês AEGEA e AEGEA SANEAMENTO também forem empresas diferentes, apague o
--- apelido daqui e cadastre a segunda à parte na tela de Cadastros.
+-- O nome oficial é AEGEA SANEAMENTO; 'AEGEA' é a forma curta e entra como apelido.
 insert into clientes (nome, apelidos)
-values ('AEGEA', array['AEGEA SANEAMENTO'])
+values ('AEGEA SANEAMENTO', array['AEGEA'])
 on conflict (nome) do nothing;
 
 -- ---------------------------------------------------------------------

@@ -29,7 +29,7 @@ export const clientesSeed: Cliente[] = [
   // Apelido é variação de escrita do MESMO cliente. ÁGUAS DO RIO e AEGEA são clientes
   // diferentes, ainda que do mesmo grupo.
   ['ÁGUAS DO RIO', ['AGUAS DO RIO']],
-  ['AEGEA', ['AEGEA SANEAMENTO']],
+  ['AEGEA SANEAMENTO', ['AEGEA']],
   ['CONSTRUTORA AFFONSECA', ['AFFONSECA', 'LYTORÂNEA']],
   ['R2X', ['R2X ENGENHARIA']],
   ['JC MORAES', []],
