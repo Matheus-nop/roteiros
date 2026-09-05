@@ -238,7 +238,7 @@ export function FolhaPreCarga({ tecnico, data, itens }: { tecnico: Tecnico | und
         </thead>
         {porEquipamento.map(([chave, lista]) => (
           <tbody key={chave} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-            {lista.map((d, i) => {
+            {lista.map(d => {
               const { n, un } = volume(d)
               const sep = d.status_separacao === 'SEPARADO'
               return (
@@ -251,8 +251,11 @@ export function FolhaPreCarga({ tecnico, data, itens }: { tecnico: Tecnico | und
                     {un && <span style={{ fontSize: 10, color: '#475569' }}> {un}</span>}
                   </td>
                   <td style={cel}>
-                    {/* O nome do equipamento só na primeira linha do grupo: o que muda de linha para linha é a peça. */}
-                    {i === 0 && <div style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase' }}>{d.equipamento_nome ?? '—'}</div>}
+                    {/* O nome vai em TODA linha, mesmo repetido dentro do grupo. Escrevê-lo só na
+                        primeira linha economizava tinta e criava linha órfã: duas peças do mesmo
+                        equipamento, e a segunda saía com patrimônio e sem nome — quem separa lê
+                        linha a linha, não bloco. */}
+                    <div style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase' }}>{d.equipamento_nome ?? '— sem equipamento no cadastro da demanda —'}</div>
                     <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: d.patrimonio ? 14 : 11, fontWeight: d.patrimonio ? 700 : 400, color: d.patrimonio ? '#0f172a' : '#64748b' }}>
                       {d.patrimonio ?? 'sem patrimônio — conferir na quantidade'}
                     </div>
