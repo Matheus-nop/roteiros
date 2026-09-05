@@ -2,7 +2,7 @@
 import type { Db } from './db'
 import { DbError } from './db'
 import type { Cliente, Demanda, Equipamento, Fechamento, NovaDemanda, Status, Historico, StatusSeparacao, EtiquetaAvulsa, RoteiroArquivado } from './types'
-import { STATUS_ARQUIVADOS, STATUS_EM_ROTA, proximaTriagem } from './status'
+import { STATUS_ARQUIVADOS, STATUS_EM_ROTA, familiaDoTipo, proximaTriagem } from './status'
 import { hojeISO, normalizar, ordenarParadas } from './format'
 import { contarDesfechos, montarParadas } from './arquivo'
 
@@ -49,12 +49,16 @@ function mesmaOm(a: string | null, b: string | null): boolean {
  * A candidata (mesma peça, mesmo equipamento) é mesmo repetição do que está sendo
  * lançado?
  *
- * PRIMEIRO, O TIPO — e isto é regra do negócio, não detalhe técnico:
+ * PRIMEIRO, O MOVIMENTO — e isto é regra do negócio, não detalhe técnico:
  *
  * A OS identifica o CONTRATO, não o movimento. A mesma OS cobre a entrega e, semanas
  * depois, a retirada daquele equipamento. São duas demandas legítimas com o mesmo
  * número. Tratar isso como repetição faria o sistema recusar metade do trabalho real —
  * justamente a devolução, que é o que fecha o ciclo.
+ *
+ * A comparação é por FAMÍLIA, não pelo nome do tipo: RETIRADA e DEVOLUÇÃO são o mesmo
+ * movimento, ENTREGA e LOCAÇÃO também (ver `familiaDoTipo`). Comparar o nome cru deixaria
+ * passar a mesma demanda escrita com o outro nome.
  *
  * Passado o tipo, duas situações e só elas:
  *
@@ -65,7 +69,7 @@ function mesmaOm(a: string | null, b: string | null): boolean {
  * Serviço anterior já concluído ou cancelado, com OS diferente, é atendimento novo.
  */
 export function pareceRepetida(nova: Pick<Demanda, 'om' | 'tipo'>, existente: Demanda): boolean {
-  if (normalizar(nova.tipo) !== normalizar(existente.tipo)) return false
+  if (familiaDoTipo(nova.tipo) !== familiaDoTipo(existente.tipo)) return false
   return mesmaOm(nova.om, existente.om) || !STATUS_ARQUIVADOS.includes(existente.status)
 }
 

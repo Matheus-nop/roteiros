@@ -26,6 +26,32 @@ export const TIPOS: Tipo[] = [
   'ENTREGA', 'TROCA', 'RETORNO', 'RETORNO AO CLIENTE', 'LOCACAO', 'MANUTENÇÃO', 'RETIRADA', 'DEVOLUÇÃO',
   'RETIRADA PARA ORÇAMENTO', 'TREINAMENTO', 'ASSINATURA', 'SOMENTE ASSINATURA', 'IDENTIFICAÇÃO',
 ]
+/**
+ * Tipos que são O MESMO MOVIMENTO com nome diferente.
+ *
+ * Para a equipe, RETIRADA e DEVOLUÇÃO são a mesma coisa — o equipamento voltando; e
+ * ENTREGA e LOCAÇÃO também — o equipamento saindo. A distinção existe no papel
+ * (contrato de locação x entrega avulsa), não na rua: é a mesma viagem, o mesmo
+ * carregamento, o mesmo técnico.
+ *
+ * Isso importa para decidir REPETIÇÃO. A mesma OS cobre a saída e, semanas depois, o
+ * recolhimento — dois movimentos legítimos com o mesmo número. Mas "RETIRADA" na
+ * planilha e "DEVOLUÇÃO" no sistema, na mesma OS e na mesma peça, são a MESMA demanda
+ * escrita de dois jeitos, e lançar as duas é duplicar.
+ *
+ * Quem não está aqui vale por si: MANUTENÇÃO só casa com MANUTENÇÃO.
+ */
+const FAMILIA_DO_TIPO: Partial<Record<Tipo, string>> = {
+  ENTREGA: 'SAIDA',
+  LOCACAO: 'SAIDA',
+  RETIRADA: 'RECOLHIMENTO',
+  'DEVOLUÇÃO': 'RECOLHIMENTO',
+}
+
+/** O movimento que este tipo representa. Dois tipos da mesma família são o mesmo trabalho. */
+export const familiaDoTipo = (tipo: string | null | undefined): string =>
+  FAMILIA_DO_TIPO[(tipo ?? '').trim().toUpperCase() as Tipo] ?? (tipo ?? '').trim().toUpperCase()
+
 export const PRIORIDADES: Prioridade[] = ['NORMAL', 'ALTA', 'URGENTE', 'CRÍTICA']
 export const PRIORIDADE_TONE: Record<Prioridade, string> = {
   NORMAL: 'bg-slate-100 text-slate-600 ring-slate-200',
