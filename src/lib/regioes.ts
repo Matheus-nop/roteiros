@@ -42,6 +42,23 @@ export const REGIAO_LABEL: Record<Regiao, string> = {
   OUTRAS: 'Sem região identificada',
 }
 
+// Uma cor por região, para a visão em que a região vira coluna: o quadro se lê pela faixa
+// antes de se ler o título. "Sem região" fica no cinza que o resto do app já usa para "sem X".
+export const REGIAO_COR: Record<Regiao, string> = {
+  BAIXADA: '#2563eb',
+  ZONA_OESTE: '#059669',
+  ZONA_NORTE: '#d97706',
+  ZONA_SUL: '#db2777',
+  CENTRO: '#7c3aed',
+  LESTE: '#0891b2',
+  COSTA_VERDE: '#65a30d',
+  SERRANA: '#0f766e',
+  LAGOS: '#0284c7',
+  SUL_FLUMINENSE: '#9f1239',
+  NORTE_FLUMINENSE: '#a16207',
+  OUTRAS: '#94a3b8',
+}
+
 /** Marca "é o Rio" — não é região: manda a leitura para os bairros. */
 const RIO = '__RIO'
 type Chave = Regiao | typeof RIO

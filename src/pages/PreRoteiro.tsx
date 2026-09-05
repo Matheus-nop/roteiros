@@ -8,7 +8,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
-import { SeletorData } from '../components/Filtros'
+import { SeletorData, SeletorTecnico } from '../components/Filtros'
 import { usePrint } from '../components/Print'
 import { FolhaRoteiro } from '../components/Etiqueta'
 import { CardDemanda, Chip, GrupoCard, LocalData } from '../components/Cards'
@@ -26,6 +26,7 @@ export function PreRoteiro() {
   const [data, setData] = useState(hojeISO())
   const [todas, setTodas] = useState(false)
   const [busca, setBusca] = useState('')
+  const [tecnicoFiltro, setTecnicoFiltro] = useState('')
   const [confirmar, setConfirmar] = useState<{ titulo: string; texto: React.ReactNode; fn(): Promise<unknown>; msg: string } | null>(null)
   const liberar = pode('planejamento.gerar_roteiro')
 
@@ -33,19 +34,23 @@ export function PreRoteiro() {
     const b = normalizar(busca)
     return demandas.filter(d => STATUS_PLANEJAMENTO.includes(d.status) && d.tecnico_id && (todas || d.data_planejada === data) && (!b || textoBusca(d).includes(b)))
   }, [demandas, data, todas, busca])
+  // Um técnico só: com dez deles e "todas as datas" ligado, a tela vira uma rolagem longa
+  // quando a pergunta era apenas "e o dia do Rafael?". `base` (sem esse corte) alimenta o
+  // seletor, para ele continuar oferecendo os outros.
+  const itens = useMemo(() => (tecnicoFiltro ? base.filter(d => d.tecnico_id === tecnicoFiltro) : base), [base, tecnicoFiltro])
   const semData = useMemo(() => demandas.filter(d => STATUS_A_ROTEIRIZAR.includes(d.status) && d.tecnico_id && !d.data_planejada).length, [demandas])
 
   const cards = useMemo(() => {
     const out: { tec: typeof tecnicos[number]; data: string; itens: Demanda[] }[] = []
-    for (const [k, its] of agrupar(base, d => `${d.tecnico_id}|${d.data_planejada ?? ''}`)) {
+    for (const [k, its] of agrupar(itens, d => `${d.tecnico_id}|${d.data_planejada ?? ''}`)) {
       const [tid, dt] = k.split('|'); const tec = tecnicos.find(t => t.id === tid)
       if (tec) out.push({ tec, data: dt, itens: [...its].sort(ordenarParadas) })
     }
     return out.sort((a, b) => a.data.localeCompare(b.data) || a.tec.nome.localeCompare(b.tec.nome))
-  }, [base, tecnicos])
+  }, [itens, tecnicos])
 
   const run = async (fn: () => Promise<unknown>, msg: string) => { try { await fn(); toast(msg) } catch (e) { erro(e) } }
-  const totalPrev = base.filter(d => STATUS_A_ROTEIRIZAR.includes(d.status)).length
+  const totalPrev = itens.filter(d => STATUS_A_ROTEIRIZAR.includes(d.status)).length
 
   return (
     <Pagina titulo="Pré-roteiro" subtitulo="Previsão por técnico · arraste as paradas para definir a sequência e libere uma a uma ou todas de uma vez; o que é liberado entra na expedição" acoes={<>
@@ -54,10 +59,12 @@ export function PreRoteiro() {
     </>}>
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <div className="relative flex-1 min-w-[240px]"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar técnico, cliente, local, equipamento…" className="pl-8" /></div>
+        <SeletorTecnico valor={tecnicoFiltro} onChange={setTecnicoFiltro} itens={base} />
         <Badge>{totalPrev} itens a liberar</Badge>
         {semData > 0 && <span className="inline-flex items-center gap-1 rounded-md bg-amber-50 px-2 py-1 text-xs text-amber-800 ring-1 ring-amber-200"><AlertTriangle size={12} />{semData} com técnico mas sem data (defina no Planejamento)</span>}
       </div>
-      {cards.length === 0 && <Vazio titulo={`Nenhuma previsão para ${todas ? 'as datas ativas' : fmtData(data)}`} texto="Atribua técnico e data no Planejamento." />}
+      {cards.length === 0 && <Vazio titulo={`Nenhuma previsão para ${todas ? 'as datas ativas' : fmtData(data)}${tecnicoFiltro ? ` com ${tecnicos.find(t => t.id === tecnicoFiltro)?.nome}` : ''}`}
+        texto={tecnicoFiltro ? 'Outro técnico pode ter previsão nesta data — veja em "Todos os técnicos".' : 'Atribua técnico e data no Planejamento.'} />}
       <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
         {cards.map(({ tec, data: dt, itens }) => {
           const paradas = Array.from(agrupar(itens, chaveParada).values())
