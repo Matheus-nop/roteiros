@@ -16,9 +16,13 @@
 --
 -- DUAS COLUNAS, DUAS PERGUNTAS DIFERENTES
 --
---   veredito    JA EXISTE  = tem no sistema uma demanda da MESMA PEÇA e mesmo
---                            equipamento. Não importe essa linha.
---               NOVA       = não achei nada parecido. Pode entrar.
+--   veredito    JA EXISTE                       = mesma ordem de serviço, OU a demanda
+--                                                 que já existe ainda está aberta.
+--                                                 Não importe essa linha.
+--               SERVICO ANTERIOR (pode importar) = a mesma peça já passou por aqui, mas
+--                                                 em OS diferente e já encerrada. É
+--                                                 atendimento novo — pode entrar.
+--               NOVA                            = não achei nada parecido.
 --
 --   app_barra   NAO, VAI DUPLICAR = o app não vê essa como duplicata (a grafia difere,
 --                                   ou a demanda já foi concluída). É o caso perigoso.
@@ -175,7 +179,16 @@ banco as (
 ),
 cruzado as (
   select
-    case when b.numero is null then 'NOVA' else 'JA EXISTE' end as veredito,
+    case
+      when b.numero is null then 'NOVA'
+      -- Mesma peça só não basta: equipamento volta para manutenção o tempo todo. É
+      -- repetição quando a ORDEM DE SERVIÇO é a mesma, ou quando a demanda que já
+      -- existe ainda está ABERTA (mandar a peça duas vezes no mesmo período).
+      when b.om_k <> '' and n.om_k <> '' and (b.om_k = n.om_k or b.om_k like n.om_k || '%' or n.om_k like b.om_k || '%')
+        then 'JA EXISTE'
+      when b.status not in ('FINALIZADO','CANCELADO') then 'JA EXISTE'
+      else 'SERVICO ANTERIOR (pode importar)'
+    end as veredito,
     case
       when b.numero is null then '—'
       -- a regra do app: strings normalizadas iguais E demanda ainda ativa
@@ -347,7 +360,16 @@ banco as (
 ),
 cruzado as (
   select
-    case when b.numero is null then 'NOVA' else 'JA EXISTE' end as veredito,
+    case
+      when b.numero is null then 'NOVA'
+      -- Mesma peça só não basta: equipamento volta para manutenção o tempo todo. É
+      -- repetição quando a ORDEM DE SERVIÇO é a mesma, ou quando a demanda que já
+      -- existe ainda está ABERTA (mandar a peça duas vezes no mesmo período).
+      when b.om_k <> '' and n.om_k <> '' and (b.om_k = n.om_k or b.om_k like n.om_k || '%' or n.om_k like b.om_k || '%')
+        then 'JA EXISTE'
+      when b.status not in ('FINALIZADO','CANCELADO') then 'JA EXISTE'
+      else 'SERVICO ANTERIOR (pode importar)'
+    end as veredito,
     case
       when b.numero is null then '—'
       -- a regra do app: strings normalizadas iguais E demanda ainda ativa
@@ -368,4 +390,4 @@ cruzado as (
   ) b on true
 )
 select * from cruzado
-order by (veredito = 'NOVA'), (app_barra = 'sim'), data_exec, os;
+order by (veredito <> 'JA EXISTE'), (app_barra = 'sim'), data_exec, os;
