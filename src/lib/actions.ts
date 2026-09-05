@@ -239,12 +239,22 @@ export function criarAcoes(db: Db) {
       await Promise.all(idsNaOrdem.map((id, i) => patch(id, { ordem_parada: (i + 1) * 10 })))
     },
 
-    /** Gera roteiro: PLANEJADO/AGUARDANDO → ROTEIRIZADO, mantendo a ordem existente e numerando quem não tem. */
-    async gerarRoteiro(itens: Demanda[]) {
+    /**
+     * Gera roteiro: PLANEJADO/AGUARDANDO → ROTEIRIZADO, mantendo a ordem existente e numerando quem não tem.
+     *
+     * `jaNumerados` são itens do MESMO técnico e MESMA data que já têm parada e não estão
+     * nesta geração — porque a pré-carga deles já fechou (saíram do planejamento) ou porque
+     * um filtro da tela os escondeu. Eles não são renumerados (a folha pode já estar na mão
+     * do técnico), mas contam: esta geração começa depois do maior número deles. Sem isso,
+     * acrescentar uma demanda a um dia já roteirizado criava uma segunda "parada 1" e as
+     * novas se intercalavam com as antigas na tela do técnico.
+     */
+    async gerarRoteiro(itens: Demanda[], jaNumerados: Demanda[] = []) {
       const semTecnico = itens.filter(d => !d.tecnico_id || !d.data_planejada)
       if (semTecnico.length) throw new DbError(`${semTecnico.length} item(ns) sem técnico ou sem data. Atribua antes de gerar o roteiro.`)
+      const base = jaNumerados.reduce((m, d) => Math.max(m, d.ordem_parada ?? 0), 0)
       const ordenados = [...itens].sort(ordenarParadas)
-      await Promise.all(ordenados.map((d, i) => patch(d.id, { status: 'ROTEIRIZADO', ordem_parada: (i + 1) * 10 })))
+      await Promise.all(ordenados.map((d, i) => patch(d.id, { status: 'ROTEIRIZADO', ordem_parada: base + (i + 1) * 10 })))
     },
 
     /** Remove do roteiro: volta ao planejamento e renumera as demais fechando buracos, sem reembaralhar. */

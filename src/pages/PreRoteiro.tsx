@@ -13,7 +13,7 @@ import { usePrint } from '../components/Print'
 import { FolhaRoteiro } from '../components/Etiqueta'
 import { CardDemanda, Chip, GrupoCard, LocalData } from '../components/Cards'
 import { Badge, Botao, Confirmar, Input, Pagina, Vazio, cx } from '../components/ui'
-import { STATUS_PLANEJAMENTO, STATUS_A_ROTEIRIZAR } from '../lib/status'
+import { STATUS_PLANEJAMENTO, STATUS_A_ROTEIRIZAR, STATUS_EM_ROTA } from '../lib/status'
 import { hojeISO, ordenarParadas, fmtData, agrupar, chaveParada, normalizar, textoBusca } from '../lib/format'
 import { veiculosDoGrupo } from '../components/GrupoTecnico'
 import type { Demanda } from '../lib/types'
@@ -77,7 +77,7 @@ export function PreRoteiro() {
               chips={<><Chip tone="bg-slate-100 text-slate-700">{paradas.length} paradas</Chip><Chip tone="bg-emerald-50 text-emerald-800">{liberados.length} liberados</Chip><Chip tone="bg-violet-50 text-violet-800">{pendentes.length} a liberar</Chip></>}
               direita={<>
                 <Botao tamanho="sm" variante="fantasma" title="Imprimir previsão" onClick={() => imprimir(<FolhaRoteiro tecnico={tec} data={dt} itens={itens} />)}><Printer size={13} /></Botao>
-                {liberar && pendentes.length > 0 && <Botao tamanho="sm" variante="primario" onClick={() => setConfirmar({ titulo: 'Liberar roteiro inteiro', texto: <>Liberar as {pendentes.length} demanda(s) de <b>{tec.nome}</b> em {fmtData(dt)}? Elas passam a ROTEIRIZADO e entram na expedição.</>, fn: () => acoes.gerarRoteiro(itens), msg: 'Roteiro liberado.' })}><Route size={13} />Liberar tudo ({pendentes.length})</Botao>}
+                {liberar && pendentes.length > 0 && <Botao tamanho="sm" variante="primario" onClick={() => setConfirmar({ titulo: 'Liberar roteiro inteiro', texto: <>Liberar as {pendentes.length} demanda(s) de <b>{tec.nome}</b> em {fmtData(dt)}? Elas passam a ROTEIRIZADO e entram na expedição.</>, fn: () => acoes.gerarRoteiro(itens, demandas.filter(d => d.tecnico_id === tec.id && d.data_planejada === dt && STATUS_EM_ROTA.includes(d.status) && !itens.some(x => x.id === d.id))), msg: 'Roteiro liberado.' })}><Route size={13} />Liberar tudo ({pendentes.length})</Botao>}
               </>}>
               <ParadasOrdenaveis paradas={paradas} podeOrdenar={liberar} onReordenar={(nova) => run(() => acoes.reordenar(nova.flat().map(d => d.id)), 'Ordem das paradas atualizada.')}
                 render={(its, i, handle) => {
@@ -89,7 +89,7 @@ export function PreRoteiro() {
                         <span className={cx('flex h-6 w-6 items-center justify-center rounded-full text-[11px] font-bold text-white', todosLib ? 'bg-emerald-500' : 'bg-[#1a56db]')}>{i + 1}</span>
                         <div className="min-w-0 flex-1"><div className="truncate text-[13px] font-bold text-slate-800">{p0.cliente_nome ?? '—'}</div><LocalData local={p0.local} /></div>
                         {todosLib ? <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700"><CheckCircle2 size={14} />Liberada</span>
-                          : liberar && <Botao tamanho="sm" variante="sucesso" onClick={() => run(() => acoes.liberarParada(aLib, demandas.filter(d => d.tecnico_id === tec.id && d.data_planejada === dt && d.status === 'ROTEIRIZADO')), `Parada liberada (${aLib.length} item).`)}><Route size={12} />Liberar parada</Botao>}
+                          : liberar && <Botao tamanho="sm" variante="sucesso" onClick={() => run(() => acoes.liberarParada(aLib, demandas.filter(d => d.tecnico_id === tec.id && d.data_planejada === dt && STATUS_EM_ROTA.includes(d.status))), `Parada liberada (${aLib.length} item).`)}><Route size={12} />Liberar parada</Botao>}
                       </div>
                       <div className="pb-1 pl-8">{its.map(d => <CardDemanda key={d.id} d={d} compacto />)}</div>
                     </div>

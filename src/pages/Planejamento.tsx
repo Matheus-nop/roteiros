@@ -25,7 +25,7 @@
 // Fora da visão por técnico não se arrasta: soltar um card em outra coluna significaria trocar o
 // cliente ou o endereço da demanda, que não é decisão de planejamento. Lá se seleciona e se
 // atribui em lote.
-import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, Search, Users, Building2, MapPin, Compass, Waypoints, CheckSquare, UserX, Split } from 'lucide-react'
+import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, CalendarRange, Search, Users, Building2, MapPin, Compass, Waypoints, CheckSquare, UserX, Split } from 'lucide-react'
 import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
@@ -36,14 +36,14 @@ import { BarraSelecao } from '../components/TabelaDemandas'
 import { SeletorTecnico } from '../components/Filtros'
 import { CardDemanda, Chip, GrupoCard, ItemArrastavel, LocalData, Quadro, type Coluna } from '../components/Cards'
 import { Botao, Confirmar, Input, Pagina, Select, Vazio, cx } from '../components/ui'
-import { STATUS_PLANEJAMENTO, STATUS_LABEL, STATUS_A_ROTEIRIZAR } from '../lib/status'
-import { normalizar, textoBusca, agrupar, chaveParada, ordenarParadas, plural, rotuloData, hojeISO } from '../lib/format'
+import { STATUS_PLANEJAMENTO, STATUS_LABEL, STATUS_A_ROTEIRIZAR, STATUS_EM_ROTA } from '../lib/status'
+import { normalizar, textoBusca, agrupar, addDias, chaveParada, diaSemana, fmtDataCurta, ordenarParadas, plural, rotuloData, hojeISO } from '../lib/format'
 import { REGIAO_COR, REGIAO_LABEL, REGIOES, regiaoDe, type Regiao } from '../lib/regioes'
 import { usePrint } from '../components/Print'
 import { FolhaRoteiro } from '../components/Etiqueta'
 import type { Demanda, Status, Tecnico } from '../lib/types'
 
-type Agrupamento = 'tecnico' | 'cliente' | 'local' | 'regiao' | 'parada'
+type Agrupamento = 'tecnico' | 'cliente' | 'local' | 'regiao' | 'parada' | 'semana'
 
 const VISOES: { id: Agrupamento; rotulo: string; icone: typeof Users }[] = [
   { id: 'tecnico', rotulo: 'Técnico', icone: Users },
@@ -51,10 +51,11 @@ const VISOES: { id: Agrupamento; rotulo: string; icone: typeof Users }[] = [
   { id: 'regiao', rotulo: 'Região', icone: Compass },
   { id: 'local', rotulo: 'Localidade', icone: MapPin },
   { id: 'parada', rotulo: 'Parada', icone: Waypoints },
+  { id: 'semana', rotulo: 'Semana', icone: CalendarRange },
 ]
 
 /** O que a coluna diz quando não é técnico — entra no subtítulo e no rótulo do "Sem X". */
-const ROTULO_GRUPO: Record<Exclude<Agrupamento, 'tecnico' | 'parada'>, { plural: string; sem: string }> = {
+const ROTULO_GRUPO: Record<Exclude<Agrupamento, 'tecnico' | 'parada' | 'semana'>, { plural: string; sem: string }> = {
   cliente: { plural: 'cliente(s)', sem: 'Sem cliente' },
   local: { plural: 'localidade(s)', sem: 'Sem localidade' },
   regiao: { plural: 'região(ões)', sem: REGIAO_LABEL.OUTRAS },
@@ -80,8 +81,9 @@ export function Planejamento() {
   const [confirmar, setConfirmar] = useState<{ titulo: string; texto: string; fn(): Promise<unknown>; msg: string; perigo?: boolean } | null>(null)
   const editar = pode('planejamento.editar')
   const porTecnico = agrupamento === 'tecnico'
-  // A visão por parada é a única que não é um quadro de colunas: vira lista de visitas.
+  // Duas visões não são quadro de colunas: parada vira lista de visitas, semana vira grade.
   const emLista = agrupamento === 'parada'
+  const emGrade = agrupamento === 'semana'
 
   const escolherVisao = (v: Agrupamento) => { setAgrupamento(v); localStorage.setItem('plan-agrupar', v) }
 
@@ -110,7 +112,7 @@ export function Planejamento() {
   const itens = useMemo(() => naRegiao.filter(deQuem), [naRegiao, deQuem])
 
   const colunas: Coluna<Demanda>[] = useMemo(() => {
-    if (emLista) return []
+    if (emLista || emGrade) return []
     const ordenar = (l: Demanda[]) => [...l].sort((a, b) => (a.data_planejada ?? '9999').localeCompare(b.data_planejada ?? '9999') || ordenarParadas(a, b))
 
     if (porTecnico) {
@@ -141,7 +143,7 @@ export function Planejamento() {
       }))
       // Maior volume primeiro: é onde há consolidação a fazer. "Sem X" vai para o fim.
       .sort((a, b) => (a.id === '__sem' ? 1 : b.id === '__sem' ? -1 : 0) || b.itens.length - a.itens.length || String(a.titulo).localeCompare(String(b.titulo)))
-  }, [itens, tecnicos, agrupamento, porTecnico, emLista])
+  }, [itens, tecnicos, agrupamento, porTecnico, emLista, emGrade])
 
   const nParadas = useMemo(() => (emLista ? agrupar(itens, chaveParada).size : 0), [itens, emLista])
 
@@ -156,17 +158,32 @@ export function Planejamento() {
     return n
   })
 
+  /**
+   * As paradas do mesmo técnico e dia que NÃO entram nesta geração mas já têm número:
+   * as que a pré-carga fechou (saíram do planejamento) e as que um filtro escondeu.
+   * A geração numera depois delas — é o que faz "gerar de novo" acrescentar em vez de
+   * criar uma segunda parada 1.
+   */
+  const jaNumerados = (its: Demanda[]) => {
+    const dentro = new Set(its.map(d => d.id))
+    const chaves = new Set(its.map(d => `${d.tecnico_id}|${d.data_planejada}`))
+    return demandas.filter(d => !dentro.has(d.id) && d.ordem_parada != null && STATUS_EM_ROTA.includes(d.status) && chaves.has(`${d.tecnico_id}|${d.data_planejada}`))
+  }
+
   const gerar = (its: Demanda[], rotulo: string) => {
     const aptos = its.filter(d => STATUS_A_ROTEIRIZAR.includes(d.status))
     if (!aptos.length) { toast('Nada a roteirizar neste grupo.', 'info'); return }
-    setConfirmar({ titulo: 'Gerar roteiro', texto: `Roteirizar ${aptos.length} item(ns) de ${rotulo}? A ordem manual das paradas é mantida.`, fn: () => acoes.gerarRoteiro(its), msg: 'Roteiro gerado.' })
+    const anteriores = jaNumerados(its)
+    const texto = `Roteirizar ${aptos.length} item(ns) de ${rotulo}? A ordem manual das paradas é mantida.`
+      + (anteriores.length ? ` ${anteriores.length} parada(s) já roteirizada(s) deste dia não entram e continuam com o número atual — as novas entram depois delas.` : '')
+    setConfirmar({ titulo: 'Gerar roteiro', texto, fn: () => acoes.gerarRoteiro(its, anteriores), msg: 'Roteiro gerado.' })
   }
   const gerarTodos = () => {
     const grupos = Array.from(agrupar(itens.filter(d => d.tecnico_id && d.data_planejada && STATUS_A_ROTEIRIZAR.includes(d.status)), d => `${d.tecnico_id}|${d.data_planejada}`).values())
     const n = grupos.reduce((s, g) => s + g.length, 0)
     if (!n) { toast('Nenhum item com técnico e data para roteirizar.', 'info'); return }
     setConfirmar({ titulo: 'Gerar todos os roteiros', texto: `Roteirizar ${n} item(ns) com técnico e data definidos?`, msg: 'Roteiros gerados.',
-      fn: async () => { for (const g of grupos) { const irm = itens.filter(d => d.tecnico_id === g[0].tecnico_id && d.data_planejada === g[0].data_planejada); await acoes.gerarRoteiro(irm) } } })
+      fn: async () => { for (const g of grupos) { const irm = itens.filter(d => d.tecnico_id === g[0].tecnico_id && d.data_planejada === g[0].data_planejada); await acoes.gerarRoteiro(irm, jaNumerados(irm)) } } })
   }
 
   const onMover = async (d: Demanda, de: string, para: string, indice: number) => {
@@ -242,6 +259,8 @@ export function Planejamento() {
   </>
   const subtitulo = porTecnico
     ? <>{itens.length} demandas · uma coluna por técnico{recorte}<span className="hidden md:inline"> · arraste um card para outra coluna para atribuir o técnico; dentro da mesma data, arraste para definir a ordem das paradas</span></>
+    : emGrade
+    ? <>{itens.length} demandas · carga por técnico e por dia{recorte}<span className="hidden md:inline"> · clique numa célula para abrir aquele dia na visão por parada</span></>
     : emLista
       ? <>{itens.length} demandas em {plural(nParadas, 'parada', 'paradas')}{recorte}<span className="hidden md:inline"> · cada bloco é uma visita ao mesmo cliente no mesmo endereço; "Fechar visita" define técnico, veículo e data dos itens todos de uma vez</span></>
       : <>{itens.length} demandas em {colunas.length} {ROTULO_GRUPO[agrupamento].plural}{recorte}<span className="hidden md:inline"> · marque os cards e use "Técnico / veículo / data" para fechar tudo de uma vez</span></>
@@ -280,7 +299,14 @@ export function Planejamento() {
         </Botao>
       </div>
 
-      {emLista ? (
+      {emGrade ? (
+        <GradeSemana itens={itens} tecnicos={tecnicos} onAbrir={(tecnicoId, data) => {
+          setTecnicoFiltro(tecnicoId === '__sem' ? '' : tecnicoId)
+          setSoSemTecnico(tecnicoId === '__sem')
+          setDataFiltro(data ?? '')
+          escolherVisao('parada')
+        }} />
+      ) : emLista ? (
         <ListaParadas itens={itens} tecnicos={tecnicos} sel={sel} editar={editar} acoesItem={acoesItem}
           onItem={toggle} onGrupo={(lista, v) => setSel(s => { const n = new Set(s); for (const d of lista) v ? n.add(d.id) : n.delete(d.id); return n })}
           onAtribuir={setAtribuir} />
@@ -387,6 +413,145 @@ function ListaParadas({ itens, tecnicos, sel, editar, acoesItem, onItem, onGrupo
           })}
         </section>
       ))}
+    </div>
+  )
+}
+
+/**
+ * Visão de semana: uma linha por técnico, uma coluna por dia. Não edita nada — é para
+ * enxergar a carga antes de distribuir, que é a pergunta que nenhuma coluna do quadro
+ * responde: quem está cheio, que dia está vazio, quem vai para dois lados no mesmo dia.
+ *
+ * A célula conta VISITA (parada), não item: cinco equipamentos na mesma obra são uma ida
+ * só. O número pequeno é o item, porque cinco itens numa parada pesam mais que um.
+ *
+ * As duas bordas são os buracos que nenhuma outra tela mostra: à esquerda o que ficou
+ * para trás (data passou e não fechou), à direita o que tem técnico e nenhuma data. E
+ * "Depois" recolhe o que está além dos sete dias, para nada sumir da conta.
+ *
+ * Clicar numa célula não edita: leva para a visão por parada com técnico e dia já
+ * filtrados — é lá que se fecha a visita.
+ */
+const DIAS_NA_GRADE = 7
+/** Acima disto o dia é sobrecarga (número do PCM, não estatística). */
+const LIMITE_VISITAS = 10
+
+function GradeSemana({ itens, tecnicos, onAbrir }: {
+  itens: Demanda[]; tecnicos: Tecnico[]
+  onAbrir(tecnicoId: string, data: string | null): void
+}) {
+  const { colunas, linhas, totais } = useMemo(() => {
+    const hoje = hojeISO()
+    const dias = Array.from({ length: DIAS_NA_GRADE }, (_, i) => addDias(hoje, i))
+    const colunas = [
+      { id: 'atraso', titulo: 'Atrasadas', sub: 'antes de hoje', atraso: true },
+      ...dias.map(d => ({ id: d, titulo: diaSemana(d), sub: fmtDataCurta(d), hoje: d === hoje, folga: diaSemana(d) === 'dom' })),
+      { id: 'depois', titulo: 'Depois', sub: `+${DIAS_NA_GRADE} dias` },
+      { id: 'semdata', titulo: 'Sem data', sub: 'a marcar', semdata: true },
+    ] as { id: string; titulo: string; sub: string; atraso?: boolean; hoje?: boolean; folga?: boolean; semdata?: boolean }[]
+
+    const coluna = (d: Demanda) => {
+      if (!d.data_planejada) return 'semdata'
+      if (d.data_planejada < hoje) return 'atraso'
+      return dias.includes(d.data_planejada) ? d.data_planejada : 'depois'
+    }
+
+    // Uma célula: visitas (paradas distintas), itens e as regiões daquele dia.
+    const celulas = new Map<string, { visitas: Set<string>; itens: number; regioes: Set<Regiao> }>()
+    for (const d of itens) {
+      const k = `${d.tecnico_id ?? '__sem'}|${coluna(d)}`
+      const c = celulas.get(k) ?? { visitas: new Set<string>(), itens: 0, regioes: new Set<Regiao>() }
+      c.visitas.add(chaveParada(d)); c.itens += 1; c.regioes.add(regiaoDe(d.local))
+      celulas.set(k, c)
+    }
+
+    const ordem = ['__sem', ...tecnicos.map(t => t.id)]
+    const linhas = ordem
+      .map(id => {
+        const t = tecnicos.find(x => x.id === id)
+        const cels = colunas.map(c => celulas.get(`${id}|${c.id}`))
+        return {
+          id,
+          nome: id === '__sem' ? 'Sem técnico' : t?.nome ?? '—',
+          cor: id === '__sem' ? '#94a3b8' : t?.cor ?? '#64748b',
+          sem: id === '__sem',
+          cels,
+          total: cels.reduce((n, c) => n + (c?.visitas.size ?? 0), 0),
+        }
+      })
+      .filter(l => l.total > 0)
+
+    const totais = colunas.map((_, i) => linhas.reduce((n, l) => n + (l.cels[i]?.visitas.size ?? 0), 0))
+    return { colunas, linhas, totais }
+  }, [itens, tecnicos])
+
+  if (!linhas.length) return <Vazio titulo="Nada para distribuir neste recorte" texto="Ajuste os filtros acima ou envie demandas da fila para o planejamento." />
+
+  const tom = (n: number) => (n >= 8 ? 'bg-[#cddefa]' : n >= 5 ? 'bg-[#e2ecfc]' : n >= 1 ? 'bg-[#f1f6fe]' : '')
+
+  return (
+    <div className="space-y-2">
+      <div className="overflow-x-auto rounded-xl bg-white shadow-sm ring-1 ring-slate-200">
+        <table className="w-full min-w-[900px] border-separate border-spacing-0 tabular-nums">
+          <thead>
+            <tr>
+              <th className="sticky left-0 z-20 border-b border-r border-slate-200 bg-white px-3 py-2 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500">Técnico</th>
+              {colunas.map(c => (
+                <th key={c.id} className={cx('border-b border-slate-200 px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide',
+                  c.hoje ? 'text-acao-500' : 'text-slate-400', c.folga && 'bg-slate-50', c.semdata && 'border-l')}>
+                  {c.titulo}
+                  <span className={cx('block text-[13px] font-bold normal-case tracking-normal', c.hoje ? 'text-acao-500' : 'text-slate-700')}>{c.sub}</span>
+                </th>
+              ))}
+              <th className="border-b border-l border-slate-200 px-2 py-2 text-center text-[10px] font-bold uppercase tracking-wide text-slate-400">Total<span className="block text-[13px] font-bold normal-case tracking-normal text-slate-700">visitas</span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map(l => (
+              <tr key={l.id}>
+                <th className={cx('sticky left-0 z-10 border-b border-r border-slate-200 px-3 py-2 text-left', l.sem ? 'bg-amber-50' : 'bg-white')}>
+                  <span className={cx('flex items-center gap-2 text-[13px] font-bold', l.sem ? 'text-acento-600' : 'text-slate-800')}>
+                    <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: l.cor }} />{l.nome}
+                  </span>
+                </th>
+                {colunas.map((c, i) => {
+                  const cel = l.cels[i]
+                  const n = cel?.visitas.size ?? 0
+                  const cheio = n >= LIMITE_VISITAS && !c.atraso && !c.semdata
+                  return (
+                    <td key={c.id} className={cx('border-b border-slate-200 p-0', c.atraso && 'bg-red-50/70', c.folga && !n && 'bg-slate-50', c.semdata && 'border-l', l.sem && !c.atraso && 'bg-amber-50/60')}>
+                      {n === 0 ? <span className="flex h-[58px] items-center justify-center text-slate-300">·</span> : (
+                        <button type="button" onClick={() => onAbrir(l.id, c.id.includes('-') ? c.id : null)}
+                          title={`${l.nome} · ${c.titulo} ${c.sub} — abrir na visão por parada`}
+                          className={cx('relative flex h-[58px] w-full flex-col items-center justify-center gap-0.5 transition hover:bg-brand-50', !c.atraso && !c.semdata && tom(n))}>
+                          {cheio && <span className="absolute inset-x-0 top-0 h-[3px] bg-acento-600" />}
+                          <span className={cx('text-[17px] font-bold leading-none', c.atraso ? 'text-red-700' : 'text-slate-900')}>{n}</span>
+                          <span className="text-[10px] leading-none text-slate-500">{cel!.itens} {cel!.itens === 1 ? 'item' : 'itens'}</span>
+                          <span className="mt-0.5 flex gap-0.5">
+                            {Array.from(cel!.regioes).slice(0, 4).map(r => <span key={r} className="h-1.5 w-1.5 rounded-full" style={{ background: REGIAO_COR[r] }} title={REGIAO_LABEL[r]} />)}
+                          </span>
+                        </button>
+                      )}
+                    </td>
+                  )
+                })}
+                <td className="border-b border-l border-slate-200 text-center text-[15px] font-bold text-slate-600">{l.total}</td>
+              </tr>
+            ))}
+          </tbody>
+          <tfoot>
+            <tr>
+              <th className="sticky left-0 z-10 border-r border-slate-200 bg-slate-50 px-3 py-2 text-left text-[12px] font-bold text-slate-500">Total do dia</th>
+              {totais.map((n, i) => <td key={colunas[i].id} className={cx('bg-slate-50 py-2 text-center text-[13px] font-bold text-slate-600', colunas[i].semdata && 'border-l border-slate-200')}>{n || '·'}</td>)}
+              <td className="border-l border-slate-200 bg-slate-50 py-2 text-center text-[13px] font-bold text-slate-600">{totais.reduce((a, b) => a + b, 0)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+      <p className="px-1 text-[11px] text-slate-500">
+        O número grande é <b>visita</b> (mesmo cliente, mesmo endereço); o pequeno é item. As bolinhas são as regiões do dia.
+        A tarja âmbar marca <b>{LIMITE_VISITAS} visitas ou mais</b> num dia só.
+      </p>
     </div>
   )
 }
