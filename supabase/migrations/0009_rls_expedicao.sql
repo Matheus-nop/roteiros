@@ -3,6 +3,10 @@
 -- (idempotente; rode no SQL Editor depois da 0008)
 -- =====================================================================
 --
+-- ESTE é o arquivo que se cola no SQL Editor do Supabase. O outro arquivo da 0009,
+-- `scripts/testar-rls-0009.sql`, é a prova em Postgres local e NÃO roda lá: ele usa
+-- comandos do psql e devolve "syntax error at or near \".
+--
 -- O PROBLEMA
 --
 -- A 0004 fechou o TECNICO, mas a EXPEDIÇÃO ficou no `else` da política:

@@ -1,3 +1,10 @@
+-- #####################################################################
+-- ##  NÃO COLE ESTE ARQUIVO NO SQL EDITOR DO SUPABASE.               ##
+-- ##  Ele é o TESTE, e usa comandos do psql (\set, set role) que o    ##
+-- ##  editor não entende — dá "syntax error at or near \".            ##
+-- ##  No Supabase roda a MIGRAÇÃO: migrations/0009_rls_expedicao.sql  ##
+-- #####################################################################
+--
 -- =====================================================================
 -- Prova das regras criadas pela migração 0009 (expedição)
 -- =====================================================================
