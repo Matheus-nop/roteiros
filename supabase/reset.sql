@@ -14,4 +14,5 @@ drop function if exists public.registrar_historico() cascade;
 drop function if exists public.set_updated_at() cascade;
 drop function if exists public.criar_perfil_novo_usuario() cascade;
 drop function if exists public.papel_atual() cascade;
+drop function if exists public.expedicao_nao_altera_o_plano() cascade;
 drop function if exists public.reordenar_paradas(uuid[]) cascade;
