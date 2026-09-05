@@ -35,6 +35,7 @@ quebra nada.
 | `0006_localidades.sql` | `v_localidades` — sugestão do campo Local |
 | `0007_marcos_de_tempo.sql` | `pendente_desde` e `reagendado_em` |
 | `0008_relatorios_e_vocabulario.sql` | `v_rel_demandas` (relatórios), `v_clientes_uso`, `v_equipamentos_uso`, cadastro criado no lançamento |
+| `0009_rls_expedicao.sql` | a expedição só alcança a carga do galpão, e nela não altera o plano |
 
 Scripts avulsos ficam em `scripts/` e **não** fazem parte da sequência: são correções
 pontuais e testes, cada um com a explicação no topo do arquivo. Um deles é obrigatório
@@ -78,6 +79,15 @@ O COMERCIAL ganhou INSERT em `clientes` e `equipamentos` na 0008, e só INSERT: 
 faz o cadastro automático do lançamento funcionar sem abrir a porta para renomear ou
 apagar cadastro (renomear reescreve o passado de todo mundo). A prova disso está em
 `scripts/testar-rls-0008.sql`, que roda num Postgres local e espera 18 "OK".
+
+A EXPEDIÇÃO foi fechada na 0009. Antes dela, o `else` da política de UPDATE deixava o
+expedidor finalizar, cancelar ou devolver para a fila qualquer demanda — inclusive as
+que ainda estavam no planejamento, que ele nem vê na tela. Agora ele alcança só a faixa
+do galpão (ROTEIRIZADO, AGUARDANDO SAÍDA, EM DESLOCAMENTO) e, dentro dela, não muda o
+plano: técnico, data, ordem da parada, cliente, local, equipamento, patrimônio,
+quantidade, OM e tipo ficam congelados por um gatilho, porque política de linha não
+compara o valor velho com o novo. A prova está em `scripts/testar-rls-0009.sql`, que
+espera 24 "OK" — e que também confere que TECNICO e PCM continuam como estavam.
 
 ## Auditoria
 
