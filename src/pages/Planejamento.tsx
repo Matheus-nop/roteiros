@@ -203,7 +203,7 @@ export function Planejamento() {
       const alvo = col.itens[indice]
       const pos = alvo && alvo.data_planejada === d.data_planejada ? grupo.findIndex(x => x.id === alvo.id) : grupo.length
       const nova = [...grupo]; nova.splice(pos < 0 ? grupo.length : pos, 0, d)
-      await acoes.reordenar(nova.map(x => x.id))
+      await acoes.reordenar(nova)
     } catch (e) { erro(e) }
   }
 
