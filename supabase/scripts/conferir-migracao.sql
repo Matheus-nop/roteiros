@@ -1,14 +1,23 @@
 -- =====================================================================
--- Conferência: o que da migração JÁ EXISTE no sistema  (versão 2)
+-- Conferência: o que da migração JÁ EXISTE no sistema  (versão 3)
 -- Rode no SQL Editor do Supabase. NÃO grava nada — só lê e responde.
 -- =====================================================================
 --
--- O QUE MUDOU DA VERSÃO 1
+-- A OS IDENTIFICA O CONTRATO, NÃO O MOVIMENTO
 --
--- A versão anterior tratava "mesma OS" como repetição. Está errado: a OS identifica o
--- CONTRATO, não o movimento. A mesma OS cobre a ENTREGA e, semanas depois, a RETIRADA
--- do mesmo equipamento — duas demandas legítimas com o mesmo número. Agora o TIPO entra
--- na comparação, e movimento diferente deixa de ser confundido com repetição.
+-- A mesma ordem de serviço cobre a saída do equipamento e, semanas depois, o
+-- recolhimento. São duas demandas legítimas com o mesmo número — e a segunda é
+-- justamente a que fecha o ciclo. Por isso o TIPO entra na comparação.
+--
+-- E entra POR FAMÍLIA, não pelo nome:
+--
+--   SAIDA        = ENTREGA, LOCACAO
+--   RECOLHIMENTO = RETIRADA, DEVOLUÇÃO
+--
+-- São o mesmo movimento com nome diferente: a distinção existe no papel, não na rua.
+-- 'RETIRADA' na planilha e 'DEVOLUÇÃO' no sistema, mesma OS e mesma peça, são a MESMA
+-- demanda escrita de dois jeitos. Quem não está nessas famílias vale por si —
+-- MANUTENÇÃO só casa com MANUTENÇÃO.
 --
 -- OS QUATRO FUROS DA REGRA DE DUPLICIDADE DO APP (que este script cobre)
 --
@@ -19,16 +28,14 @@
 --
 -- COMO LER
 --
---   JA EXISTE                        mesmo equipamento, MESMO TIPO, e ou a OS é a mesma
---                                    ou a demanda que já existe ainda está aberta.
+--   JA EXISTE                        mesma peça, MESMO MOVIMENTO, e ou a OS é a mesma
+--                                    ou a demanda existente ainda está aberta.
 --                                    NÃO importe essa linha.
---   OUTRO MOVIMENTO (pode importar)  mesma peça e mesma OS, mas tipo diferente
---                                    (ex.: o sistema tem a ENTREGA, a planilha traz a
---                                    RETIRADA). É trabalho novo — pode entrar.
---   SERVICO ANTERIOR (pode importar) mesma peça, OS diferente, atendimento já encerrado.
+--   OUTRO MOVIMENTO (pode importar)  mesma peça, movimento diferente (o sistema tem a
+--                                    saída, a planilha traz o recolhimento). Trabalho
+--                                    novo — pode entrar.
+--   SERVICO ANTERIOR (pode importar) mesma peça e movimento, OS diferente, já encerrado.
 --   NOVA                             não achei nada parecido.
---
---   app_barra   'NAO, VAI DUPLICAR' = a regra do app não vê essa como duplicata.
 --
 -- As 118 linhas abaixo são o conteúdo de planejamento-aberto.tsv.
 
@@ -155,14 +162,22 @@ with migracao (os, cliente, equipamento, patrimonio, tipo, data_exec, status_pla
 norm as (
   select m.*,
          regexp_replace(translate(upper(coalesce(split_part(m.patrimonio, ' SN', 1), '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as pat_k, regexp_replace(translate(upper(coalesce(m.equipamento, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as equip_k,
-         ltrim(regexp_replace(translate(upper(coalesce(m.os, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g'), '0') as om_k,   regexp_replace(translate(upper(coalesce(m.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as tipo_k,
+         ltrim(regexp_replace(translate(upper(coalesce(m.os, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g'), '0') as om_k,
+         case regexp_replace(translate(upper(coalesce(m.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g')
+           when 'ENTREGA' then 'SAIDA' when 'LOCACAO' then 'SAIDA'
+           when 'RETIRADA' then 'RECOLHIMENTO' when 'DEVOLUCAO' then 'RECOLHIMENTO'
+           else regexp_replace(translate(upper(coalesce(m.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') end as fam_k,
          translate(upper(coalesce(m.os, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as os_app, translate(upper(coalesce(m.equipamento, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as equip_app, translate(upper(coalesce(m.patrimonio, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as pat_app
   from migracao m
 ),
 banco as (
   select d.numero, d.status, d.tipo, d.data_planejada, d.om, d.equipamento_nome, d.patrimonio, d.cliente_nome,
          regexp_replace(translate(upper(coalesce(split_part(d.patrimonio, ' SN', 1), '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as pat_k, regexp_replace(translate(upper(coalesce(d.equipamento_nome, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as equip_k,
-         ltrim(regexp_replace(translate(upper(coalesce(d.om, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g'), '0') as om_k,   regexp_replace(translate(upper(coalesce(d.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as tipo_k,
+         ltrim(regexp_replace(translate(upper(coalesce(d.om, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g'), '0') as om_k,
+         case regexp_replace(translate(upper(coalesce(d.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g')
+           when 'ENTREGA' then 'SAIDA' when 'LOCACAO' then 'SAIDA'
+           when 'RETIRADA' then 'RECOLHIMENTO' when 'DEVOLUCAO' then 'RECOLHIMENTO'
+           else regexp_replace(translate(upper(coalesce(d.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') end as fam_k,
          translate(upper(coalesce(d.om, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as os_app, translate(upper(coalesce(d.equipamento_nome, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as equip_app, translate(upper(coalesce(d.patrimonio, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as pat_app,
          (d.status in ('FINALIZADO','CANCELADO')) as arquivada
   from demandas d
@@ -171,7 +186,7 @@ cruzado as (
   select
     case
       when b.numero is null then 'NOVA'
-      when b.tipo_k <> n.tipo_k then 'OUTRO MOVIMENTO (pode importar)'
+      when b.fam_k <> n.fam_k then 'OUTRO MOVIMENTO (pode importar)'
       when b.om_k <> '' and n.om_k <> '' and (b.om_k = n.om_k or b.om_k like n.om_k || '%' or n.om_k like b.om_k || '%') then 'JA EXISTE'
       when not b.arquivada then 'JA EXISTE'
       else 'SERVICO ANTERIOR (pode importar)'
@@ -189,8 +204,7 @@ cruzado as (
     select * from banco b
     where (n.pat_k <> '' and b.pat_k = n.pat_k and b.equip_k = n.equip_k)
        or (n.pat_k =  '' and n.om_k <> '' and b.om_k = n.om_k and b.equip_k = n.equip_k)
-    -- prefere a do MESMO tipo; entre elas, a aberta e depois a mais recente
-    order by (b.tipo_k = n.tipo_k) desc, b.arquivada, b.numero desc
+    order by (b.fam_k = n.fam_k) desc, b.arquivada, b.numero desc
     limit 1
   ) b on true
 )
@@ -325,14 +339,22 @@ with migracao (os, cliente, equipamento, patrimonio, tipo, data_exec, status_pla
 norm as (
   select m.*,
          regexp_replace(translate(upper(coalesce(split_part(m.patrimonio, ' SN', 1), '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as pat_k, regexp_replace(translate(upper(coalesce(m.equipamento, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as equip_k,
-         ltrim(regexp_replace(translate(upper(coalesce(m.os, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g'), '0') as om_k,   regexp_replace(translate(upper(coalesce(m.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as tipo_k,
+         ltrim(regexp_replace(translate(upper(coalesce(m.os, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g'), '0') as om_k,
+         case regexp_replace(translate(upper(coalesce(m.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g')
+           when 'ENTREGA' then 'SAIDA' when 'LOCACAO' then 'SAIDA'
+           when 'RETIRADA' then 'RECOLHIMENTO' when 'DEVOLUCAO' then 'RECOLHIMENTO'
+           else regexp_replace(translate(upper(coalesce(m.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') end as fam_k,
          translate(upper(coalesce(m.os, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as os_app, translate(upper(coalesce(m.equipamento, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as equip_app, translate(upper(coalesce(m.patrimonio, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as pat_app
   from migracao m
 ),
 banco as (
   select d.numero, d.status, d.tipo, d.data_planejada, d.om, d.equipamento_nome, d.patrimonio, d.cliente_nome,
          regexp_replace(translate(upper(coalesce(split_part(d.patrimonio, ' SN', 1), '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as pat_k, regexp_replace(translate(upper(coalesce(d.equipamento_nome, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as equip_k,
-         ltrim(regexp_replace(translate(upper(coalesce(d.om, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g'), '0') as om_k,   regexp_replace(translate(upper(coalesce(d.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') as tipo_k,
+         ltrim(regexp_replace(translate(upper(coalesce(d.om, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g'), '0') as om_k,
+         case regexp_replace(translate(upper(coalesce(d.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g')
+           when 'ENTREGA' then 'SAIDA' when 'LOCACAO' then 'SAIDA'
+           when 'RETIRADA' then 'RECOLHIMENTO' when 'DEVOLUCAO' then 'RECOLHIMENTO'
+           else regexp_replace(translate(upper(coalesce(d.tipo, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN'), '[^A-Z0-9]', '', 'g') end as fam_k,
          translate(upper(coalesce(d.om, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as os_app, translate(upper(coalesce(d.equipamento_nome, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as equip_app, translate(upper(coalesce(d.patrimonio, '')), 'ÁÀÃÂÄÉÈÊËÍÌÎÏÓÒÕÔÖÚÙÛÜÇÑ', 'AAAAAEEEEIIIIOOOOOUUUUCN') as pat_app,
          (d.status in ('FINALIZADO','CANCELADO')) as arquivada
   from demandas d
@@ -341,7 +363,7 @@ cruzado as (
   select
     case
       when b.numero is null then 'NOVA'
-      when b.tipo_k <> n.tipo_k then 'OUTRO MOVIMENTO (pode importar)'
+      when b.fam_k <> n.fam_k then 'OUTRO MOVIMENTO (pode importar)'
       when b.om_k <> '' and n.om_k <> '' and (b.om_k = n.om_k or b.om_k like n.om_k || '%' or n.om_k like b.om_k || '%') then 'JA EXISTE'
       when not b.arquivada then 'JA EXISTE'
       else 'SERVICO ANTERIOR (pode importar)'
@@ -359,8 +381,7 @@ cruzado as (
     select * from banco b
     where (n.pat_k <> '' and b.pat_k = n.pat_k and b.equip_k = n.equip_k)
        or (n.pat_k =  '' and n.om_k <> '' and b.om_k = n.om_k and b.equip_k = n.equip_k)
-    -- prefere a do MESMO tipo; entre elas, a aberta e depois a mais recente
-    order by (b.tipo_k = n.tipo_k) desc, b.arquivada, b.numero desc
+    order by (b.fam_k = n.fam_k) desc, b.arquivada, b.numero desc
     limit 1
   ) b on true
 )
