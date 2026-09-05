@@ -47,7 +47,16 @@ function mesmaOm(a: string | null, b: string | null): boolean {
 
 /**
  * A candidata (mesma peça, mesmo equipamento) é mesmo repetição do que está sendo
- * lançado? Duas situações, e só elas:
+ * lançado?
+ *
+ * PRIMEIRO, O TIPO — e isto é regra do negócio, não detalhe técnico:
+ *
+ * A OS identifica o CONTRATO, não o movimento. A mesma OS cobre a entrega e, semanas
+ * depois, a retirada daquele equipamento. São duas demandas legítimas com o mesmo
+ * número. Tratar isso como repetição faria o sistema recusar metade do trabalho real —
+ * justamente a devolução, que é o que fecha o ciclo.
+ *
+ * Passado o tipo, duas situações e só elas:
  *
  *   - a ORDEM DE SERVIÇO é a mesma → é o mesmo trabalho, escrito de outro jeito;
  *   - a demanda que já existe ainda está ABERTA → seja qual for a OS, mandar a peça
@@ -55,7 +64,8 @@ function mesmaOm(a: string | null, b: string | null): boolean {
  *
  * Serviço anterior já concluído ou cancelado, com OS diferente, é atendimento novo.
  */
-export function pareceRepetida(nova: Pick<Demanda, 'om'>, existente: Demanda): boolean {
+export function pareceRepetida(nova: Pick<Demanda, 'om' | 'tipo'>, existente: Demanda): boolean {
+  if (normalizar(nova.tipo) !== normalizar(existente.tipo)) return false
   return mesmaOm(nova.om, existente.om) || !STATUS_ARQUIVADOS.includes(existente.status)
 }
 
