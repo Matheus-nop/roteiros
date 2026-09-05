@@ -6,6 +6,8 @@
 //   • por região     — as macrorregiões (Baixada, Zona Oeste, Zona Sul…) como colunas: quatro
 //                      ou cinco, em ordem fixa, para ver como o dia se divide por direção.
 //   • por localidade — o mesmo pelo bairro, para não mandar dois técnicos ao mesmo lugar.
+//   • por parada    — a única que não é quadro: lista de visitas (cliente + endereço), uma por
+//                      bloco, para fechar a visita inteira sem arrastar item por item.
 //
 // O filtro "Sem técnico" corta em qualquer uma das quatro. Por técnico ele já existia como
 // coluna; nas outras, o que ainda não tem responsável ficava misturado ao resto, e a pergunta
@@ -23,8 +25,8 @@
 // Fora da visão por técnico não se arrasta: soltar um card em outra coluna significaria trocar o
 // cliente ou o endereço da demanda, que não é decisão de planejamento. Lá se seleciona e se
 // atribui em lote.
-import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, Search, Users, Building2, MapPin, Compass, CheckSquare, UserX } from 'lucide-react'
-import { useCallback, useMemo, useState } from 'react'
+import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, Search, Users, Building2, MapPin, Compass, Waypoints, CheckSquare, UserX, Split } from 'lucide-react'
+import { useCallback, useMemo, useState, type ReactNode } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
@@ -32,26 +34,27 @@ import { ModalAtribuir } from '../components/ModalAtribuir'
 import { ModalEditarDemanda } from '../components/FormDemanda'
 import { BarraSelecao } from '../components/TabelaDemandas'
 import { SeletorTecnico } from '../components/Filtros'
-import { CardDemanda, ItemArrastavel, Quadro, type Coluna } from '../components/Cards'
-import { Botao, Confirmar, Input, Pagina, Select, cx } from '../components/ui'
+import { CardDemanda, Chip, GrupoCard, ItemArrastavel, LocalData, Quadro, type Coluna } from '../components/Cards'
+import { Botao, Confirmar, Input, Pagina, Select, Vazio, cx } from '../components/ui'
 import { STATUS_PLANEJAMENTO, STATUS_LABEL, STATUS_A_ROTEIRIZAR } from '../lib/status'
-import { normalizar, textoBusca, agrupar, ordenarParadas, rotuloData, hojeISO } from '../lib/format'
+import { normalizar, textoBusca, agrupar, chaveParada, ordenarParadas, plural, rotuloData, hojeISO } from '../lib/format'
 import { REGIAO_COR, REGIAO_LABEL, REGIOES, regiaoDe, type Regiao } from '../lib/regioes'
 import { usePrint } from '../components/Print'
 import { FolhaRoteiro } from '../components/Etiqueta'
 import type { Demanda, Status, Tecnico } from '../lib/types'
 
-type Agrupamento = 'tecnico' | 'cliente' | 'local' | 'regiao'
+type Agrupamento = 'tecnico' | 'cliente' | 'local' | 'regiao' | 'parada'
 
 const VISOES: { id: Agrupamento; rotulo: string; icone: typeof Users }[] = [
   { id: 'tecnico', rotulo: 'Técnico', icone: Users },
   { id: 'cliente', rotulo: 'Cliente', icone: Building2 },
   { id: 'regiao', rotulo: 'Região', icone: Compass },
   { id: 'local', rotulo: 'Localidade', icone: MapPin },
+  { id: 'parada', rotulo: 'Parada', icone: Waypoints },
 ]
 
 /** O que a coluna diz quando não é técnico — entra no subtítulo e no rótulo do "Sem X". */
-const ROTULO_GRUPO: Record<Exclude<Agrupamento, 'tecnico'>, { plural: string; sem: string }> = {
+const ROTULO_GRUPO: Record<Exclude<Agrupamento, 'tecnico' | 'parada'>, { plural: string; sem: string }> = {
   cliente: { plural: 'cliente(s)', sem: 'Sem cliente' },
   local: { plural: 'localidade(s)', sem: 'Sem localidade' },
   regiao: { plural: 'região(ões)', sem: REGIAO_LABEL.OUTRAS },
@@ -77,6 +80,8 @@ export function Planejamento() {
   const [confirmar, setConfirmar] = useState<{ titulo: string; texto: string; fn(): Promise<unknown>; msg: string; perigo?: boolean } | null>(null)
   const editar = pode('planejamento.editar')
   const porTecnico = agrupamento === 'tecnico'
+  // A visão por parada é a única que não é um quadro de colunas: vira lista de visitas.
+  const emLista = agrupamento === 'parada'
 
   const escolherVisao = (v: Agrupamento) => { setAgrupamento(v); localStorage.setItem('plan-agrupar', v) }
 
@@ -105,6 +110,7 @@ export function Planejamento() {
   const itens = useMemo(() => naRegiao.filter(deQuem), [naRegiao, deQuem])
 
   const colunas: Coluna<Demanda>[] = useMemo(() => {
+    if (emLista) return []
     const ordenar = (l: Demanda[]) => [...l].sort((a, b) => (a.data_planejada ?? '9999').localeCompare(b.data_planejada ?? '9999') || ordenarParadas(a, b))
 
     if (porTecnico) {
@@ -135,7 +141,9 @@ export function Planejamento() {
       }))
       // Maior volume primeiro: é onde há consolidação a fazer. "Sem X" vai para o fim.
       .sort((a, b) => (a.id === '__sem' ? 1 : b.id === '__sem' ? -1 : 0) || b.itens.length - a.itens.length || String(a.titulo).localeCompare(String(b.titulo)))
-  }, [itens, tecnicos, agrupamento, porTecnico])
+  }, [itens, tecnicos, agrupamento, porTecnico, emLista])
+
+  const nParadas = useMemo(() => (emLista ? agrupar(itens, chaveParada).size : 0), [itens, emLista])
 
   const ids = Array.from(sel)
   const limpar = () => setSel(new Set())
@@ -234,7 +242,9 @@ export function Planejamento() {
   </>
   const subtitulo = porTecnico
     ? <>{itens.length} demandas · uma coluna por técnico{recorte}<span className="hidden md:inline"> · arraste um card para outra coluna para atribuir o técnico; dentro da mesma data, arraste para definir a ordem das paradas</span></>
-    : <>{itens.length} demandas em {colunas.length} {ROTULO_GRUPO[agrupamento].plural}{recorte}<span className="hidden md:inline"> · marque os cards e use "Técnico / veículo / data" para fechar tudo de uma vez</span></>
+    : emLista
+      ? <>{itens.length} demandas em {plural(nParadas, 'parada', 'paradas')}{recorte}<span className="hidden md:inline"> · cada bloco é uma visita ao mesmo cliente no mesmo endereço; "Fechar visita" define técnico, veículo e data dos itens todos de uma vez</span></>
+      : <>{itens.length} demandas em {colunas.length} {ROTULO_GRUPO[agrupamento].plural}{recorte}<span className="hidden md:inline"> · marque os cards e use "Técnico / veículo / data" para fechar tudo de uma vez</span></>
 
   return (
     <Pagina titulo="Planejamento (PCM)" subtitulo={subtitulo} acoes={<>
@@ -270,9 +280,15 @@ export function Planejamento() {
         </Botao>
       </div>
 
-      <Quadro colunas={colunas} larguraColuna={340} podeArrastar={editar && porTecnico} onMover={onMover} renderGrupo={renderGrupo}
-        vazio={porTecnico ? 'Solte aqui' : 'Nada aqui'}
-        renderItem={(d) => <CardDemanda d={d} vertical mostrarCliente />} />
+      {emLista ? (
+        <ListaParadas itens={itens} tecnicos={tecnicos} sel={sel} editar={editar} acoesItem={acoesItem}
+          onItem={toggle} onGrupo={(lista, v) => setSel(s => { const n = new Set(s); for (const d of lista) v ? n.add(d.id) : n.delete(d.id); return n })}
+          onAtribuir={setAtribuir} />
+      ) : (
+        <Quadro colunas={colunas} larguraColuna={340} podeArrastar={editar && porTecnico} onMover={onMover} renderGrupo={renderGrupo}
+          vazio={porTecnico ? 'Solte aqui' : 'Nada aqui'}
+          renderItem={(d) => <CardDemanda d={d} vertical mostrarCliente />} />
+      )}
 
       <BarraSelecao n={ids.length} onLimpar={limpar}>
         {editar && <Botao tamanho="sm" variante="primario" onClick={() => setAtribuir(demandas.filter(d => sel.has(d.id)))}><UserCog size={13} />Técnico / veículo / data</Botao>}
@@ -288,5 +304,89 @@ export function Planejamento() {
       <Confirmar aberto={!!confirmar} titulo={confirmar?.titulo ?? ''} texto={confirmar?.texto} perigo={confirmar?.perigo} onFechar={() => setConfirmar(null)}
         onConfirmar={() => { const c = confirmar!; setConfirmar(null); run(c.fn, c.msg) }} />
     </Pagina>
+  )
+}
+
+/**
+ * Visão por parada: uma visita — mesmo cliente, mesmo endereço — por bloco, em lista.
+ *
+ * O quadro trata o item como unidade, mas a decisão do planejamento é a visita: cinco
+ * equipamentos para a mesma obra são cinco cards para arrastar e uma só ida do técnico.
+ * Aqui a visita é o bloco, e "Fechar visita" resolve técnico, veículo e data dos itens todos
+ * de uma vez. A parada é a mesma do resto do app (`chaveParada`: cliente + local), então o
+ * que se fecha aqui é o que vira uma parada no roteiro.
+ *
+ * As seções são por técnico, com "Sem técnico" no topo — é o que falta decidir. Antes delas
+ * vêm as visitas divididas: quando os itens do mesmo endereço estão com técnicos diferentes,
+ * o bloco não é quebrado para caber nas seções (isso esconderia o problema); ele fica em
+ * "Visitas divididas", que é justamente o erro que ninguém enxerga no quadro — dois técnicos
+ * indo ao mesmo lugar no mesmo dia.
+ */
+function ListaParadas({ itens, tecnicos, sel, editar, acoesItem, onItem, onGrupo, onAtribuir }: {
+  itens: Demanda[]; tecnicos: Tecnico[]; sel: Set<string>; editar: boolean
+  acoesItem(d: Demanda): ReactNode
+  onItem(id: string, v: boolean): void
+  onGrupo(lista: Demanda[], v: boolean): void
+  onAtribuir(lista: Demanda[]): void
+}) {
+  const secoes = useMemo(() => {
+    const paradas = Array.from(agrupar(itens, chaveParada).entries()).map(([chave, lista]) => {
+      const its = [...lista].sort(ordenarParadas)
+      const datas = Array.from(new Set(its.map(d => d.data_planejada ?? ''))).sort((a, b) => (a === '' ? 1 : b === '' ? -1 : a.localeCompare(b)))
+      const tecs = Array.from(new Set(its.map(d => d.tecnico_id ?? '__sem')))
+      return { chave, itens: its, datas, tecs }
+    })
+    const porDono = agrupar(paradas, p => (p.tecs.length > 1 ? '__dividida' : p.tecs[0]))
+    return ['__dividida', '__sem', ...tecnicos.map(t => t.id)]
+      .filter(k => porDono.has(k))
+      .map(k => {
+        const t = tecnicos.find(x => x.id === k)
+        return {
+          id: k,
+          titulo: k === '__dividida' ? 'Visitas divididas entre técnicos' : k === '__sem' ? 'Sem técnico' : (t?.nome ?? '—'),
+          cor: k === '__dividida' ? '#f59e0b' : k === '__sem' ? '#94a3b8' : (t?.cor ?? '#64748b'),
+          // Dentro da seção, a data manda: primeiro o que está atrasado, o sem data no fim.
+          paradas: porDono.get(k)!.sort((a, b) => (a.datas[0] || '9999').localeCompare(b.datas[0] || '9999') || String(a.itens[0].cliente_nome).localeCompare(String(b.itens[0].cliente_nome))),
+        }
+      })
+  }, [itens, tecnicos])
+
+  if (!secoes.length) return <Vazio titulo="Nenhuma parada neste recorte" texto="Ajuste os filtros acima ou envie demandas da fila para o planejamento." />
+
+  return (
+    <div className="space-y-5">
+      {secoes.map(sec => (
+        <section key={sec.id} className="space-y-2">
+          <h2 className="flex items-center gap-2 text-[13px] font-bold text-slate-700">
+            {sec.id === '__dividida' ? <Split size={14} className="text-amber-600" /> : <span className="h-2.5 w-2.5 rounded-full" style={{ background: sec.cor }} />}
+            {sec.titulo}
+            <span className="text-[12px] font-medium text-slate-400">{plural(sec.paradas.length, 'parada', 'paradas')} · {plural(sec.paradas.reduce((n, p) => n + p.itens.length, 0), 'item', 'itens')}</span>
+          </h2>
+          {sec.paradas.map(p => {
+            const p0 = p.itens[0]
+            // Destaque só onde a decisão está pendente: na seção sem técnico.
+            return (
+              <GrupoCard key={p.chave} cor={sec.cor} titulo={p0.cliente_nome ?? 'Sem cliente'} subtitulo={<LocalData local={p0.local} />} contagem={p.itens.length}
+                selecionado={p.itens.every(d => sel.has(d.id))} onSelecionar={v => onGrupo(p.itens, v)}
+                chips={<>
+                  <Chip tone="bg-slate-100 text-slate-700">{REGIAO_LABEL[regiaoDe(p0.local)]}</Chip>
+                  {p.datas.map(dt => (
+                    <Chip key={dt || 'sem'} tone={!dt ? 'bg-slate-100 text-slate-500' : dt < hojeISO() ? 'bg-red-100 text-red-700' : 'bg-blue-50 text-blue-800'}>{rotuloData(dt || null)}</Chip>
+                  ))}
+                  {p.tecs.length > 1 && p.tecs.map(id => (
+                    <Chip key={id} tone="bg-amber-100 text-amber-800">{id === '__sem' ? 'sem técnico' : tecnicos.find(t => t.id === id)?.nome ?? '—'}</Chip>
+                  ))}
+                  {Array.from(agrupar(p.itens, d => d.tipo)).map(([tipo, l]) => <Chip key={tipo}>{l.length} {tipo}</Chip>)}
+                </>}
+                direita={editar && <Botao tamanho="sm" variante={sec.id === '__sem' ? 'primario' : 'secundario'} onClick={() => onAtribuir(p.itens)} title="Técnico, veículo e data para os itens todos desta visita">
+                  <UserCog size={13} />Fechar visita
+                </Botao>}>
+                {p.itens.map(d => <CardDemanda key={d.id} d={d} compacto selecionado={sel.has(d.id)} onSelecionar={v => onItem(d.id, v)} acoes={acoesItem(d)} />)}
+              </GrupoCard>
+            )
+          })}
+        </section>
+      ))}
+    </div>
   )
 }
