@@ -100,7 +100,7 @@ export function MeuRoteiro() {
 
       <div className="mt-3 space-y-2.5">
         {paradas.map((its, i) => (
-          <Parada key={its[0].id} itens={its} numero={its[0].ordem_parada ? its[0].ordem_parada / 10 : i + 1}
+          <Parada key={its[0].id} itens={its} numero={i + 1}
             executar={executar}
             onFinalizar={lista => run(() => acoes.finalizar(lista.map(d => d.id)), lista.length > 1 ? `Parada concluída (${lista.length} itens).` : 'Item concluído.')}
             onPendente={lista => setPendente(lista)} />

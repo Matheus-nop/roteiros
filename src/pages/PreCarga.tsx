@@ -72,8 +72,11 @@ export function PreCarga() {
         {grupos.map(({ t, itens }) => {
           const sep = itens.filter(d => d.status_separacao === 'SEPARADO').length
           const abertos = itens.filter(d => d.status === 'ROTEIRIZADO').length
-          const visiveis = itens.filter(d => mostrar === 'todos' || (mostrar === 'separados') === (d.status_separacao === 'SEPARADO'))
-          const paradas = Array.from(agrupar(visiveis, chaveParada).values())
+          // As paradas saem da lista INTEIRA e só depois o filtro esconde itens: numerar
+          // sobre o que está visível faria a parada 3 virar 2 quando alguém filtra
+          // "só pendentes", e o papel do técnico diz outra coisa.
+          const visivel = (d: Demanda) => mostrar === 'todos' || (mostrar === 'separados') === (d.status_separacao === 'SEPARADO')
+          const paradas = Array.from(agrupar(itens, chaveParada).values()).map((its, i) => ({ n: i + 1, its: its.filter(visivel) })).filter(p => p.its.length)
           return (
             <GrupoCard key={t.id} cor={t.cor} titulo={<span>👷 {t.nome}</span>} subtitulo={<span>🚗 {veiculosDoGrupo(itens).join(' / ') || <span className="text-amber-700">sem veículo</span>}</span>}
               chips={<><Chip tone={abertos ? 'bg-blue-50 text-blue-800' : 'bg-indigo-50 text-indigo-800'}>{abertos ? 'Pré-carga' : 'Fechada'}</Chip><Chip tone={sep === itens.length ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-700'}>{sep}/{itens.length} sep.</Chip></>}
@@ -82,10 +85,10 @@ export function PreCarga() {
                 <Botao tamanho="sm" variante="fantasma" title="Etiquetas" onClick={() => imprimir(<FolhaEtiquetas itens={itens} tipo="EXPEDICAO" modo={(localStorage.getItem('et-modo') as 'normal') || 'normal'} tecnicoPorId={id => tecnicoPorId(id)} />)}><Tag size={13} /></Botao>
                 {fechar && <Botao tamanho="sm" disabled={!abertos} onClick={() => fecharDia(t.id, itens)}><Lock size={12} />{abertos ? 'Fechar' : 'Fechada'}</Botao>}
               </>}>
-              {paradas.map((its, i) => (
-                <div key={i}>
+              {paradas.map(({ n, its }) => (
+                <div key={n}>
                   <div className="flex items-center gap-2 bg-slate-50/80 px-4 py-1.5">
-                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1a56db] text-[10px] font-bold text-white">{its[0].ordem_parada ? its[0].ordem_parada / 10 : i + 1}</span>
+                    <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1a56db] text-[10px] font-bold text-white">{n}</span>
                     <span className="text-[12px] font-bold text-slate-800">{its[0].cliente_nome ?? '—'}</span><LocalData local={its[0].local} /><span className="text-[11px] text-slate-400">({its.length})</span>
                   </div>
                   {its.map(d => {

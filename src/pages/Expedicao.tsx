@@ -10,7 +10,7 @@ import { BarraSelecao } from '../components/TabelaDemandas'
 import { Chip, GrupoCard, LocalData } from '../components/Cards'
 import { Badge, BadgeTipo, Botao, Confirmar, Contador, Input, Pagina, Select, Vazio, cx } from '../components/ui'
 import { STATUS_EM_ROTA, SEPARACAO_LABEL, separaNaExpedicao } from '../lib/status'
-import { hojeISO, normalizar, textoBusca, ordenarParadas, agrupar, fmtPatrimonio, fmtData } from '../lib/format'
+import { hojeISO, normalizar, textoBusca, numerosDeParada, ordenarParadas, agrupar, fmtPatrimonio, fmtData } from '../lib/format'
 import { veiculosDoGrupo } from '../components/GrupoTecnico'
 import { db } from '../lib'
 import type { Demanda, StatusSeparacao } from '../lib/types'
@@ -21,6 +21,8 @@ function beep() {
 
 export function Expedicao() {
   const { demandas, tecnicos, expedidores, acoes, tecnicoPorId, conectado } = useData()
+  // Número da parada por demanda, calculado sobre todas: o card mostra item, não parada.
+  const paradaDe = useMemo(() => numerosDeParada(demandas), [demandas])
   const { pode, usuario } = useAuth()
   const { toast, erro } = useToast()
   const [data, setData] = useState(hojeISO())
@@ -63,7 +65,7 @@ export function Expedicao() {
         <input type="checkbox" checked={sel.has(d.id)} onChange={e => setSel(s => { const x = new Set(s); e.target.checked ? x.add(d.id) : x.delete(d.id); return x })} className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 text-[13px] font-bold text-slate-800">{d.cliente_nome ?? '—'} <LocalData local={d.local} /></div>
-          <div className="flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-slate-500">📦 {d.equipamento_nome} · <span className={d.patrimonio ? 'font-mono' : ''}>{fmtPatrimonio(d)}</span> · <span className="om">OS {d.om ?? '—'}</span>{todas && <> · 📅 {fmtData(d.data_planejada)}</>}{d.ordem_parada ? <> · parada {d.ordem_parada / 10}</> : null}</div>
+          <div className="flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-slate-500">📦 {d.equipamento_nome} · <span className={d.patrimonio ? 'font-mono' : ''}>{fmtPatrimonio(d)}</span> · <span className="om">OS {d.om ?? '—'}</span>{todas && <> · 📅 {fmtData(d.data_planejada)}</>}{paradaDe.get(d.id) ? <> · parada {paradaDe.get(d.id)}</> : null}</div>
         </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 pl-7 sm:shrink-0 sm:pl-0">

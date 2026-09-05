@@ -65,7 +65,7 @@ export function EspelhoRoteiro({ tecnico, data, itens }: { tecnico: Tecnico | un
           return (
             <div key={i} className="esp-par">
               <div className="esp-par-h">
-                <div className="esp-num">{p0.ordem_parada ? p0.ordem_parada / 10 : i + 1}</div>
+                <div className="esp-num">{i + 1}</div>
                 <div className="esp-loc">📍 {p0.local ?? '—'}<small>{p0.cliente_nome ?? '—'}</small></div>
                 {naoSep ? <span className="esp-tag no">Não separado</span> : liberado ? <span className="esp-tag lib">Liberado</span> : <span className="esp-tag ok">Separado</span>}
                 <span className="esp-chk" title="Executado" />
