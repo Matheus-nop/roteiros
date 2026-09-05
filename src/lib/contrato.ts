@@ -186,6 +186,14 @@ const IRRELEVANTES = new Set(['DE', 'DO', 'DA', 'DAS', 'DOS', 'E', '-', 'BASE', 
  * Exige match forte: ou o nome bate inteiro, ou duas palavras específicas casam.
  * Casar só pela cidade não vale — quase todo contrato é "Rio de Janeiro", e isso
  * associaria a demanda a uma localidade aleatória da capital.
+ *
+ * A CIDADE NÃO ASSOCIA, MAS VETA
+ *
+ * Bairro genérico existe em toda cidade. "CENTRO" em Niterói casava com
+ * "NOVA IGUAÇU - CENTRO" só porque o texto está contido — e a demanda ia parar na
+ * coluna do município errado, a uma hora de distância. Por isso, quando a cidade é
+ * conhecida e não aparece na localidade candidata, o match por texto inteiro perde a
+ * força e sobra só o casamento por palavras específicas, que exige duas.
  */
 export function melhorLocal(bairro: string, cidade: string, conhecidos: string[]): string {
   if (!conhecidos.length) return ''
@@ -193,16 +201,19 @@ export function melhorLocal(bairro: string, cidade: string, conhecidos: string[]
   if (!alvo) return ''   // sem o local de entrega não há como casar com segurança
   const palavras = alvo.split(/[\s\-/]+/).filter(p => p.length > 2 && !IRRELEVANTES.has(p))
   if (!palavras.length) return ''
+  const cid = normalizar(cidade)
 
   let melhor = '', melhorPonto = 0
   for (const loc of conhecidos) {
     const n = normalizar(loc)
+    // Cidade conhecida que não aparece na candidata: é outro município, não vale o
+    // match forte por conter o texto.
+    const cidadeBate = !cid || n.includes(cid)
     let ponto = 0
-    if (alvo.length >= 4 && (n.includes(alvo) || alvo.includes(n))) ponto += 6
+    if (cidadeBate && alvo.length >= 4 && (n.includes(alvo) || alvo.includes(n))) ponto += 6
     for (const p of palavras) if (n.includes(p)) ponto += 3
     if (ponto > melhorPonto) { melhorPonto = ponto; melhor = loc }
   }
-  void cidade   // a cidade entra só como desempate futuro; sozinha ela não associa nada
   return melhorPonto >= 6 ? melhor : ''
 }
 
