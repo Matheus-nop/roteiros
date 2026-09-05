@@ -4,10 +4,10 @@ import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
 import type { Demanda, NovaDemanda, Status, Tecnico, Tipo } from '../lib/types'
-import { TIPOS, TODOS_STATUS } from '../lib/status'
+import { STATUS_ARQUIVADOS, TIPOS, TODOS_STATUS } from '../lib/status'
 import { db } from '../lib'
 import { hojeISO, normalizar } from '../lib/format'
-import { chaveAproximada, chaveIdentidade, encontrarDuplicata } from '../lib/actions'
+import { chaveAproximada, chaveIdentidade, encontrarDuplicata, pareceRepetida } from '../lib/actions'
 import { Botao, Modal } from './ui'
 
 // `ordem` NÃO é apelido de OM. Na planilha do sistema antigo, ORDEM é a sequência da
@@ -156,9 +156,13 @@ export function ModalImportar({ aberto, onFechar }: { aberto: boolean; onFechar(
   // render entraria em laço como dependência do efeito.
   const patrimonios = useMemo(() => {
     if (!texto.trim()) return ''
+    // Quebra também por espaço e dois-pontos: a célula vem como
+    // "250225-407 SN: 20244406271", e o patrimônio que está gravado no banco é só a
+    // primeira parte. Sem isso a consulta não acha justamente a demanda concluída.
     return Array.from(new Set(
-      texto.split('\n').flatMap(l => l.split(/[\t;,]/)).map(c => c.trim()).filter(c => /^[0-9]{4,}[-0-9]*$/.test(c)),
-    )).slice(0, 300).sort().join('|')
+      texto.split('\n').flatMap(l => l.split(/[\t;,\s:]+/)).map(c => c.trim())
+        .filter(c => /^[0-9]{4,}[-0-9]*$/.test(c)),
+    )).slice(0, 400).sort().join('|')
   }, [texto])
 
   useEffect(() => {
@@ -174,14 +178,25 @@ export function ModalImportar({ aberto, onFechar }: { aberto: boolean; onFechar(
   // o `lancar` só descarta igualdade exata. Servem para quem colou conferir antes.
   const parecidas = useMemo(() => {
     if (!parse) return []
-    const mapa = new Map<string, Demanda>()
+    // A chave frouxa é só o índice: junta todas as demandas da mesma peça. Quem decide
+    // se é repetição é `pareceRepetida` — senão o aviso dispara em todo equipamento que
+    // já passou pela oficina alguma vez.
+    const porPeca = new Map<string, Demanda[]>()
     for (const d of [...existentes, ...demandas]) {
       const k = chaveAproximada(d)
-      if (k && !mapa.has(k)) mapa.set(k, d)
+      if (!k) continue
+      const lista = porPeca.get(k)
+      if (lista) lista.push(d); else porPeca.set(k, [d])
     }
     return parse.linhas
       .filter(l => !encontrarDuplicata(l as never, demandas))
-      .map(l => ({ nova: l, velha: mapa.get(chaveAproximada(l as never)) }))
+      .map(l => {
+        const candidatas = porPeca.get(chaveAproximada(l as never)) ?? []
+        // A aberta primeiro; entre as encerradas, a mais recente.
+        const velha = candidatas.filter(d => pareceRepetida(l as never, d))
+          .sort((a, b) => Number(!STATUS_ARQUIVADOS.includes(b.status)) - Number(!STATUS_ARQUIVADOS.includes(a.status)) || b.numero - a.numero)[0]
+        return { nova: l, velha }
+      })
       .filter((x): x is { nova: typeof parse.linhas[number]; velha: Demanda } => !!x.velha)
   }, [parse, existentes, demandas])
 

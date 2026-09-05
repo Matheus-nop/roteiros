@@ -15,22 +15,48 @@ export function chaveIdentidade(d: Pick<Demanda, 'om' | 'equipamento_nome' | 'pa
 /**
  * Chave FROUXA, para desconfiar — não para bloquear.
  *
- * A `chaveIdentidade` exige igualdade exata, e é isso mesmo que ela deve fazer: bloquear
- * é grave, e bloquear errado esconde trabalho de verdade. Só que na prática a mesma
- * demanda chega escrita de dois jeitos — "035635" e "35635", "250225-407" e
- * "250225-407 SN: 20244406271", a razão social inteira e o apelido do cadastro — e aí a
- * chave exata não vê nada e a duplicata entra.
+ * Ignora pontuação, acento, zero à esquerda e o sufixo 'SN:', porque a mesma demanda
+ * chega escrita de dois jeitos: "035635" e "35635", "250225-407" e
+ * "250225-407 SN: 20244406271".
  *
- * Esta aqui ignora essas diferenças de escrita para PERGUNTAR. Quem decide é quem cola.
+ * ELA SOZINHA NÃO BASTA, e isso custou caro para descobrir: casada só por peça +
+ * equipamento, ela apontou 73 linhas numa importação de 118 — e 58 eram atendimento
+ * NOVO no mesmo equipamento, de uma OS antiga já encerrada. Equipamento volta para
+ * manutenção o tempo todo; é o negócio funcionando, não repetição. Aviso que erra 8 em
+ * cada 10 vezes ensina a ignorar aviso.
+ *
+ * Por isso ela serve de ÍNDICE, e quem decide é `pareceRepetida` abaixo.
  */
 export function chaveAproximada(d: Pick<Demanda, 'om' | 'equipamento_nome' | 'patrimonio'>): string {
   const so = (v: string | null) => normalizar(v).replace(/[^A-Z0-9]/g, '')
-  // Patrimônio é o identificador mais forte que existe aqui: quando tem, manda sozinho.
-  // O `split` corta sufixos como "SN: 20244406271", que descrevem a peça, não a demanda.
+  const equip = so(d.equipamento_nome)
+  // O patrimônio identifica a peça física; o `split` corta sufixos como
+  // "SN: 20244406271", que descrevem a peça e não a demanda.
   const pat = so(normalizar(d.patrimonio).split(' SN')[0])
-  if (pat) return `P:${pat}|${so(d.equipamento_nome)}`
+  if (pat) return `P:${pat}|${equip}`
   const om = so(d.om).replace(/^0+/, '')
-  return om ? `O:${om}|${so(d.equipamento_nome)}` : ''
+  return om ? `O:${om}|${equip}` : ''
+}
+
+/** Mesma ordem de serviço, ignorando zero à esquerda e pontuação ('1415-01' ~ '1415-01/26'). */
+function mesmaOm(a: string | null, b: string | null): boolean {
+  const so = (v: string | null) => normalizar(v).replace(/[^A-Z0-9]/g, '').replace(/^0+/, '')
+  const x = so(a), y = so(b)
+  return !!x && !!y && (x === y || x.startsWith(y) || y.startsWith(x))
+}
+
+/**
+ * A candidata (mesma peça, mesmo equipamento) é mesmo repetição do que está sendo
+ * lançado? Duas situações, e só elas:
+ *
+ *   - a ORDEM DE SERVIÇO é a mesma → é o mesmo trabalho, escrito de outro jeito;
+ *   - a demanda que já existe ainda está ABERTA → seja qual for a OS, mandar a peça
+ *     duas vezes para a rua no mesmo período é problema.
+ *
+ * Serviço anterior já concluído ou cancelado, com OS diferente, é atendimento novo.
+ */
+export function pareceRepetida(nova: Pick<Demanda, 'om'>, existente: Demanda): boolean {
+  return mesmaOm(nova.om, existente.om) || !STATUS_ARQUIVADOS.includes(existente.status)
 }
 
 /** Duplicidade: bloqueia só se EXATAMENTE igual (equip + patrimônio + OM + cliente) e não arquivada. */
