@@ -139,10 +139,21 @@ export function ModalEditarDemanda({ d, onFechar }: { d: Demanda | null; onFecha
   if (!d) return null
   const salvar = async () => {
     try {
-      const n = normalizar(v.cliente_nome)
+      const digitado = (v.cliente_nome ?? '').trim()
+      const n = normalizar(digitado)
       const cli = clientes.find(c => normalizar(c.nome) === n || (c.apelidos ?? []).some(a => normalizar(a) === n))
-      await acoes.editar(d.id, { ...f, cliente_id: cli?.id ?? d.cliente_id, cliente_nome: cli?.nome ?? v.cliente_nome })
-      toast('Demanda atualizada.'); onFechar()
+      const nome = cli?.nome ?? digitado
+      await acoes.editar(d.id, { ...f, cliente_id: cli?.id ?? d.cliente_id, cliente_nome: nome || null })
+      // Digitar um APELIDO grava o nome oficial do cadastro — é isso que faz o relatório
+      // somar um cliente só em vez de três grafias. Mas trocar o texto em silêncio parece
+      // que o salvamento não funcionou: quem escreveu "AEGEA SANEAMENTO" vê "AEGEA" e
+      // conclui que o botão não fez nada. Então o aviso conta o que aconteceu, e diz onde
+      // resolver se as duas empresas forem mesmo diferentes.
+      const trocou = cli && normalizar(nome) !== n
+      toast(trocou
+        ? `Salvo como "${nome}": "${digitado}" está cadastrado como apelido dele. Se forem clientes diferentes, separe em Cadastros.`
+        : 'Demanda atualizada.')
+      onFechar()
     } catch (e) { erro(e) }
   }
   return (

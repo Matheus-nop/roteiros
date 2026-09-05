@@ -49,28 +49,30 @@ function mesmaOm(a: string | null, b: string | null): boolean {
  * A candidata (mesma peça, mesmo equipamento) é mesmo repetição do que está sendo
  * lançado?
  *
- * PRIMEIRO, O MOVIMENTO — e isto é regra do negócio, não detalhe técnico:
+ * DUAS CONDIÇÕES, E SÓ ELAS: mesmo MOVIMENTO e mesma ORDEM DE SERVIÇO.
  *
- * A OS identifica o CONTRATO, não o movimento. A mesma OS cobre a entrega e, semanas
- * depois, a retirada daquele equipamento. São duas demandas legítimas com o mesmo
- * número. Tratar isso como repetição faria o sistema recusar metade do trabalho real —
- * justamente a devolução, que é o que fecha o ciclo.
+ * O movimento primeiro, e isto é regra do negócio: a OS identifica o CONTRATO, não o
+ * movimento. A mesma OS cobre a entrega e, semanas depois, a retirada daquele
+ * equipamento — duas demandas legítimas com o mesmo número. E a comparação é por
+ * FAMÍLIA: RETIRADA e DEVOLUÇÃO são o mesmo movimento, ENTREGA e LOCAÇÃO também.
  *
- * A comparação é por FAMÍLIA, não pelo nome do tipo: RETIRADA e DEVOLUÇÃO são o mesmo
- * movimento, ENTREGA e LOCAÇÃO também (ver `familiaDoTipo`). Comparar o nome cru deixaria
- * passar a mesma demanda escrita com o outro nome.
+ * A OS depois, ignorando zero à esquerda e pontuação: '035639' e '35639' são a mesma
+ * ordem, e é assim que a mesma demanda chega escrita de dois jeitos.
  *
- * Passado o tipo, duas situações e só elas:
+ * O QUE NÃO ENTRA, E POR QUE
  *
- *   - a ORDEM DE SERVIÇO é a mesma → é o mesmo trabalho, escrito de outro jeito;
- *   - a demanda que já existe ainda está ABERTA → seja qual for a OS, mandar a peça
- *     duas vezes para a rua no mesmo período é problema.
+ * Já esteve aqui um terceiro caso: "a demanda que já existe ainda está aberta". A ideia
+ * era pegar a peça mandada duas vezes para a rua no mesmo período. Na prática, quando o
+ * PCM lança o dia todo à mão, quase toda peça tem demanda aberta — e o aviso passou a
+ * disparar em cima de TODA importação, inclusive de serviço legitimamente novo com OS
+ * nova. Aviso que aparece sempre não avisa nada.
  *
- * Serviço anterior já concluído ou cancelado, com OS diferente, é atendimento novo.
+ * Peça ocupada é informação de operação, não de duplicidade. Se um dia valer a pena
+ * mostrar isso, é em outro lugar e com outro nome.
  */
 export function pareceRepetida(nova: Pick<Demanda, 'om' | 'tipo'>, existente: Demanda): boolean {
   if (familiaDoTipo(nova.tipo) !== familiaDoTipo(existente.tipo)) return false
-  return mesmaOm(nova.om, existente.om) || !STATUS_ARQUIVADOS.includes(existente.status)
+  return mesmaOm(nova.om, existente.om)
 }
 
 /** Duplicidade: bloqueia só se EXATAMENTE igual (equip + patrimônio + OM + cliente) e não arquivada. */
