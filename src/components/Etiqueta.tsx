@@ -2,7 +2,7 @@
 // bloco do equipamento com patrimônio em destaque, grade cliente/tipo/OS/local e rodapé.
 // Modos: A4 (400px), térmica 58mm (52mm) e térmica 80mm (74mm).
 import type { Demanda, Tecnico, EtiquetaAvulsa } from '../lib/types'
-import { codigo, fmtData, fmtNum, hojeISO } from '../lib/format'
+import { agrupar, chaveParada, codigo, fmtData, fmtNum, hojeISO, normalizar, ordenarParadas } from '../lib/format'
 
 export type ModoImpressora = 'normal' | '58' | '80'
 export type TipoEtiqueta = 'ROTEIRO' | 'EXPEDICAO' | 'AVULSA'
@@ -161,8 +161,128 @@ export function FolhaRoteiro({ tecnico, data, itens }: { tecnico: Tecnico | unde
           ))}
         </tbody>
       </table>
-      <div style={{ marginTop: 18, display: 'flex', gap: 40, fontSize: 11, color: '#475569' }}>
-        <div>Saída: ____:____ &nbsp; Retorno: ____:____</div>
+    </div>
+  )
+}
+
+// ----------------------------------------------------------------------------------
+// Folha de PRÉ-CARGA — o papel da expedição, não o do técnico.
+//
+// Até aqui a pré-carga imprimia a mesma folha do roteiro, e por isso não servia: o
+// roteiro é uma lista de PARADAS, na ordem da rua; a separação é uma volta pelo GALPÃO,
+// e quem separa procura equipamento e patrimônio, não cliente. Então aqui a lista
+// principal é agrupada por equipamento, com a caixa de conferência na frente de cada
+// linha e o patrimônio em corpo grande — é o que a pessoa compara com a plaqueta da peça.
+//
+// O destino (parada, cliente) fica à direita de cada linha, e no fim vem um resumo por
+// parada: é como a carga entra no veículo — a primeira parada por último, à mão.
+//
+// Sem campo de assinatura de propósito: quem separou e a que horas o app já registra,
+// e campo em branco no papel vira a versão que ninguém confere com o sistema.
+// ----------------------------------------------------------------------------------
+const bordaCel = '1px solid #e2e8f0'
+const cel: React.CSSProperties = { padding: '7px 6px', borderBottom: bordaCel, verticalAlign: 'top' }
+
+/** Quantidade como a expedição conta: peça com patrimônio é 1; a granel, o número e a unidade. */
+function volume(d: Demanda): { n: string; un: string } {
+  if (d.patrimonio) return { n: '1', un: 'peça' }
+  return { n: fmtNum(d.quantidade), un: (d.unidade ?? '').toLowerCase() }
+}
+
+export function FolhaPreCarga({ tecnico, data, itens }: { tecnico: Tecnico | undefined; data: string; itens: Demanda[] }) {
+  const ordenados = [...itens].sort(ordenarParadas)
+  const paradas = Array.from(agrupar(ordenados, chaveParada).values())
+  const posicaoDaParada = new Map<string, number>()
+  paradas.forEach((its, i) => posicaoDaParada.set(chaveParada(its[0]), i + 1))
+
+  // Agrupado por equipamento: a volta pelo galpão é por peça, não por cliente.
+  const porEquipamento = Array.from(agrupar(ordenados, d => normalizar(d.equipamento_nome) || 'SEM EQUIPAMENTO').entries())
+    .sort(([a], [b]) => a.localeCompare(b))
+
+  const comPatrimonio = ordenados.filter(d => d.patrimonio).length
+  const aGranel = ordenados.length - comPatrimonio
+  const separados = ordenados.filter(d => d.status_separacao === 'SEPARADO').length
+  const veiculo = ordenados.find(i => i.veiculo)?.veiculo
+
+  return (
+    <div style={{ fontFamily: 'Inter, Segoe UI, system-ui, sans-serif', color: '#0f172a', fontSize: 12 }}>
+      <div style={{ border: '2px solid #0f172a', borderRadius: 8, padding: '10px 14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <img src="/logo.png" alt="" style={{ height: 26 }} />
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.14em', fontWeight: 800, color: '#b45309' }}>PRÉ-CARGA · SEPARAÇÃO</div>
+            <div style={{ fontSize: 19, fontWeight: 800, marginTop: 1 }}>{tecnico?.nome ?? 'Sem técnico'}</div>
+            <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>{veiculo ? `Veículo ${veiculo}` : 'Sem veículo definido'} · {paradas.length} parada(s)</div>
+          </div>
+        </div>
+        <div style={{ textAlign: 'right' }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>{fmtData(data)}</div>
+          <div style={{ fontSize: 22, fontWeight: 800, lineHeight: 1.1, marginTop: 4 }}>{ordenados.length}</div>
+          <div style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: '.08em', color: '#475569' }}>itens a separar</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 18, fontSize: 11, color: '#475569', margin: '8px 2px 12px' }}>
+        <span><b style={{ color: '#0f172a' }}>{comPatrimonio}</b> com patrimônio</span>
+        <span><b style={{ color: '#0f172a' }}>{aGranel}</b> por quantidade</span>
+        {separados > 0 && <span style={{ color: '#047857' }}><b>{separados}</b> já separado(s) no sistema</span>}
+      </div>
+
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr style={{ background: '#f1f5f9' }}>
+            {['✓', 'Qtd', 'Equipamento / Patrimônio', 'Vai para', 'Tipo', 'OS'].map(h => (
+              <th key={h} style={{ textAlign: 'left', padding: '6px', borderBottom: '1px solid #94a3b8', fontSize: 10, textTransform: 'uppercase', letterSpacing: '.06em', color: '#475569' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        {porEquipamento.map(([chave, lista]) => (
+          <tbody key={chave} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            {lista.map((d, i) => {
+              const { n, un } = volume(d)
+              const sep = d.status_separacao === 'SEPARADO'
+              return (
+                <tr key={d.id}>
+                  <td style={{ ...cel, width: 26 }}>
+                    <span style={{ display: 'inline-block', width: 15, height: 15, border: '2px solid #0f172a', borderRadius: 3, textAlign: 'center', lineHeight: '13px', fontSize: 12, fontWeight: 800 }}>{sep ? '✓' : ''}</span>
+                  </td>
+                  <td style={{ ...cel, width: 54, whiteSpace: 'nowrap' }}>
+                    <span style={{ fontSize: 15, fontWeight: 800 }}>{n}</span>
+                    {un && <span style={{ fontSize: 10, color: '#475569' }}> {un}</span>}
+                  </td>
+                  <td style={cel}>
+                    {/* O nome do equipamento só na primeira linha do grupo: o que muda de linha para linha é a peça. */}
+                    {i === 0 && <div style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase' }}>{d.equipamento_nome ?? '—'}</div>}
+                    <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: d.patrimonio ? 14 : 11, fontWeight: d.patrimonio ? 700 : 400, color: d.patrimonio ? '#0f172a' : '#64748b' }}>
+                      {d.patrimonio ?? 'sem patrimônio — conferir na quantidade'}
+                    </div>
+                  </td>
+                  <td style={{ ...cel, width: '38%' }}>
+                    <b>{posicaoDaParada.get(chaveParada(d))}ª parada · {d.cliente_nome ?? '—'}</b>
+                    <div style={{ color: '#475569' }}>{d.local ?? '—'}</div>
+                  </td>
+                  <td style={{ ...cel, whiteSpace: 'nowrap', fontSize: 11 }}>{d.tipo}</td>
+                  <td style={{ ...cel, fontFamily: 'ui-monospace, monospace', fontSize: 11 }}>{d.om ?? '—'}</td>
+                </tr>
+              )
+            })}
+          </tbody>
+        ))}
+      </table>
+
+      {/* A carga entra no veículo na ordem inversa da rua: a primeira parada é a última a subir. */}
+      <div style={{ marginTop: 16, pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+        <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '.1em', textTransform: 'uppercase', color: '#475569', marginBottom: 6 }}>
+          Ordem de carregamento — a 1ª parada sobe por último
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+          {[...paradas].reverse().map((its, i) => (
+            <div key={i} style={{ border: bordaCel, borderRadius: 6, padding: '5px 9px', fontSize: 11, minWidth: 150 }}>
+              <b>{posicaoDaParada.get(chaveParada(its[0]))}ª · {its[0].cliente_nome ?? '—'}</b>
+              <div style={{ color: '#475569' }}>{its[0].local ?? '—'} · {its.length} item(ns)</div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )

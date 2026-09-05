@@ -1,5 +1,9 @@
 // Pré-carga: uma pré-carga por técnico com as paradas ordenadas. Só o que se carrega
 // (ENTREGA, LOCAÇÃO, TROCA, RETORNO). Marque o ✓ conforme separa; feche o dia; estorne se precisar.
+//
+// A folha impressa é a `FolhaPreCarga`, não a do roteiro: na tela a ordem útil é a da rua
+// (o técnico confere a rota), mas no papel do galpão a ordem útil é a do equipamento —
+// quem separa procura peça e patrimônio. Ver components/Etiqueta.tsx.
 import { Lock, Printer, Undo2, Check, Search, Tag } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
@@ -7,7 +11,7 @@ import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
 import { SeletorData } from '../components/Filtros'
 import { usePrint } from '../components/Print'
-import { FolhaEtiquetas, FolhaRoteiro } from '../components/Etiqueta'
+import { FolhaEtiquetas, FolhaPreCarga } from '../components/Etiqueta'
 import { Chip, GrupoCard, LocalData } from '../components/Cards'
 import { Badge, BadgeTipo, Botao, Confirmar, Input, Pagina, Select, Vazio, cx } from '../components/ui'
 import { STATUS_EM_ROTA, separaNaExpedicao } from '../lib/status'
@@ -49,7 +53,7 @@ export function PreCarga() {
 
   return (
     <Pagina titulo="Pré-carga" subtitulo="Uma pré-carga por técnico, na ordem das paradas · marque o ✓ conforme separa · a tela atualiza sozinha" acoes={<>
-      <Botao variante="primario" title="Imprime a lista de carga de todos os técnicos" onClick={() => imprimir(<div>{grupos.map(g => <div key={g.t.id} style={{ pageBreakAfter: 'always' }}><FolhaRoteiro tecnico={g.t} data={data} itens={g.itens} /></div>)}</div>)}><Printer size={14} />Imprimir todas</Botao>
+      <Botao variante="primario" title="Imprime a lista de carga de todos os técnicos" onClick={() => imprimir(<div>{grupos.map(g => <div key={g.t.id} style={{ pageBreakAfter: 'always' }}><FolhaPreCarga tecnico={g.t} data={data} itens={g.itens} /></div>)}</div>)}><Printer size={14} />Imprimir todas</Botao>
       {fechar && <Botao variante="perigo" onClick={() => fecharDia(null, doDia)}><Lock size={14} />Fechar dia</Botao>}
       {fechar && ultimo && <Botao onClick={() => estornar(ultimo)} title={`Último: ${tecnicoPorId(ultimo.tecnico_id)?.nome} · ${fmtDataHora(ultimo.fechado_em)}`}><Undo2 size={14} />Estornar</Botao>}
       <span className="text-sm font-bold text-red-600">{totalSep} de {doDia.length} separados</span>
@@ -74,7 +78,7 @@ export function PreCarga() {
             <GrupoCard key={t.id} cor={t.cor} titulo={<span>👷 {t.nome}</span>} subtitulo={<span>🚗 {veiculosDoGrupo(itens).join(' / ') || <span className="text-amber-700">sem veículo</span>}</span>}
               chips={<><Chip tone={abertos ? 'bg-blue-50 text-blue-800' : 'bg-indigo-50 text-indigo-800'}>{abertos ? 'Pré-carga' : 'Fechada'}</Chip><Chip tone={sep === itens.length ? 'bg-emerald-50 text-emerald-800' : 'bg-slate-100 text-slate-700'}>{sep}/{itens.length} sep.</Chip></>}
               direita={<>
-                <Botao tamanho="sm" variante="fantasma" title="Imprimir lista" onClick={() => imprimir(<FolhaRoteiro tecnico={t} data={data} itens={itens} />)}><Printer size={13} /></Botao>
+                <Botao tamanho="sm" variante="fantasma" title="Imprimir folha de separação" onClick={() => imprimir(<FolhaPreCarga tecnico={t} data={data} itens={itens} />)}><Printer size={13} /></Botao>
                 <Botao tamanho="sm" variante="fantasma" title="Etiquetas" onClick={() => imprimir(<FolhaEtiquetas itens={itens} tipo="EXPEDICAO" modo={(localStorage.getItem('et-modo') as 'normal') || 'normal'} tecnicoPorId={id => tecnicoPorId(id)} />)}><Tag size={13} /></Botao>
                 {fechar && <Botao tamanho="sm" disabled={!abertos} onClick={() => fecharDia(t.id, itens)}><Lock size={12} />{abertos ? 'Fechar' : 'Fechada'}</Botao>}
               </>}>
