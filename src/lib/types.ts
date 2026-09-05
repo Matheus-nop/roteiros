@@ -141,7 +141,7 @@ export type NovaDemanda = Omit<
   Demanda,
   'id' | 'numero' | 'created_at' | 'updated_at' | 'status' | 'status_separacao' | 'herdado_de_pendencia'
     | 'finalizado_em' | 'created_by' | 'separado_por' | 'data_separacao' | 'ordem_parada'
-> & Partial<Pick<Demanda, 'status' | 'status_separacao' | 'herdado_de_pendencia' | 'origem'>>
+> & Partial<Pick<Demanda, 'status' | 'status_separacao' | 'herdado_de_pendencia' | 'origem' | 'ordem_parada'>>
 
 /** O retrato de um roteiro fechado. O formato vive em `lib/arquivo.ts`. */
 export type { RoteiroArquivado, ParadaArquivada, ItemArquivado, Desfecho } from './arquivo'
