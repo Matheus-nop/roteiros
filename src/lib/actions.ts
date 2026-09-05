@@ -12,6 +12,27 @@ export function chaveIdentidade(d: Pick<Demanda, 'om' | 'equipamento_nome' | 'pa
   return [normalizar(d.om), normalizar(d.equipamento_nome), normalizar(d.patrimonio), d.cliente_id ?? normalizar(d.cliente_nome)].join('|')
 }
 
+/**
+ * Chave FROUXA, para desconfiar — não para bloquear.
+ *
+ * A `chaveIdentidade` exige igualdade exata, e é isso mesmo que ela deve fazer: bloquear
+ * é grave, e bloquear errado esconde trabalho de verdade. Só que na prática a mesma
+ * demanda chega escrita de dois jeitos — "035635" e "35635", "250225-407" e
+ * "250225-407 SN: 20244406271", a razão social inteira e o apelido do cadastro — e aí a
+ * chave exata não vê nada e a duplicata entra.
+ *
+ * Esta aqui ignora essas diferenças de escrita para PERGUNTAR. Quem decide é quem cola.
+ */
+export function chaveAproximada(d: Pick<Demanda, 'om' | 'equipamento_nome' | 'patrimonio'>): string {
+  const so = (v: string | null) => normalizar(v).replace(/[^A-Z0-9]/g, '')
+  // Patrimônio é o identificador mais forte que existe aqui: quando tem, manda sozinho.
+  // O `split` corta sufixos como "SN: 20244406271", que descrevem a peça, não a demanda.
+  const pat = so(normalizar(d.patrimonio).split(' SN')[0])
+  if (pat) return `P:${pat}|${so(d.equipamento_nome)}`
+  const om = so(d.om).replace(/^0+/, '')
+  return om ? `O:${om}|${so(d.equipamento_nome)}` : ''
+}
+
 /** Duplicidade: bloqueia só se EXATAMENTE igual (equip + patrimônio + OM + cliente) e não arquivada. */
 export function encontrarDuplicata(nova: Pick<Demanda, 'om' | 'equipamento_nome' | 'patrimonio' | 'cliente_id' | 'cliente_nome'>, ativas: Demanda[]): Demanda | undefined {
   const k = chaveIdentidade(nova)

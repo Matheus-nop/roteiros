@@ -1,12 +1,13 @@
 // Importação em lote: cola do Excel/Sheets (TSV) ou CSV. OM sempre texto.
 import Papa from 'papaparse'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
-import type { NovaDemanda, Status, Tecnico, Tipo } from '../lib/types'
+import type { Demanda, NovaDemanda, Status, Tecnico, Tipo } from '../lib/types'
 import { TIPOS, TODOS_STATUS } from '../lib/status'
+import { db } from '../lib'
 import { hojeISO, normalizar } from '../lib/format'
-import { chaveIdentidade, encontrarDuplicata } from '../lib/actions'
+import { chaveAproximada, chaveIdentidade, encontrarDuplicata } from '../lib/actions'
 import { Botao, Modal } from './ui'
 
 // `ordem` NÃO é apelido de OM. Na planilha do sistema antigo, ORDEM é a sequência da
@@ -84,6 +85,13 @@ export function ModalImportar({ aberto, onFechar }: { aberto: boolean; onFechar(
   const { toast, erro } = useToast()
   const [texto, setTexto] = useState('')
   const [salvando, setSalvando] = useState(false)
+  // Demandas parecidas que JÁ existem, incluindo as concluídas.
+  //
+  // Por que buscar em vez de usar as que estão em memória: o `useData` carrega só as
+  // ativas. A duplicata mais provável, porém, é a que foi lançada e concluída ontem —
+  // exatamente a que não está carregada. Sem esta busca, o aviso calaria bem na hora
+  // em que ele mais importa.
+  const [existentes, setExistentes] = useState<Demanda[]>([])
 
   const parse = useMemo(() => {
     if (!texto.trim()) return null
@@ -144,6 +152,39 @@ export function ModalImportar({ aberto, onFechar }: { aberto: boolean; onFechar(
     return { cols, linhas, dup, semTecnico, semCliente: linhas.filter(l => !l.cliente_nome).length }
   }, [texto, clientes, equipamentos, tecnicos, demandas])
 
+  // Chaves da colagem atual, para a consulta abaixo. String estável: array novo a cada
+  // render entraria em laço como dependência do efeito.
+  const patrimonios = useMemo(() => {
+    if (!texto.trim()) return ''
+    return Array.from(new Set(
+      texto.split('\n').flatMap(l => l.split(/[\t;,]/)).map(c => c.trim()).filter(c => /^[0-9]{4,}[-0-9]*$/.test(c)),
+    )).slice(0, 300).sort().join('|')
+  }, [texto])
+
+  useEffect(() => {
+    let vivo = true
+    if (!patrimonios) { setExistentes([]); return }
+    db.select<Demanda>('demandas', { in: { patrimonio: patrimonios.split('|') } })
+      .then(r => { if (vivo) setExistentes(r) })
+      .catch(() => { if (vivo) setExistentes([]) })
+    return () => { vivo = false }
+  }, [patrimonios])
+
+  // Parecidas: mesma peça e mesmo equipamento, escritas de outro jeito. Não bloqueiam —
+  // o `lancar` só descarta igualdade exata. Servem para quem colou conferir antes.
+  const parecidas = useMemo(() => {
+    if (!parse) return []
+    const mapa = new Map<string, Demanda>()
+    for (const d of [...existentes, ...demandas]) {
+      const k = chaveAproximada(d)
+      if (k && !mapa.has(k)) mapa.set(k, d)
+    }
+    return parse.linhas
+      .filter(l => !encontrarDuplicata(l as never, demandas))
+      .map(l => ({ nova: l, velha: mapa.get(chaveAproximada(l as never)) }))
+      .filter((x): x is { nova: typeof parse.linhas[number]; velha: Demanda } => !!x.velha)
+  }, [parse, existentes, demandas])
+
   const importar = async () => {
     if (!parse) return
     setSalvando(true)
@@ -173,6 +214,23 @@ export function ModalImportar({ aberto, onFechar }: { aberto: boolean; onFechar(
       {parse && (
         <div className="mt-3 rounded-md border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
           <div className="mb-1 font-medium text-slate-800">Prévia: {parse.linhas.length} linha(s) · {parse.dup} duplicada(s) (não serão gravadas) · {parse.semCliente} sem cliente</div>
+          {/* Já existe algo muito parecido: a regra de duplicidade exige igualdade exata
+              e não vê "035635" contra "35635", nem enxerga o que já foi concluído. */}
+          {parecidas.length > 0 && (
+            <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-2 text-amber-900">
+              <b>{parecidas.length} linha(s) parecem já existir no sistema</b> (mesma peça e equipamento, escritos de outro jeito).
+              O sistema <b>não</b> vai barrar — só barra o que é idêntico. Confira antes:
+              <ul className="mt-1 space-y-0.5">
+                {parecidas.slice(0, 8).map(({ nova, velha }, i) => (
+                  <li key={i}>
+                    · <b>{nova.equipamento_nome}</b> pat. {nova.patrimonio ?? '—'} — já existe como demanda nº {velha.numero} ({velha.status}{velha.data_planejada ? `, ${velha.data_planejada}` : ''})
+                  </li>
+                ))}
+                {parecidas.length > 8 && <li className="text-amber-700">…e mais {parecidas.length - 8}.</li>}
+              </ul>
+            </div>
+          )}
+
           {/* Técnico que não casou com o cadastro: a demanda entra sem responsável. Isso
               precisa gritar, senão o planejamento chega pela metade sem ninguém notar. */}
           {parse.semTecnico.length > 0 && (
