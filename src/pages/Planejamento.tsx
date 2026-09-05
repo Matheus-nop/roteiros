@@ -5,9 +5,13 @@
 //   • por cliente    — todas as demandas do mesmo cliente lado a lado, para fechar uma visita só.
 //   • por localidade — o mesmo pela região, para não mandar dois técnicos ao mesmo bairro.
 //
+// O filtro "Sem técnico" corta em qualquer uma das três. Por técnico ele já existia como
+// coluna; nas outras duas, o que ainda não tem responsável ficava misturado ao resto, e a
+// pergunta "o que falta atribuir em Duque de Caxias?" não tinha resposta na tela.
+//
 // Nas visões por cliente/localidade não se arrasta: soltar um card em outra coluna significaria
 // trocar o cliente da demanda, que não é decisão de planejamento. Lá se seleciona e se atribui em lote.
-import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, Search, Users, Building2, MapPin, CheckSquare } from 'lucide-react'
+import { Pencil, Undo2, UserCog, Route, XCircle, Printer, CalendarDays, Search, Users, Building2, MapPin, CheckSquare, UserX } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
@@ -39,6 +43,9 @@ export function Planejamento() {
   const [busca, setBusca] = useState('')
   const [status, setStatus] = useState('')
   const [dataFiltro, setDataFiltro] = useState('')
+  // Transitório de propósito: filtro ativo que sobrevive ao recarregar vira armadilha —
+  // o quadro aparece pela metade e ninguém lembra por quê. O agrupamento, sim, é lembrado.
+  const [soSemTecnico, setSoSemTecnico] = useState(false)
   const [agrupamento, setAgrupamento] = useState<Agrupamento>(() => (localStorage.getItem('plan-agrupar') as Agrupamento) || 'tecnico')
   const [sel, setSel] = useState<Set<string>>(new Set())
   const [atribuir, setAtribuir] = useState<Demanda[] | null>(null)
@@ -49,10 +56,14 @@ export function Planejamento() {
 
   const escolherVisao = (v: Agrupamento) => { setAgrupamento(v); localStorage.setItem('plan-agrupar', v) }
 
-  const itens = useMemo(() => {
+  const base = useMemo(() => {
     const b = normalizar(busca)
     return demandas.filter(d => STATUS_PLANEJAMENTO.includes(d.status) && (!status || d.status === status) && (!dataFiltro || d.data_planejada === dataFiltro) && (!b || textoBusca(d).includes(b)))
   }, [demandas, busca, status, dataFiltro])
+
+  // Contado antes do próprio filtro: é o número que o botão mostra quando está desligado.
+  const semTecnico = useMemo(() => base.filter(d => !d.tecnico_id).length, [base])
+  const itens = useMemo(() => (soSemTecnico ? base.filter(d => !d.tecnico_id) : base), [base, soSemTecnico])
 
   const colunas: Coluna<Demanda>[] = useMemo(() => {
     const ordenar = (l: Demanda[]) => [...l].sort((a, b) => (a.data_planejada ?? '9999').localeCompare(b.data_planejada ?? '9999') || ordenarParadas(a, b))
@@ -170,9 +181,10 @@ export function Planejamento() {
   }
 
   // A instrução comprida é útil, mas no celular empurraria o quadro para fora da tela.
+  const recorte = soSemTecnico ? <b className="text-acento-600"> · só sem técnico</b> : null
   const subtitulo = porTecnico
-    ? <>{itens.length} demandas · uma coluna por técnico<span className="hidden md:inline"> · arraste um card para outra coluna para atribuir o técnico; dentro da mesma data, arraste para definir a ordem das paradas</span></>
-    : <>{itens.length} demandas em {colunas.length} {agrupamento === 'cliente' ? 'cliente(s)' : 'localidade(s)'}<span className="hidden md:inline"> · marque os cards e use "Técnico / veículo / data" para fechar tudo de uma vez</span></>
+    ? <>{itens.length} demandas · uma coluna por técnico{recorte}<span className="hidden md:inline"> · arraste um card para outra coluna para atribuir o técnico; dentro da mesma data, arraste para definir a ordem das paradas</span></>
+    : <>{itens.length} demandas em {colunas.length} {agrupamento === 'cliente' ? 'cliente(s)' : 'localidade(s)'}{recorte}<span className="hidden md:inline"> · marque os cards e use "Técnico / veículo / data" para fechar tudo de uma vez</span></>
 
   return (
     <Pagina titulo="Planejamento (PCM)" subtitulo={subtitulo} acoes={<>
@@ -193,6 +205,12 @@ export function Planejamento() {
         <Select value={status} onChange={e => setStatus(e.target.value)} className="w-44"><option value="">Todos os status</option>{STATUS_PLANEJAMENTO.map(s => <option key={s} value={s}>{STATUS_LABEL[s]}</option>)}</Select>
         <Input type="date" value={dataFiltro} onChange={e => setDataFiltro(e.target.value)} className="w-40" title="Filtrar por data planejada" />
         {dataFiltro && <Botao tamanho="sm" variante="fantasma" onClick={() => setDataFiltro('')}>limpar data</Botao>}
+        {/* Vale nos três agrupamentos: é o que responde "o que falta atribuir aqui?"
+            enquanto se olha por localidade ou por cliente. */}
+        <Botao variante={soSemTecnico ? 'primario' : 'secundario'} onClick={() => setSoSemTecnico(v => !v)}
+          title="Mostrar só as demandas que ainda não têm técnico">
+          <UserX size={14} />Sem técnico{!soSemTecnico && semTecnico > 0 ? ` (${semTecnico})` : ''}
+        </Botao>
       </div>
 
       <Quadro colunas={colunas} larguraColuna={340} podeArrastar={editar && porTecnico} onMover={onMover} renderGrupo={renderGrupo}
