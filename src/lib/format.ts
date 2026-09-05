@@ -105,6 +105,28 @@ export function agrupar<T, K extends string>(itens: T[], chave: (t: T) => K): Ma
   return m
 }
 
+/**
+ * Número da parada de cada demanda: a posição da PARADA no roteiro do técnico naquele
+ * dia — não a posição do item.
+ *
+ * `ordem_parada` numera ITENS (10, 20, 30…) porque é ela que ordena o arrastar-e-soltar.
+ * Três itens na mesma obra ocupam 10, 20 e 30, e dividir por dez fazia a obra seguinte
+ * virar "parada 4" quando ela é a segunda parada do dia. Quem lê o papel conta paradas,
+ * não itens.
+ *
+ * Agrupa por (técnico, data) e depois por parada (cliente + local), na mesma ordem que
+ * as telas usam — inclusive juntando numa parada só o mesmo endereço que aparece em dois
+ * pedaços da lista. Demanda sem técnico ou sem data não tem parada e fica de fora.
+ */
+export function numerosDeParada(itens: Demanda[]): Map<string, number> {
+  const mapa = new Map<string, number>()
+  for (const roteiro of agrupar(itens.filter(d => d.tecnico_id && d.data_planejada), d => `${d.tecnico_id}|${d.data_planejada}`).values()) {
+    const ordenados = [...roteiro].sort(ordenarParadas)
+    Array.from(agrupar(ordenados, chaveParada).values()).forEach((its, i) => its.forEach(d => mapa.set(d.id, i + 1)))
+  }
+  return mapa
+}
+
 export function ordenarParadas(a: Demanda, b: Demanda): number {
   const oa = a.ordem_parada ?? Number.MAX_SAFE_INTEGER
   const ob = b.ordem_parada ?? Number.MAX_SAFE_INTEGER

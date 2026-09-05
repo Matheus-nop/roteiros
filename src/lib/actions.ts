@@ -379,6 +379,35 @@ export function criarAcoes(db: Db) {
     },
 
     /**
+     * Devolve demandas ao estado que a tela tinha antes da marcação — o desfazer do técnico
+     * que tocou errado.
+     *
+     * Não é "voltar um status": concluir e reagendar mexem em campos diferentes (um grava
+     * `finalizado_em`, o outro troca a data planejada, some com a ordem da parada e zera a
+     * separação), e adivinhar o inverso de cada um daria margem a erro. Aqui o chamador
+     * passa a demanda como ela estava, e os campos que a marcação toca voltam a esse valor.
+     *
+     * O arquivo do dia não é desfeito: se o roteiro já tinha fechado, ele volta a fechar —
+     * e a reescrever o registro — quando o item for concluído de novo.
+     */
+    async desfazerMarcacao(anteriores: Demanda[]) {
+      if (!anteriores.length) throw new DbError('Nada para desfazer.')
+      await Promise.all(anteriores.map(d => patch(d.id, {
+        status: d.status,
+        finalizado_em: d.finalizado_em,
+        data_planejada: d.data_planejada,
+        data_reagendada: d.data_reagendada,
+        ordem_parada: d.ordem_parada,
+        herdado_de_pendencia: d.herdado_de_pendencia,
+        status_separacao: d.status_separacao,
+        separado_por: d.separado_por,
+        data_separacao: d.data_separacao,
+        observacao: d.observacao,
+      })))
+      return anteriores.length
+    },
+
+    /**
      * Pendente: pede data de reagendamento e volta ao planejamento com ESSA data
      * como data planejada (a data de abertura fica só como referência).
      */

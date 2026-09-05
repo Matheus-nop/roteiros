@@ -4,9 +4,15 @@
 // uma parada por vez, e só dois botões por item ("Concluí" e "Não deu"). Tudo que o
 // técnico marca aqui é o que o PCM lê no painel, sem ninguém ligar para ninguém.
 //
+// Dedo em tela de celular erra, e as duas marcações são definitivas de lados opostos:
+// "Concluí" arquiva o item, "Não deu" tira ele do dia. Então tudo aqui desfaz. A barra do
+// rodapé reverte a última marcação (inclusive o reagendamento, que sumiu da tela), e o item
+// concluído guarda o próprio "Desfazer" — porque o engano às vezes só aparece na parada
+// seguinte. Desfazer devolve exatamente o estado anterior, não um status adivinhado.
+//
 // O que o técnico NÃO faz aqui: fechar o roteiro do dia (é do PCM/expedição, e a RLS
 // nem deixaria gravar o fechamento) e mexer em roteiro de outra pessoa.
-import { Check, ChevronDown, Clock, MapPin, Navigation, Play, Printer, CheckCircle2, CircleDashed } from 'lucide-react'
+import { Check, ChevronDown, Clock, MapPin, Navigation, Play, Printer, CheckCircle2, CircleDashed, Undo2, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
@@ -34,6 +40,8 @@ export function MeuRoteiro() {
 
   const [data, setData] = useState(hojeISO())
   const [pendente, setPendente] = useState<Demanda[] | null>(null)
+  // Última marcação, com as demandas COMO ESTAVAM antes dela — é o que o desfazer regrava.
+  const [ultima, setUltima] = useState<{ rotulo: string; antes: Demanda[] } | null>(null)
   const executar = pode('roteiro.executar')
 
   const encerradas = useEncerradas(useMemo(() => [data], [data]), tecnicoId)
@@ -64,6 +72,11 @@ export function MeuRoteiro() {
     } catch (e) { erro(e) }
   }
   const escolher = (id: string) => { setEscolhido(id); localStorage.setItem('meu-roteiro-tec', id) }
+
+  /** Para onde volta um item concluído por engano: se o dia já começou, ele volta para a rua. */
+  const statusEmRota = () => (todas.some(d => d.status === 'EM_DESLOCAMENTO') ? 'EM_DESLOCAMENTO' : 'AGUARDANDO_SAIDA') as Demanda['status']
+  const desfazer = (antes: Demanda[]) => run(async () => { await acoes.desfazerMarcacao(antes); setUltima(null) }, 'Desfeito.')
+  const marcou = (rotulo: string, antes: Demanda[]) => setUltima({ rotulo, antes })
 
   if (!tecnicoId) {
     return (
@@ -100,15 +113,38 @@ export function MeuRoteiro() {
 
       <div className="mt-3 space-y-2.5">
         {paradas.map((its, i) => (
-          <Parada key={its[0].id} itens={its} numero={its[0].ordem_parada ? its[0].ordem_parada / 10 : i + 1}
+          <Parada key={its[0].id} itens={its} numero={i + 1}
             executar={executar}
-            onFinalizar={lista => run(() => acoes.finalizar(lista.map(d => d.id)), lista.length > 1 ? `Parada concluída (${lista.length} itens).` : 'Item concluído.')}
-            onPendente={lista => setPendente(lista)} />
+            onFinalizar={lista => {
+              // Sem toast: a barra do rodapé já diz o que aconteceu, e o aviso cairia
+              // exatamente em cima do botão "Desfazer" nos primeiros segundos — que é
+              // justamente quando quem tocou errado vai procurá-lo.
+              marcou(lista.length > 1 ? `Parada ${i + 1} concluída · ${lista.length} itens` : `"${lista[0].equipamento_nome ?? 'Item'}" concluído`, lista)
+              run(() => acoes.finalizar(lista.map(d => d.id)), '')
+            }}
+            onPendente={lista => setPendente(lista)}
+            onDesfazer={executar ? d => desfazer([{ ...d, status: statusEmRota(), finalizado_em: null }]) : undefined} />
         ))}
       </div>
 
       {/* Reagendar tira o item do dia — pode ter sido o último em rota, então revalida o arquivo. */}
-      {pendente && <ModalPendente itens={pendente} titulo="Não deu para fazer" onFechar={() => { setPendente(null); run(async () => {}, '') }} />}
+      {pendente && <ModalPendente itens={pendente} titulo="Não deu para fazer"
+        onSalvo={anteriores => marcou(anteriores.length > 1 ? `${anteriores.length} itens reagendados` : `"${anteriores[0].equipamento_nome ?? 'Item'}" reagendado`, anteriores)}
+        onFechar={() => { setPendente(null); run(async () => {}, '') }} />}
+
+      {/* O reagendado some da tela; sem esta barra não haveria por onde trazê-lo de volta. */}
+      {executar && ultima && (
+        <div className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-700 bg-slate-800 px-3 py-2.5 pb-[calc(0.625rem+var(--safe-bottom))] text-white shadow-lg print:hidden">
+          <div className="mx-auto flex max-w-3xl items-center gap-3">
+            <span className="min-w-0 flex-1 truncate text-[12.5px] text-white/80">{ultima.rotulo}</span>
+            <button onClick={() => desfazer(ultima.antes)}
+              className="toque flex shrink-0 items-center gap-1.5 rounded-lg bg-white px-3 py-2 text-[13px] font-bold text-slate-900 hover:bg-slate-100">
+              <Undo2 size={15} />Desfazer
+            </button>
+            <button onClick={() => setUltima(null)} title="Fechar" className="toque flex w-8 shrink-0 items-center justify-center rounded-lg text-white/60 hover:bg-white/10"><X size={16} /></button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -175,9 +211,10 @@ function Cabecalho({ tecnico, veiculo, data, onData, feitas, total, naRua, podeT
 }
 
 // ---------------------------------------------------------------- uma parada (cliente + local)
-function Parada({ itens, numero, executar, onFinalizar, onPendente }: {
+function Parada({ itens, numero, executar, onFinalizar, onPendente, onDesfazer }: {
   itens: Demanda[]; numero: number; executar: boolean
   onFinalizar(lista: Demanda[]): void; onPendente(lista: Demanda[]): void
+  onDesfazer?(d: Demanda): void
 }) {
   const p0 = itens[0]
   const abertos = itens.filter(d => STATUS_EM_ROTA.includes(d.status))
@@ -209,7 +246,7 @@ function Parada({ itens, numero, executar, onFinalizar, onPendente }: {
 
       {aberta && (
         <div className="divide-y divide-slate-100 border-t border-slate-100">
-          {itens.map(d => <Item key={d.id} d={d} executar={executar} onFinalizar={() => onFinalizar([d])} onPendente={() => onPendente([d])} />)}
+          {itens.map(d => <Item key={d.id} d={d} executar={executar} onFinalizar={() => onFinalizar([d])} onPendente={() => onPendente([d])} onDesfazer={onDesfazer} />)}
 
           {executar && abertos.length > 1 && (
             <div className="p-3">
@@ -226,7 +263,10 @@ function Parada({ itens, numero, executar, onFinalizar, onPendente }: {
 }
 
 // ---------------------------------------------------------------- um item dentro da parada
-function Item({ d, executar, onFinalizar, onPendente }: { d: Demanda; executar: boolean; onFinalizar(): void; onPendente(): void }) {
+function Item({ d, executar, onFinalizar, onPendente, onDesfazer }: {
+  d: Demanda; executar: boolean; onFinalizar(): void; onPendente(): void
+  onDesfazer?(d: Demanda): void
+}) {
   const feito = d.status === 'FINALIZADO'
   const cancelado = d.status === 'CANCELADO'
   const encerrado = feito || cancelado
@@ -261,7 +301,17 @@ function Item({ d, executar, onFinalizar, onPendente }: { d: Demanda; executar: 
           </button>
         </div>
       )}
-      {feito && <div className="mt-1.5 pl-7 text-[11.5px] font-semibold text-emerald-700">Concluído{d.finalizado_em ? ` às ${horaDe(d.finalizado_em)}` : ''}</div>}
+      {feito && (
+        <div className="mt-1.5 flex items-center gap-2 pl-7">
+          <span className="text-[11.5px] font-semibold text-emerald-700">Concluído{d.finalizado_em ? ` às ${horaDe(d.finalizado_em)}` : ''}</span>
+          {onDesfazer && (
+            <button onClick={() => onDesfazer(d)} title="Reabrir este item"
+              className="toque inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[11.5px] font-bold text-slate-500 ring-1 ring-slate-200 hover:bg-slate-50 hover:text-slate-700">
+              <Undo2 size={12} />Desfazer
+            </button>
+          )}
+        </div>
+      )}
       {cancelado && <div className="mt-1.5 pl-7 text-[11.5px] font-semibold text-slate-500">Cancelado pelo PCM</div>}
     </div>
   )

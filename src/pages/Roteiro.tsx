@@ -60,7 +60,7 @@ export function Roteiro() {
               {paradas.map((its, i) => (
                 <div key={i}>
                   <div className="flex items-center gap-2 bg-slate-50/80 px-4 py-1.5">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1a56db] text-[11px] font-bold text-white">{its[0].ordem_parada ? its[0].ordem_parada / 10 : i + 1}</span>
+                    <span className="flex h-6 w-6 items-center justify-center rounded-full bg-[#1a56db] text-[11px] font-bold text-white">{i + 1}</span>
                     <span className="text-[13px] font-bold text-slate-800">{its[0].cliente_nome ?? '—'}</span><LocalData local={its[0].local} />
                   </div>
                   <div className="pl-6">{its.map(d => <CardDemanda key={d.id} d={d} compacto mostrarSeparacao acoes={editar ? <button className={cx('rounded p-1 text-slate-400 hover:bg-red-50 hover:text-red-600')} title="Remover do roteiro (volta ao planejamento)" onClick={() => setRemover({ d, irmaos: g.itens })}><Trash2 size={13} /></button> : undefined} />)}</div>

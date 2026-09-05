@@ -69,7 +69,8 @@ export function desfechoDe(d: Demanda, data: string): Desfecho {
 export function montarParadas(itens: Demanda[], data: string): ParadaArquivada[] {
   const ordenados = [...itens].sort(ordenarParadas)
   return Array.from(agrupar(ordenados, chaveParada).values()).map((its, i) => ({
-    ordem: its[0].ordem_parada ? its[0].ordem_parada / 10 : i + 1,
+    // A posição da parada no dia, não a do item: `ordem_parada` numera item (lib/format.ts).
+    ordem: i + 1,
     cliente: its[0].cliente_nome,
     local: its[0].local,
     itens: its.map(d => ({

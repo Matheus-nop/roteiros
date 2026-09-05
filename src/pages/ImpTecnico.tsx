@@ -114,7 +114,7 @@ export function ImpTecnico() {
                       <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2">
                           <span className={cx('flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white', paradaFeita ? 'bg-emerald-500' : 'bg-acao-500')}>
-                            {paradaFeita ? <Check size={14} /> : its[0].ordem_parada ? its[0].ordem_parada / 10 : i + 1}
+                            {paradaFeita ? <Check size={14} /> : i + 1}
                           </span>
                           <div>
                             <div className="text-sm font-semibold text-slate-800">{its[0].cliente_nome ?? '—'}</div>

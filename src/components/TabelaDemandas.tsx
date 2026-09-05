@@ -2,7 +2,7 @@
 import type { ReactNode } from 'react'
 import { useData } from '../hooks/useData'
 import type { Demanda } from '../lib/types'
-import { codigo, fmtData, fmtPatrimonio } from '../lib/format'
+import { codigo, fmtData, fmtPatrimonio, numerosDeParada } from '../lib/format'
 import { BadgeStatus, BadgeTipo, Badge, Checkbox, cx } from './ui'
 
 export type Coluna = 'sel' | 'numero' | 'ordem' | 'om' | 'cliente' | 'tipo' | 'equipamento' | 'patrimonio' | 'tecnico' | 'veiculo' | 'data' | 'abertura' | 'status' | 'separacao' | 'obs' | 'acoes' | 'reagendada'
@@ -18,6 +18,7 @@ export function TabelaDemandas({ itens, colunas, selecionados, onSelecionar, aco
   onClickLinha?(d: Demanda): void
 }) {
   const { tecnicoPorId } = useData()
+  const paradaDe = numerosDeParada(itens)
   const todos = selecionados && itens.length > 0 && itens.every(i => selecionados.has(i.id))
   const toggleTodos = () => {
     if (!onSelecionar || !selecionados) return
@@ -60,7 +61,8 @@ export function TabelaDemandas({ itens, colunas, selecionados, onSelecionar, aco
                   switch (c) {
                     case 'sel': return <td key={c} onClick={e => e.stopPropagation()}><Checkbox checked={!!selecionados?.has(d.id)} onChange={() => toggle(d.id)} /></td>
                     case 'numero': return <td key={c} className="font-mono text-xs text-slate-500">{codigo(prefixo, d.numero)}</td>
-                    case 'ordem': return <td key={c} className="font-semibold tabular-nums text-slate-700">{d.ordem_parada ? d.ordem_parada / 10 : '—'}</td>
+                    // Número da PARADA (cliente + local), não do item: ver numerosDeParada.
+                    case 'ordem': return <td key={c} className="font-semibold tabular-nums text-slate-700">{paradaDe.get(d.id) ?? '—'}</td>
                     case 'om': return <td key={c}><span className="om font-medium text-slate-900">{d.om ?? '—'}</span></td>
                     case 'cliente': return <td key={c}><div className="font-medium text-slate-800">{d.cliente_nome ?? '—'}</div><div className="text-xs text-slate-500">{d.local ?? '—'}</div></td>
                     case 'tipo': return <td key={c}><BadgeTipo tipo={d.tipo} /></td>

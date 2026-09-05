@@ -37,7 +37,7 @@ import { SeletorTecnico } from '../components/Filtros'
 import { CardDemanda, Chip, GrupoCard, ItemArrastavel, LocalData, Quadro, type Coluna } from '../components/Cards'
 import { Botao, Confirmar, Input, Pagina, Select, Vazio, cx } from '../components/ui'
 import { STATUS_PLANEJAMENTO, STATUS_LABEL, STATUS_A_ROTEIRIZAR, STATUS_EM_ROTA } from '../lib/status'
-import { normalizar, textoBusca, agrupar, addDias, chaveParada, diaSemana, fmtDataCurta, ordenarParadas, plural, rotuloData, hojeISO } from '../lib/format'
+import { normalizar, textoBusca, agrupar, addDias, chaveParada, diaSemana, fmtDataCurta, numerosDeParada, ordenarParadas, plural, rotuloData, hojeISO } from '../lib/format'
 import { REGIAO_COR, REGIAO_LABEL, REGIOES, regiaoDe, type Regiao } from '../lib/regioes'
 import { usePrint } from '../components/Print'
 import { FolhaRoteiro } from '../components/Etiqueta'
@@ -146,6 +146,9 @@ export function Planejamento() {
   }, [itens, tecnicos, agrupamento, porTecnico, emLista, emGrade])
 
   const nParadas = useMemo(() => (emLista ? agrupar(itens, chaveParada).size : 0), [itens, emLista])
+  // Sobre TODAS as demandas, não sobre as filtradas: o número tem de bater com a folha
+  // impressa do técnico mesmo quando a tela está recortada por região ou por data.
+  const paradaDe = useMemo(() => numerosDeParada(demandas), [demandas])
 
   const ids = Array.from(sel)
   const limpar = () => setSel(new Set())
@@ -241,7 +244,7 @@ export function Planejamento() {
                   selecionado={sel.has(d.id)} onSelecionar={v => toggle(d.id, v)} acoes={acoesItem(d)}
                   extra={<>
                     {!porTecnico && chipTecnico(tecnicos.find(t => t.id === d.tecnico_id))}
-                    {d.ordem_parada ? <span className="ml-1 text-[10px] font-bold text-slate-400">parada {d.ordem_parada / 10}</span> : null}
+                    {paradaDe.has(d.id) ? <span className="ml-1 text-[10px] font-bold text-slate-400">parada {paradaDe.get(d.id)}</span> : null}
                   </>} />
               </ItemArrastavel>
             ))}

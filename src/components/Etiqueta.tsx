@@ -122,6 +122,11 @@ export function FolhaAvulsa({ etiquetas, modo = 'normal' }: { etiquetas: Etiquet
 
 /** Folha do roteiro (lista de paradas) para impressão. */
 export function FolhaRoteiro({ tecnico, data, itens }: { tecnico: Tecnico | undefined; data: string; itens: Demanda[] }) {
+  // A folha conta PARADAS, não itens: três equipamentos no mesmo endereço são a parada 1,
+  // e o próximo cliente é a parada 2 — não a 4. Por isso o número sai do agrupamento, e
+  // nunca de `ordem_parada / 10`, que numera item (ver lib/format.ts).
+  const ordenados = [...itens].sort(ordenarParadas)
+  const paradas = Array.from(agrupar(ordenados, chaveParada).values())
   return (
     <div style={{ fontFamily: 'Inter, Segoe UI, system-ui, sans-serif', color: '#0f172a', fontSize: 12 }}>
       <div style={{ background: 'linear-gradient(135deg,#0f766e,#134e4a)', color: '#fff', padding: '10px 14px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -134,32 +139,40 @@ export function FolhaRoteiro({ tecnico, data, itens }: { tecnico: Tecnico | unde
         </div>
         <div style={{ textAlign: 'right', fontSize: 11 }}>
           <div>Veículo: <b>{itens.find(i => i.veiculo)?.veiculo ?? '—'}</b></div>
-          <div>{itens.length} item(ns)</div>
+          <div>{paradas.length} parada(s) · {itens.length} item(ns)</div>
         </div>
       </div>
       <table style={{ width: '100%', borderCollapse: 'collapse', marginTop: 10 }}>
         <thead>
           <tr style={{ background: '#f1f5f9' }}>
-            {['#', 'Código', 'Cliente / Local', 'Tipo', 'Equipamento', 'Pat. / Qtd', 'OS', 'Sep.', 'Exec.'].map(h => (
+            {['Código', 'Tipo', 'Equipamento', 'Pat. / Qtd', 'OS', 'Sep.', 'Exec.'].map(h => (
               <th key={h} style={{ textAlign: 'left', padding: '6px 6px', borderBottom: '1px solid #cbd5e1', fontSize: 10, textTransform: 'uppercase', color: '#475569' }}>{h}</th>
             ))}
           </tr>
         </thead>
-        <tbody>
-          {itens.map(d => (
-            <tr key={d.id}>
-              <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>{d.ordem_parada ? d.ordem_parada / 10 : '—'}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0', fontFamily: 'ui-monospace, monospace' }}>{codigo('ROT', d.numero)}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}><b>{d.cliente_nome}</b><br /><span style={{ color: '#475569' }}>{d.local}</span></td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{d.tipo}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{d.equipamento_nome}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0', fontWeight: 600 }}>{d.patrimonio ?? `Qtd: ${fmtNum(d.quantidade)}`}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0', fontFamily: 'ui-monospace, monospace' }}>{d.om ?? '—'}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{d.status_separacao === 'SEPARADO' ? '✓' : '☐'}</td>
-              <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>☐</td>
+        {paradas.map((its, i) => (
+          <tbody key={chaveParada(its[0])} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
+            <tr>
+              <td colSpan={7} style={{ padding: '8px 6px 4px', borderBottom: '1px solid #cbd5e1' }}>
+                <span style={{ display: 'inline-block', minWidth: 20, height: 20, borderRadius: 10, background: '#0f766e', color: '#fff', fontWeight: 800, fontSize: 11, textAlign: 'center', lineHeight: '20px', padding: '0 6px', marginRight: 8 }}>{i + 1}</span>
+                <b style={{ fontSize: 13 }}>{its[0].cliente_nome ?? '—'}</b>
+                <span style={{ color: '#475569' }}> · {its[0].local ?? '—'}</span>
+                <span style={{ color: '#94a3b8' }}> · {its.length} item(ns)</span>
+              </td>
             </tr>
-          ))}
-        </tbody>
+            {its.map(d => (
+              <tr key={d.id}>
+                <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0', fontFamily: 'ui-monospace, monospace' }}>{codigo('ROT', d.numero)}</td>
+                <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{d.tipo}</td>
+                <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0', fontWeight: 600 }}>{d.equipamento_nome ?? '—'}</td>
+                <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0', fontWeight: 600 }}>{d.patrimonio ?? `Qtd: ${fmtNum(d.quantidade)}`}</td>
+                <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0', fontFamily: 'ui-monospace, monospace' }}>{d.om ?? '—'}</td>
+                <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>{d.status_separacao === 'SEPARADO' ? '✓' : '☐'}</td>
+                <td style={{ padding: '6px', borderBottom: '1px solid #e2e8f0' }}>☐</td>
+              </tr>
+            ))}
+          </tbody>
+        ))}
       </table>
     </div>
   )
@@ -238,7 +251,7 @@ export function FolhaPreCarga({ tecnico, data, itens }: { tecnico: Tecnico | und
         </thead>
         {porEquipamento.map(([chave, lista]) => (
           <tbody key={chave} style={{ pageBreakInside: 'avoid', breakInside: 'avoid' }}>
-            {lista.map((d, i) => {
+            {lista.map(d => {
               const { n, un } = volume(d)
               const sep = d.status_separacao === 'SEPARADO'
               return (
@@ -251,8 +264,11 @@ export function FolhaPreCarga({ tecnico, data, itens }: { tecnico: Tecnico | und
                     {un && <span style={{ fontSize: 10, color: '#475569' }}> {un}</span>}
                   </td>
                   <td style={cel}>
-                    {/* O nome do equipamento só na primeira linha do grupo: o que muda de linha para linha é a peça. */}
-                    {i === 0 && <div style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase' }}>{d.equipamento_nome ?? '—'}</div>}
+                    {/* O nome vai em TODA linha, mesmo repetido dentro do grupo. Escrevê-lo só na
+                        primeira linha economizava tinta e criava linha órfã: duas peças do mesmo
+                        equipamento, e a segunda saía com patrimônio e sem nome — quem separa lê
+                        linha a linha, não bloco. */}
+                    <div style={{ fontSize: 13, fontWeight: 800, textTransform: 'uppercase' }}>{d.equipamento_nome ?? '— sem equipamento no cadastro da demanda —'}</div>
                     <div style={{ fontFamily: 'ui-monospace, monospace', fontSize: d.patrimonio ? 14 : 11, fontWeight: d.patrimonio ? 700 : 400, color: d.patrimonio ? '#0f172a' : '#64748b' }}>
                       {d.patrimonio ?? 'sem patrimônio — conferir na quantidade'}
                     </div>
