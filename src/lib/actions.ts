@@ -182,6 +182,25 @@ export function criarAcoes(db: Db) {
       return { clientes: novosClientes.map(c => c.nome), equipamentos: novosEquips.map(e => e.nome) }
     },
 
+    /**
+     * Renomear um cliente no cadastro e levar o nome novo às demandas dele.
+     *
+     * `demandas.cliente_nome` é desnormalizado de propósito: é o que as telas mostram e
+     * o que sobrevive à exclusão do cadastro. O preço é este — renomear o cadastro não
+     * alcança as demandas sozinho, e o quadro fica mostrando o nome antigo enquanto o
+     * cadastro diz outro. Quem renomeia não tem como adivinhar que precisa de um segundo
+     * passo, então o segundo passo vai junto.
+     *
+     * Só toca nas demandas que apontam para ESTE cadastro. Nome solto, sem FK, fica como
+     * está: não há como saber se é o mesmo cliente ou um homônimo.
+     */
+    async renomearCliente(clienteId: string, nome: string) {
+      const alvo = await db.select<Demanda>(T, { eq: { cliente_id: clienteId } })
+      if (!alvo.length) return 0
+      await patchMany(alvo.map(d => d.id), { cliente_nome: nome })
+      return alvo.length
+    },
+
     async avancarTriagem(d: Demanda) {
       const prox = proximaTriagem(d.status)
       if (!prox) throw new DbError('Demanda já está no último passo da triagem')

@@ -35,7 +35,7 @@ on conflict (nome) do nothing;
 -- e faz a demanda de um sair no nome do outro.
 insert into clientes (nome, apelidos) values
   ('ÁGUAS DO RIO',                  array['AGUAS DO RIO']),
-  ('AEGEA',                         array['AEGEA SANEAMENTO']),
+  ('AEGEA SANEAMENTO',              array['AEGEA']),
   ('CONSTRUTORA AFFONSECA',         array['AFFONSECA','LYTORÂNEA','LYTORANEA']),
   ('R2X',                           array['R2X ENGENHARIA']),
   ('JC MORAES',                     array['JC MORAES CONSTRUÇÕES']),

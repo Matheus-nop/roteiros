@@ -44,7 +44,7 @@ export function Cadastros() {
 }
 
 function Clientes({ editar }: { editar: boolean }) {
-  const { clientes, demandas } = useData()
+  const { clientes, demandas, acoes } = useData()
   const { toast, erro } = useToast()
   const [f, setF] = useState<{ id?: string; nome: string; apelidos: string } | null>(null)
   const [busca, setBusca] = useState('')
@@ -52,7 +52,16 @@ function Clientes({ editar }: { editar: boolean }) {
   const salvar = async () => {
     if (!f?.nome.trim()) return
     const dados = { nome: f.nome.trim().toUpperCase(), apelidos: f.apelidos.split(/[,;\n]/).map(s => s.trim().toUpperCase()).filter(Boolean) }
-    try { if (f.id) await db.update('clientes', f.id, dados); else await db.insert('clientes', [dados]); toast('Cliente salvo.'); setF(null) } catch (e) { erro(e) }
+    try {
+      if (!f.id) { await db.insert('clientes', [dados]); toast('Cliente salvo.'); setF(null); return }
+      const antes = clientes.find(c => c.id === f.id)?.nome ?? ''
+      await db.update('clientes', f.id, dados)
+      // O nome fica gravado também em cada demanda (é o que as telas mostram). Renomear
+      // só o cadastro deixaria o quadro exibindo o nome antigo.
+      const n = dados.nome !== antes ? await acoes.renomearCliente(f.id, dados.nome) : 0
+      toast(n ? `Cliente salvo. ${n} demanda(s) passaram a mostrar "${dados.nome}".` : 'Cliente salvo.')
+      setF(null)
+    } catch (e) { erro(e) }
   }
   return (
     <Cartao titulo={<span>Clientes <span className="font-normal text-slate-500">· apelido é variação de escrita do mesmo cliente — não use para juntar empresas do mesmo grupo{contarAuto(clientes) ? ` · ${contarAuto(clientes)} veio do lançamento` : ''}</span></span>} acoes={<>
