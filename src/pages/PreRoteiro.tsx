@@ -79,7 +79,7 @@ export function PreRoteiro() {
                 <Botao tamanho="sm" variante="fantasma" title="Imprimir previsão" onClick={() => imprimir(<FolhaRoteiro tecnico={tec} data={dt} itens={itens} />)}><Printer size={13} /></Botao>
                 {liberar && pendentes.length > 0 && <Botao tamanho="sm" variante="primario" onClick={() => setConfirmar({ titulo: 'Liberar roteiro inteiro', texto: <>Liberar as {pendentes.length} demanda(s) de <b>{tec.nome}</b> em {fmtData(dt)}? Elas passam a ROTEIRIZADO e entram na expedição.</>, fn: () => acoes.gerarRoteiro(itens, demandas.filter(d => d.tecnico_id === tec.id && d.data_planejada === dt && STATUS_EM_ROTA.includes(d.status) && !itens.some(x => x.id === d.id))), msg: 'Roteiro liberado.' })}><Route size={13} />Liberar tudo ({pendentes.length})</Botao>}
               </>}>
-              <ParadasOrdenaveis paradas={paradas} podeOrdenar={liberar} onReordenar={(nova) => run(() => acoes.reordenar(nova.flat().map(d => d.id)), 'Ordem das paradas atualizada.')}
+              <ParadasOrdenaveis paradas={paradas} podeOrdenar={liberar} onReordenar={(nova) => run(() => acoes.reordenar(nova.flat()), 'Ordem das paradas atualizada.')}
                 render={(its, i, handle) => {
                   const p0 = its[0]; const todosLib = its.every(d => d.status === 'ROTEIRIZADO'); const aLib = its.filter(d => STATUS_A_ROTEIRIZAR.includes(d.status))
                   return (

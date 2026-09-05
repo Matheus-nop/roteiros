@@ -235,8 +235,21 @@ export function criarAcoes(db: Db) {
     },
 
     /** Recebe os ids na ordem desejada e grava 10, 20, 30... (ordem manual é soberana). */
-    async reordenar(idsNaOrdem: string[]) {
-      await Promise.all(idsNaOrdem.map((id, i) => patch(id, { ordem_parada: (i + 1) * 10 })))
+    /**
+     * Grava a nova ordem das paradas — só nos itens que realmente mudaram de número.
+     *
+     * Cada item é um UPDATE, e arrastar um card reescrevia o grupo inteiro: mover a última
+     * parada de um dia de trinta itens custava trinta escritas, trinta eventos de tempo real
+     * e trinta re-renderizações em cada aparelho conectado, para mudar duas posições. Como
+     * a numeração é 10, 20, 30…, comparar com o que já está gravado responde quem mudou.
+     */
+    async reordenar(naOrdem: Demanda[]) {
+      const mudaram = naOrdem
+        .map((d, i) => ({ d, ordem: (i + 1) * 10 }))
+        .filter(({ d, ordem }) => d.ordem_parada !== ordem)
+      if (!mudaram.length) return 0
+      await Promise.all(mudaram.map(({ d, ordem }) => patch(d.id, { ordem_parada: ordem })))
+      return mudaram.length
     },
 
     /**
@@ -254,7 +267,13 @@ export function criarAcoes(db: Db) {
       if (semTecnico.length) throw new DbError(`${semTecnico.length} item(ns) sem técnico ou sem data. Atribua antes de gerar o roteiro.`)
       const base = jaNumerados.reduce((m, d) => Math.max(m, d.ordem_parada ?? 0), 0)
       const ordenados = [...itens].sort(ordenarParadas)
-      await Promise.all(ordenados.map((d, i) => patch(d.id, { status: 'ROTEIRIZADO', ordem_parada: base + (i + 1) * 10 })))
+      // Quem já está roteirizado no número certo não é reescrito: gerar de novo para
+      // acrescentar duas demandas passa a custar duas escritas, não o dia inteiro.
+      const mudaram = ordenados
+        .map((d, i) => ({ d, ordem: base + (i + 1) * 10 }))
+        .filter(({ d, ordem }) => d.status !== 'ROTEIRIZADO' || d.ordem_parada !== ordem)
+      await Promise.all(mudaram.map(({ d, ordem }) => patch(d.id, { status: 'ROTEIRIZADO', ordem_parada: ordem })))
+      return mudaram.length
     },
 
     /** Remove do roteiro: volta ao planejamento e renumera as demais fechando buracos, sem reembaralhar. */
