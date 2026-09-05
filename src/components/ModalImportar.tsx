@@ -179,8 +179,8 @@ export function ModalImportar({ aberto, onFechar }: { aberto: boolean; onFechar(
   const parecidas = useMemo(() => {
     if (!parse) return []
     // A chave frouxa é só o índice: junta todas as demandas da mesma peça. Quem decide
-    // se é repetição é `pareceRepetida` — senão o aviso dispara em todo equipamento que
-    // já passou pela oficina alguma vez.
+    // se é repetição é `pareceRepetida` (mesmo movimento + mesma OS) — senão o aviso
+    // dispara em todo equipamento que já passou pela oficina, ou que só está ocupado.
     const porPeca = new Map<string, Demanda[]>()
     for (const d of [...existentes, ...demandas]) {
       const k = chaveAproximada(d)
@@ -193,6 +193,7 @@ export function ModalImportar({ aberto, onFechar }: { aberto: boolean; onFechar(
       .map(l => {
         const candidatas = porPeca.get(chaveAproximada(l as never)) ?? []
         // A aberta primeiro; entre as encerradas, a mais recente.
+        // Entre as candidatas, a aberta primeiro; depois a mais recente.
         const velha = candidatas.filter(d => pareceRepetida(l as never, d))
           .sort((a, b) => Number(!STATUS_ARQUIVADOS.includes(b.status)) - Number(!STATUS_ARQUIVADOS.includes(a.status)) || b.numero - a.numero)[0]
         return { nova: l, velha }
@@ -233,7 +234,7 @@ export function ModalImportar({ aberto, onFechar }: { aberto: boolean; onFechar(
               e não vê "035635" contra "35635", nem enxerga o que já foi concluído. */}
           {parecidas.length > 0 && (
             <div className="mb-2 rounded border border-amber-300 bg-amber-50 px-2.5 py-2 text-amber-900">
-              <b>{parecidas.length} linha(s) parecem já existir no sistema</b> (mesma peça e equipamento, escritos de outro jeito).
+              <b>{parecidas.length} linha(s) com a mesma OS e a mesma peça já no sistema</b> (escritas de outro jeito).
               O sistema <b>não</b> vai barrar — só barra o que é idêntico. Confira antes:
               <ul className="mt-1 space-y-0.5">
                 {parecidas.slice(0, 8).map(({ nova, velha }, i) => (
