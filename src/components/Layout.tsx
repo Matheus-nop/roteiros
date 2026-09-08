@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BarChart3, LayoutDashboard, Inbox, CalendarRange, Route, PackageCheck, Truck, Map, ClipboardCheck, Clock, Users, Database, History, Archive, LogOut, RefreshCw, Plus, ChevronDown, Menu, X, Wifi, WifiOff, Smartphone, DownloadCloud } from 'lucide-react'
+import { BarChart3, LayoutDashboard, Inbox, CalendarRange, Route, PackageCheck, Truck, Map, ClipboardCheck, Clock, Users, Database, History, Archive, LogOut, RefreshCw, Plus, ChevronDown, Menu, X, Wifi, WifiOff, Smartphone, DownloadCloud, Boxes } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Marca } from './Logo'
 import { useAuth } from '../hooks/useAuth'
@@ -109,6 +109,15 @@ export function Layout() {
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-medium hover:bg-slate-100">
                   <DownloadCloud size={14} className="text-brand-600" />Buscar versão mais recente
                 </button>
+                {/* O outro sistema do grupo. O endereço vem de variável: sem ela
+                    o item some, em vez de levar alguém para um endereço que não
+                    abre. O login é o mesmo, mas a sessão ainda não é — hoje ele
+                    entra de novo do outro lado, uma vez. */}
+                {import.meta.env.VITE_URL_ESTOQUE && (
+                  <a href={import.meta.env.VITE_URL_ESTOQUE} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-medium hover:bg-slate-100">
+                    <Boxes size={14} className="text-brand-600" />Ir para o Estoque
+                  </a>
+                )}
                 <button onClick={sair} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] hover:bg-slate-100"><LogOut size={14} />Sair</button>
               </div>
               {/* Serve de conferência no suporte: "qual versão você está vendo?" */}
