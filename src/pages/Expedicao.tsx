@@ -7,7 +7,7 @@ import { useToast } from '../hooks/useToast'
 import { SeletorData } from '../components/Filtros'
 import { ModalEtiquetas } from '../components/ModalEtiquetas'
 import { BarraSelecao } from '../components/TabelaDemandas'
-import { Chip, GrupoCard, LocalData } from '../components/Cards'
+import { BadgeReagendada, Chip, GrupoCard, LocalData } from '../components/Cards'
 import { Badge, BadgeTipo, Botao, Confirmar, Contador, Input, Pagina, Select, Vazio, cx } from '../components/ui'
 import { STATUS_EM_ROTA, SEPARACAO_LABEL, separaNaExpedicao } from '../lib/status'
 import { hojeISO, normalizar, textoBusca, numerosDeParada, ordenarParadas, agrupar, fmtPatrimonio, fmtData } from '../lib/format'
@@ -70,6 +70,20 @@ export function Expedicao() {
         </div>
         <div className="flex flex-wrap items-center gap-2 pl-7 sm:shrink-0 sm:pl-0">
         <BadgeTipo tipo={d.tipo} />
+        {/* Item que já voltou de uma pendência. A expedição precisa saber: é
+            carga que falhou uma vez e entrou no roteiro de alguém de novo. */}
+        {d.herdado_de_pendencia && (
+          <>
+            <BadgeReagendada d={d} />
+            {(tecnicoPorId(d.tecnico_id)?.nome || d.veiculo) && (
+              <Badge tone="bg-amber-50 text-amber-800 ring-amber-200">
+                {[tecnicoPorId(d.tecnico_id)?.nome, d.veiculo ?? tecnicoPorId(d.tecnico_id)?.veiculo_padrao]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </Badge>
+            )}
+          </>
+        )}
         {liberado && <Badge tone="bg-indigo-50 text-indigo-800 ring-indigo-200">▶ liberado</Badge>}
         {separar ? (
           <Select value={d.status_separacao} disabled={liberado} onChange={e => run(() => acoes.definirSeparacao(d.id, e.target.value as StatusSeparacao, d.separado_por ?? quem()))}
@@ -95,11 +109,12 @@ export function Expedicao() {
       <SeletorData valor={data} onChange={setData} />
     </>}>
       <div className="mb-3 relative"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar técnico, cliente, local, equipamento, OS…" className="pl-8" /></div>
-      <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-4">
+      <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-5">
         <Contador rotulo="Total" valor={base.length} />
         <Contador rotulo="Não separado" valor={n('NAO_SEPARADO')} tom="text-red-700" />
         <Contador rotulo="Em separação" valor={n('EM_SEPARACAO')} tom="text-amber-700" />
         <Contador rotulo="Separado" valor={n('SEPARADO')} tom="text-emerald-700" />
+        <Contador rotulo="Reagendadas" valor={base.filter(d => d.herdado_de_pendencia).length} tom="text-orange-700" />
       </div>
       {grupos.length === 0 && semTec.length === 0 && <Vazio titulo="Nada para separar nesta data" texto="Os itens chegam aqui quando o PCM gera o roteiro ou libera uma parada no pré-roteiro." />}
       <div className="space-y-3">
