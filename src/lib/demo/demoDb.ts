@@ -213,6 +213,14 @@ export class DemoDb implements Db {
     const depois = { ...antes, ...patch }
     if (depois.herdado_de_pendencia && !antes.herdado_de_pendencia) {
       patch.pendente_desde = antes.pendente_desde ?? agora
+      // De onde a pendência veio — lido de `antes`, porque o mesmo patch já
+      // trocou a data planejada. Espelha a 0011.
+      patch.reagendado_de_tecnico_id = antes.tecnico_id ?? null
+      patch.reagendado_de_data = antes.data_planejada ?? null
+      patch.reagendado_de_veiculo =
+        (antes.veiculo as string | null) ??
+        (this.tabela("tecnicos").find(t => t.id === antes.tecnico_id)?.veiculo_padrao as string | null) ??
+        null
     }
     if (patch.data_reagendada && patch.data_reagendada !== antes.data_reagendada) {
       patch.reagendado_em = agora
