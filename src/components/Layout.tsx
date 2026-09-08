@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BarChart3, LayoutDashboard, Inbox, CalendarRange, Route, PackageCheck, Truck, Map, ClipboardCheck, Clock, Users, Database, History, Archive, LogOut, RefreshCw, Plus, ChevronDown, Menu, X, Wifi, WifiOff, Smartphone, DownloadCloud, Boxes } from 'lucide-react'
+import { BarChart3, LayoutDashboard, Inbox, CalendarRange, Route, PackageCheck, Truck, Map, ClipboardCheck, Clock, Users, Database, History, Archive, LogOut, RefreshCw, Plus, ChevronDown, Menu, X, Wifi, WifiOff, Smartphone, DownloadCloud } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Marca } from './Logo'
 import { useAuth } from '../hooks/useAuth'
@@ -9,6 +9,7 @@ import type { Papel } from '../lib/types'
 import { cx } from './ui'
 import { ModalNovaDemanda } from './FormDemanda'
 import { usePwa } from '../hooks/usePwa'
+import { TrocaSistema } from './TrocaSistema'
 
 type ItemMenu = { to: string; rotulo: string; icone: typeof Inbox; papeis?: Papel[]; sep?: boolean }
 
@@ -85,6 +86,8 @@ export function Layout() {
           </button>
         )}
 
+        <TrocaSistema />
+
         <div className="relative shrink-0" ref={ref}>
           <button onClick={() => setMenu(m => !m)} className="flex items-center gap-1.5 rounded-lg p-1 transition hover:bg-white/10">
             <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/15 text-[12px] font-bold uppercase ring-1 ring-white/20">{(usuario?.perfil.nome ?? usuario?.email ?? '?').slice(0, 1)}</span>
@@ -109,15 +112,6 @@ export function Layout() {
                   className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-medium hover:bg-slate-100">
                   <DownloadCloud size={14} className="text-brand-600" />Buscar versão mais recente
                 </button>
-                {/* O outro sistema do grupo. O endereço vem de variável: sem ela
-                    o item some, em vez de levar alguém para um endereço que não
-                    abre. O login é o mesmo, mas a sessão ainda não é — hoje ele
-                    entra de novo do outro lado, uma vez. */}
-                {import.meta.env.VITE_URL_ESTOQUE && (
-                  <a href={import.meta.env.VITE_URL_ESTOQUE} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] font-medium hover:bg-slate-100">
-                    <Boxes size={14} className="text-brand-600" />Ir para o Estoque
-                  </a>
-                )}
                 <button onClick={sair} className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] hover:bg-slate-100"><LogOut size={14} />Sair</button>
               </div>
               {/* Serve de conferência no suporte: "qual versão você está vendo?" */}
