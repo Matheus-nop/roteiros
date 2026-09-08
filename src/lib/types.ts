@@ -80,6 +80,12 @@ export interface Demanda {
   origem: string | null
   prioridade?: Prioridade
   herdado_de_pendencia: boolean
+  /** De onde a pendência veio. Preenchido pelo gatilho da 0011, no instante em
+   *  que a demanda vira pendência — antes de o PCM reatribuir. Não é o plano
+   *  atual: é onde a peça esteve carregada da última vez. */
+  reagendado_de_tecnico_id?: string | null
+  reagendado_de_veiculo?: string | null
+  reagendado_de_data?: string | null
   observacao: string | null
   finalizado_em: string | null
   /** Quando virou pendência pela primeira vez — mede há quanto tempo se arrasta. */

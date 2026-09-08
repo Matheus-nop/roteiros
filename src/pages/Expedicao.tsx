@@ -1,5 +1,5 @@
 // Expedição: painel por técnico, separação em três estados, quem separou, etiquetas e liberação para rota.
-import { Printer, Play, Volume2, VolumeX, Search } from 'lucide-react'
+import { Printer, Play, Volume2, VolumeX, Search, Truck } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
@@ -55,6 +55,31 @@ export function Expedicao() {
     setConfirmar({ titulo: 'Liberar para rota', texto: <>Liberar {aptos.length} item(ns) de <b>{rotulo}</b> para saída?{naoSep > 0 && <span className="mt-1 block text-amber-700">{naoSep} ainda não separado(s).</span>} A expedição confirma que está tudo pronto para sair.</>, fn: () => acoes.liberarParaRota(aptos.map(d => d.id)), msg: 'Rota liberada.' })
   }
 
+  /**
+   * De onde a pendência veio — o técnico e o veículo da tentativa anterior.
+   *
+   * Não é enfeite: a peça pode estar **dentro daquele carro** desde ontem. Sem
+   * isto a expedição tira outra igual da prateleira e o mesmo equipamento sai
+   * duas vezes. O técnico de agora está no cabeçalho do grupo; o que falta aqui
+   * é o de antes.
+   */
+  const VeioDe = ({ d }: { d: Demanda }) => {
+    const antes = d.reagendado_de_tecnico_id ? tecnicoPorId(d.reagendado_de_tecnico_id)?.nome : null
+    const veiculo = d.reagendado_de_veiculo
+    if (!antes && !veiculo) return null
+    const quando = d.reagendado_de_data ? ` · ${fmtData(d.reagendado_de_data)}` : ''
+    return (
+      <Badge tone="bg-amber-100 text-amber-900 ring-amber-300"
+        className="max-w-full"
+        >
+        <Truck size={10} className="mr-1 inline shrink-0" />
+        <span className="truncate">
+          veio de {[antes, veiculo].filter(Boolean).join(' · ')}{quando}
+        </span>
+      </Badge>
+    )
+  }
+
   const Linha = ({ d }: { d: Demanda }) => {
     const liberado = d.status !== 'ROTEIRIZADO'
     // Os dois selects têm largura fixa e não encolhem: numa linha só eles esmagavam o
@@ -70,18 +95,12 @@ export function Expedicao() {
         </div>
         <div className="flex flex-wrap items-center gap-2 pl-7 sm:shrink-0 sm:pl-0">
         <BadgeTipo tipo={d.tipo} />
-        {/* Item que já voltou de uma pendência. A expedição precisa saber: é
-            carga que falhou uma vez e entrou no roteiro de alguém de novo. */}
+        {/* Item que já voltou de uma pendência: carga que falhou uma vez, e que
+            pode estar carregada no carro de outro técnico desde então. */}
         {d.herdado_de_pendencia && (
           <>
             <BadgeReagendada d={d} />
-            {(tecnicoPorId(d.tecnico_id)?.nome || d.veiculo) && (
-              <Badge tone="bg-amber-50 text-amber-800 ring-amber-200">
-                {[tecnicoPorId(d.tecnico_id)?.nome, d.veiculo ?? tecnicoPorId(d.tecnico_id)?.veiculo_padrao]
-                  .filter(Boolean)
-                  .join(' · ')}
-              </Badge>
-            )}
+            <VeioDe d={d} />
           </>
         )}
         {liberado && <Badge tone="bg-indigo-50 text-indigo-800 ring-indigo-200">▶ liberado</Badge>}
