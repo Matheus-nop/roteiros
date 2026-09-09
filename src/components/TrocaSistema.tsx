@@ -22,10 +22,40 @@ import { useEffect, useRef, useState } from 'react'
 
 const AQUI = 'roteiros'
 
+/**
+ * Só entra no menu quem tem endereço http(s) de verdade.
+ *
+ * Isto nasceu de um caso real, no app de frota: a variável foi preenchida com
+ * o texto de exemplo — `https://<endereço do roteiros>` — e o app renderizou
+ * um link com `<`, `>` e espaços dentro do host. O Chrome se recusa a navegar
+ * para isso e mostra `about:blank#blocked`, uma mensagem que não diz uma
+ * palavra sobre configuração e manda a pessoa caçar defeito no lugar errado.
+ *
+ * Endereço sem esquema (`frota.exemplo.com.br`) ganha `https://`, que é o
+ * engano honesto de quem copia da barra do navegador. Qualquer outra coisa
+ * vira `undefined` e o item some do menu — item que sumiu faz olhar a
+ * variável; link que não vai a lugar nenhum não faz olhar nada.
+ *
+ * O `https://` só entra quando NÃO há esquema: com o prefixo,
+ * `https://<endereço>` viraria `https://https//%3Cendere%C3%A7o%3E`, que o
+ * `URL` aceita de bom grado, e o valor quebrado voltaria disfarçado de bom.
+ */
+export function enderecoDeSistema(bruto: string | undefined): string | undefined {
+  const v = bruto?.trim()
+  if (!v) return undefined
+  const candidato = /^[a-z][a-z0-9+.-]*:\/\//i.test(v) ? v : `https://${v}`
+  try {
+    const u = new URL(candidato)
+    return u.protocol === 'http:' || u.protocol === 'https:' ? u.href : undefined
+  } catch {
+    return undefined
+  }
+}
+
 const SISTEMAS = [
   { id: 'roteiros', nome: 'Roteiros', descricao: 'Planejamento e rota dos técnicos', url: undefined as string | undefined },
-  { id: 'estoque', nome: 'Estoque', descricao: 'Equipamentos, expedição e galpões', url: import.meta.env.VITE_URL_ESTOQUE },
-  { id: 'frota', nome: 'Frota', descricao: 'Veículos, checklist e manutenção', url: import.meta.env.VITE_URL_FROTA },
+  { id: 'estoque', nome: 'Estoque', descricao: 'Equipamentos, expedição e galpões', url: enderecoDeSistema(import.meta.env.VITE_URL_ESTOQUE) },
+  { id: 'frota', nome: 'Frota', descricao: 'Veículos, checklist e manutenção', url: enderecoDeSistema(import.meta.env.VITE_URL_FROTA) },
 ]
 
 export function TrocaSistema() {
