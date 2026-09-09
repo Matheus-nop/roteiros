@@ -2,22 +2,36 @@ import { Boxes, ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
 /**
- * Passar para o sistema de estoque sem entrar de novo.
+ * Passar de um sistema do grupo para o outro sem procurar o endereço.
  *
- * Espelha a caixinha "Sistemas" do app de estoque: os dois topos ficam iguais,
- * e quem alterna o dia inteiro não precisa procurar em lugares diferentes.
+ * A mesma caixinha existe nos três apps, com a mesma lista e na mesma ordem —
+ * quem alterna o dia inteiro não pode ter que procurar em lugar diferente em
+ * cada um.
  *
- * O endereço vem de `VITE_URL_ESTOQUE`. Sem a variável a caixinha some, em vez
- * de levar alguém para um endereço que não abre.
+ * O endereço de cada sistema vem de variável (`VITE_URL_ESTOQUE`,
+ * `VITE_URL_FROTA`). Sem a variável o item some, em vez de levar alguém para um
+ * endereço que não abre. Sem nenhum destino, a caixinha inteira some.
  *
- * O login é o mesmo nos dois (o `auth.users` é um só), mas a sessão ainda não:
- * este app guarda em localStorage e o estoque em cookie. Hoje se entra uma vez
- * de cada lado.
+ * Sobre a sessão, para não prometer o que não existe: o login é o mesmo nos
+ * três (o `auth.users` do roteiros e do estoque é um só), mas a sessão não.
+ * Este app guarda em localStorage, que é por origem; o estoque guarda em cookie
+ * no domínio pai; e a frota mora num projeto Supabase próprio. Hoje se entra
+ * uma vez de cada lado. Unificar são dois trabalhos separados — passar este app
+ * para cookie e mover a frota para o projeto compartilhado.
  */
+
+const AQUI = 'roteiros'
+
+const SISTEMAS = [
+  { id: 'roteiros', nome: 'Roteiros', descricao: 'Planejamento e rota dos técnicos', url: undefined as string | undefined },
+  { id: 'estoque', nome: 'Estoque', descricao: 'Equipamentos, expedição e galpões', url: import.meta.env.VITE_URL_ESTOQUE },
+  { id: 'frota', nome: 'Frota', descricao: 'Veículos, checklist e manutenção', url: import.meta.env.VITE_URL_FROTA },
+]
+
 export function TrocaSistema() {
   const [aberto, setAberto] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const url = import.meta.env.VITE_URL_ESTOQUE
+  const sistemas = SISTEMAS.filter(s => s.id === AQUI || s.url)
 
   useEffect(() => {
     if (!aberto) return
@@ -28,7 +42,8 @@ export function TrocaSistema() {
     return () => { document.removeEventListener('mousedown', fora); window.removeEventListener('keydown', esc) }
   }, [aberto])
 
-  if (!url) return null
+  // Só o roteiros na lista é uma caixinha que não leva a lugar nenhum.
+  if (sistemas.length < 2) return null
 
   return (
     <div className="relative shrink-0" ref={ref}>
@@ -45,16 +60,25 @@ export function TrocaSistema() {
 
       {aberto && (
         <div role="menu" className="absolute right-0 mt-2 w-64 overflow-hidden rounded-xl bg-white text-slate-800 shadow-xl ring-1 ring-slate-200">
-          <div className="border-b border-slate-100 bg-slate-50 px-4 py-3">
-            <div className="flex items-center gap-2 text-sm font-semibold">
-              Roteiros <span className="text-[10px] font-medium text-slate-400">você está aqui</span>
-            </div>
-            <div className="mt-0.5 text-xs text-slate-500">Planejamento e rota dos técnicos</div>
-          </div>
-          <a href={url} role="menuitem" className="block px-4 py-3 transition-colors hover:bg-slate-50">
-            <div className="text-sm font-semibold">Estoque</div>
-            <div className="mt-0.5 text-xs text-slate-500">Equipamentos, expedição e galpões</div>
-          </a>
+          {sistemas.map(s => {
+            const aqui = s.id === AQUI
+            const conteudo = (
+              <>
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  {s.nome}
+                  {aqui && <span className="text-[10px] font-medium text-slate-400">você está aqui</span>}
+                </span>
+                <span className="mt-0.5 block text-xs text-slate-500">{s.descricao}</span>
+              </>
+            )
+            return aqui ? (
+              <div key={s.id} className="border-b border-slate-100 bg-slate-50 px-4 py-3 last:border-b-0">{conteudo}</div>
+            ) : (
+              <a key={s.id} href={s.url} role="menuitem" className="block border-b border-slate-100 px-4 py-3 transition-colors last:border-b-0 hover:bg-slate-50">
+                {conteudo}
+              </a>
+            )
+          })}
         </div>
       )}
     </div>
