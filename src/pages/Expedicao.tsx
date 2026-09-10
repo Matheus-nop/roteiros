@@ -82,18 +82,35 @@ export function Expedicao() {
 
   const Linha = ({ d }: { d: Demanda }) => {
     const liberado = d.status !== 'ROTEIRIZADO'
-    // Os dois selects têm largura fixa e não encolhem: numa linha só eles esmagavam o
-    // nome do equipamento no celular. Empilham abaixo de `sm`.
+    // A linha quebra sozinha, sem palpitar largura de tela.
+    //
+    // Era `flex-col` até `sm` e `flex-row` daí para cima, com o bloco da direita
+    // em `shrink-0`. O problema é que `sm` são 640px e a direita precisa de uns
+    // 600: três crachás (tipo, reagendada, veio de) mais os dois selects de
+    // largura fixa. No tablet o que sobrava para o texto eram uns 90px — o nome
+    // do cliente descia letra por letra e o crachá RETORNO ficava por cima da
+    // escrita. Só passava despercebido em tela larga.
+    //
+    // Agora quem decide é o conteúdo: o texto tem uma largura mínima de verdade,
+    // a direita continua sem encolher, e o `flex-wrap` do pai joga a direita para
+    // a linha de baixo quando os dois não cabem juntos. Linha com um crachá só
+    // segue numa linha; a carga reagendada, que tem três, quebra — e quebra no
+    // tablet e não no desktop sem ninguém ter escolhido o ponto de corte.
+    //
+    // O `max-w-full` da direita não é enfeite: `shrink-0` sozinho faz o bloco
+    // assumir a largura do conteúdo e vazar o cartão — no tablet em retrato o
+    // último select saía cortado pela borda. Com o teto, ele encolhe até o
+    // cartão e o `flex-wrap` de dentro passa a quebrar os crachás.
     return (
-      <div className={cx('flex flex-col gap-2 px-4 py-2.5 sm:flex-row sm:items-center sm:gap-3', d.status_separacao === 'SEPARADO' && 'bg-emerald-50/40', sel.has(d.id) && 'bg-blue-50/60')}>
-        <div className="flex min-w-0 flex-1 items-start gap-3">
+      <div className={cx('flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5', d.status_separacao === 'SEPARADO' && 'bg-emerald-50/40', sel.has(d.id) && 'bg-blue-50/60')}>
+        <div className="flex min-w-[17rem] flex-1 items-start gap-3">
         <input type="checkbox" checked={sel.has(d.id)} onChange={e => setSel(s => { const x = new Set(s); e.target.checked ? x.add(d.id) : x.delete(d.id); return x })} className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300" />
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-x-2 text-[13px] font-bold text-slate-800">{d.cliente_nome ?? '—'} <LocalData local={d.local} /></div>
           <div className="flex flex-wrap items-center gap-x-1.5 text-[11.5px] text-slate-500">📦 {d.equipamento_nome} · <span className={d.patrimonio ? 'font-mono' : ''}>{fmtPatrimonio(d)}</span> · <span className="om">OS {d.om ?? '—'}</span>{todas && <> · 📅 {fmtData(d.data_planejada)}</>}{paradaDe.get(d.id) ? <> · parada {paradaDe.get(d.id)}</> : null}</div>
         </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2 pl-7 sm:shrink-0 sm:pl-0">
+        <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-2 pl-7 sm:pl-0">
         <BadgeTipo tipo={d.tipo} />
         {/* Item que já voltou de uma pendência: carga que falhou uma vez, e que
             pode estar carregada no carro de outro técnico desde então. */}

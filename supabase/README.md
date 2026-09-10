@@ -41,6 +41,7 @@ quebra nada.
 | `0012_retroativo_de_onde_veio.sql` | refaz o retroativo da 0011, que falhou calado |
 | `0013_veiculo_na_insercao.sql` | o veículo acompanha o técnico também na inserção |
 | `0014_reagendamento_no_relatorio.sql` | a coluna "Reag." dos relatórios volta a contar |
+| `0015_ultima_saida_da_pendencia.sql` | o "veio de" da expedição passa a ser a última saída, não a primeira |
 
 Scripts avulsos ficam em `scripts/` e **não** fazem parte da sequência: são correções
 pontuais e testes, cada um com a explicação no topo do arquivo. Um deles é obrigatório
