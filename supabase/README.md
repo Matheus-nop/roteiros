@@ -36,6 +36,11 @@ quebra nada.
 | `0007_marcos_de_tempo.sql` | `pendente_desde` e `reagendado_em` |
 | `0008_relatorios_e_vocabulario.sql` | `v_rel_demandas` (relatórios), `v_clientes_uso`, `v_equipamentos_uso`, cadastro criado no lançamento |
 | `0009_rls_expedicao.sql` | a expedição só alcança a carga do galpão, e nela não altera o plano |
+| `0010_papel_sem_acesso.sql` | `SEM_ACESSO`: sem papel, a leitura também fecha |
+| `0011_de_onde_veio_a_pendencia.sql` | toda pendência guarda de onde veio (técnico, veículo, dia) |
+| `0012_retroativo_de_onde_veio.sql` | refaz o retroativo da 0011, que falhou calado |
+| `0013_veiculo_na_insercao.sql` | o veículo acompanha o técnico também na inserção |
+| `0014_reagendamento_no_relatorio.sql` | a coluna "Reag." dos relatórios volta a contar |
 
 Scripts avulsos ficam em `scripts/` e **não** fazem parte da sequência: são correções
 pontuais e testes, cada um com a explicação no topo do arquivo. Um deles é obrigatório
