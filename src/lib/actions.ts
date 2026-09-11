@@ -201,6 +201,59 @@ export function criarAcoes(db: Db) {
       return alvo.length
     },
 
+    /**
+     * Tira um cliente do cadastro.
+     *
+     * Só sai quem não está preso a nenhuma demanda. A FK
+     * `demandas_cliente_id_fkey` já recusaria — mas com a mensagem crua do
+     * Postgres, que fala em constraint e não diz quantas demandas seguram o
+     * cadastro nem o que fazer a respeito.
+     *
+     * A contagem é no banco, e não em `useData()`: aquele hook carrega só as
+     * demandas ATIVAS, então um cliente com dez demandas encerradas pareceria
+     * livre na tela e o clique morreria em erro de FK.
+     */
+    async excluirCliente(clienteId: string, nome: string) {
+      const presas = await db.select<Demanda>(T, { eq: { cliente_id: clienteId } })
+      if (presas.length) {
+        throw new DbError(
+          `${nome} está em ${presas.length} demanda(s) e não pode ser excluído. ` +
+            'Se for duplicata de outro cliente, use "Juntar com" — as demandas passam ' +
+            'para o cliente que fica e este sai do cadastro.',
+        )
+      }
+      await db.remove('clientes', clienteId)
+    },
+
+    /**
+     * Junta dois cadastros do mesmo cliente.
+     *
+     * É o que se quer de verdade quando se tenta excluir uma duplicata: o nome
+     * errado não some sozinho, porque há demandas apontando para ele. Aqui as
+     * demandas passam para o cliente que fica, o nome do que sai vira apelido
+     * dele — senão o lançamento seguinte escrito daquele jeito criaria a
+     * duplicata de novo — e só então o cadastro extra é removido.
+     *
+     * `cliente_nome` vai junto com `cliente_id`: é o nome gravado na demanda, e
+     * é ele que as telas mostram. Mover só a FK deixaria o quadro exibindo o
+     * nome do cadastro que acabou de deixar de existir.
+     */
+    async juntarClientes(de: Cliente, para: Cliente) {
+      if (de.id === para.id) throw new DbError('Escolha dois clientes diferentes.')
+      const alvo = await db.select<Demanda>(T, { eq: { cliente_id: de.id } })
+      if (alvo.length) {
+        await patchMany(alvo.map(d => d.id), { cliente_id: para.id, cliente_nome: para.nome })
+      }
+      const apelidos = Array.from(new Set([
+        ...(para.apelidos ?? []),
+        de.nome,
+        ...(de.apelidos ?? []),
+      ].map(a => a.trim().toUpperCase()).filter(a => a && a !== para.nome.toUpperCase())))
+      await db.update('clientes', para.id, { apelidos })
+      await db.remove('clientes', de.id)
+      return alvo.length
+    },
+
     async avancarTriagem(d: Demanda) {
       const prox = proximaTriagem(d.status)
       if (!prox) throw new DbError('Demanda já está no último passo da triagem')
