@@ -1,5 +1,5 @@
 // Cadastros: clientes (com apelidos), equipamentos, expedidores, usuários.
-import { Plus, Pencil, Trash2 } from 'lucide-react'
+import { Plus, Pencil, Trash2, Merge } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
@@ -48,6 +48,10 @@ function Clientes({ editar }: { editar: boolean }) {
   const { toast, erro } = useToast()
   const [f, setF] = useState<{ id?: string; nome: string; apelidos: string } | null>(null)
   const [busca, setBusca] = useState('')
+  const [excluir, setExcluir] = useState<Cliente | null>(null)
+  // Juntar duas fichas do mesmo cliente. Quem tem demanda não pode ser
+  // excluído — e é justamente a duplicata com demanda que incomoda na lista.
+  const [juntar, setJuntar] = useState<{ de: Cliente; paraId: string } | null>(null)
   const lista = clientes.filter(c => !busca || (c.nome + ' ' + (c.apelidos ?? []).join(' ')).toLowerCase().includes(busca.toLowerCase()))
   const salvar = async () => {
     if (!f?.nome.trim()) return
@@ -75,13 +79,59 @@ function Clientes({ editar }: { editar: boolean }) {
             <td className="font-medium">{c.nome}<BadgeAuto de={c} /></td>
             <td className="text-xs text-slate-600">{(c.apelidos ?? []).length ? (c.apelidos ?? []).map(a => <Badge key={a} className="mr-1">{a}</Badge>) : '—'}</td>
             <td className="tabular-nums">{demandas.filter(d => d.cliente_id === c.id).length}</td>
-            <td className="text-right">{editar && <Botao tamanho="sm" variante="fantasma" onClick={() => setF({ id: c.id, nome: c.nome, apelidos: (c.apelidos ?? []).join(', ') })}><Pencil size={13} /></Botao>}</td>
+            <td className="text-right whitespace-nowrap">{editar && <>
+              <Botao tamanho="sm" variante="fantasma" title="Editar" onClick={() => setF({ id: c.id, nome: c.nome, apelidos: (c.apelidos ?? []).join(', ') })}><Pencil size={13} /></Botao>
+              <Botao tamanho="sm" variante="fantasma" title="Juntar com outro cliente" onClick={() => setJuntar({ de: c, paraId: '' })}><Merge size={13} /></Botao>
+              <Botao tamanho="sm" variante="fantasma" title="Excluir" onClick={() => setExcluir(c)}><Trash2 size={13} className="text-red-600" /></Botao>
+            </>}</td>
           </tr>))}</tbody>
       </table></div>
       <Modal aberto={!!f} onFechar={() => setF(null)} titulo={f?.id ? 'Editar cliente' : 'Novo cliente'} rodape={<><Botao onClick={() => setF(null)}>Cancelar</Botao><Botao variante="primario" onClick={salvar}>Salvar</Botao></>}>
         {f && <div className="space-y-3">
           <Campo rotulo="Nome oficial"><Input value={f.nome} onChange={e => setF({ ...f, nome: e.target.value })} /></Campo>
           <Campo rotulo="Apelidos — variações de escrita do MESMO cliente (separadas por vírgula)"><Input value={f.apelidos} onChange={e => setF({ ...f, apelidos: e.target.value })} placeholder="AGUAS DO RIO, AGUAS RIO" /></Campo>
+        </div>}
+      </Modal>
+
+      {/* Excluir só tira a FICHA. O nome continua gravado em cada demanda, que
+          é o que as telas mostram — nada some do histórico. */}
+      <Confirmar aberto={!!excluir} perigo titulo="Excluir cliente"
+        texto={<>Tirar <strong>{excluir?.nome}</strong> do cadastro? As demandas já lançadas mantêm o nome gravado. Se ele estiver preso a alguma demanda, o sistema recusa e diz quantas — nesse caso, use “Juntar com”.</>}
+        onFechar={() => setExcluir(null)}
+        onConfirmar={async () => {
+          const c = excluir!
+          setExcluir(null)
+          try { await acoes.excluirCliente(c.id, c.nome); toast('Cliente excluído.') } catch (e) { erro(e) }
+        }} />
+
+      <Modal aberto={!!juntar} onFechar={() => setJuntar(null)} titulo="Juntar clientes"
+        rodape={<><Botao onClick={() => setJuntar(null)}>Cancelar</Botao>
+          <Botao variante="primario" disabled={!juntar?.paraId} onClick={async () => {
+            const j = juntar!
+            const para = clientes.find(c => c.id === j.paraId)
+            if (!para) return
+            setJuntar(null)
+            try {
+              const n = await acoes.juntarClientes(j.de, para)
+              toast(n ? `Juntado. ${n} demanda(s) passaram para ${para.nome}.` : `Juntado com ${para.nome}.`)
+            } catch (e) { erro(e) }
+          }}>Juntar</Botao></>}>
+        {juntar && <div className="space-y-3">
+          <p className="text-sm text-slate-700">
+            <strong>{juntar.de.nome}</strong> sai do cadastro. As demandas dele passam para o
+            cliente escolhido, e o nome vira apelido — senão o próximo lançamento escrito
+            desse jeito criaria a duplicata de novo.
+          </p>
+          <Campo rotulo="Cliente que fica">
+            <Select value={juntar.paraId} onChange={e => setJuntar({ ...juntar, paraId: e.target.value })}>
+              <option value="">Escolha…</option>
+              {clientes.filter(c => c.id !== juntar.de.id).map(c => <option key={c.id} value={c.id}>{c.nome}</option>)}
+            </Select>
+          </Campo>
+          <p className="text-xs text-slate-500">
+            Só para o MESMO cliente escrito de dois jeitos. Bases ou obras diferentes do
+            mesmo grupo são clientes diferentes e não se juntam.
+          </p>
         </div>}
       </Modal>
     </Cartao>
