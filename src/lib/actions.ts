@@ -1,12 +1,14 @@
 // Operações de negócio sobre `demandas`. Todas identificam registros por uuid.
 import type { Db } from './db'
 import { DbError } from './db'
-import type { Cliente, Demanda, Equipamento, Fechamento, NovaDemanda, Status, Historico, StatusSeparacao, EtiquetaAvulsa, RoteiroArquivado } from './types'
+import type { Cliente, Demanda, Equipamento, Fechamento, NovaDemanda, Status, Historico, StatusSeparacao, EtiquetaAvulsa, RoteiroArquivado, NovoTreinamento, Participante, Presenca, Treinamento } from './types'
 import { STATUS_ARQUIVADOS, STATUS_EM_ROTA, familiaDoTipo, proximaTriagem } from './status'
 import { hojeISO, normalizar, ordenarParadas } from './format'
+import { cpfValido, fmtHora, soDigitos } from './treinamentos'
 import { contarDesfechos, montarParadas } from './arquivo'
 
 const T = 'demandas'
+const TT = 'treinamentos'
 
 export function chaveIdentidade(d: Pick<Demanda, 'om' | 'equipamento_nome' | 'patrimonio' | 'cliente_id' | 'cliente_nome'>): string {
   return [normalizar(d.om), normalizar(d.equipamento_nome), normalizar(d.patrimonio), d.cliente_id ?? normalizar(d.cliente_nome)].join('|')
@@ -84,6 +86,52 @@ export function encontrarDuplicata(nova: Pick<Demanda, 'om' | 'equipamento_nome'
 export function criarAcoes(db: Db) {
   const patchMany = (ids: string[], patch: Record<string, unknown>) => db.updateMany<Demanda>(T, ids, patch)
   const patch = (id: string, p: Record<string, unknown>) => db.update<Demanda>(T, id, p)
+
+  /**
+   * O treinamento visto como demanda: é assim que ele aparece no planejamento, na
+   * pré-carga e no `Meu roteiro` do técnico.
+   *
+   * O tema vai na OBSERVAÇÃO, e não em `equipamento_nome`, por dois motivos: a
+   * observação é o campo que o `Meu roteiro` mostra em destaque na tela do técnico,
+   * e `equipamento_nome` alimenta a sugestão do formulário de demandas — um tema de
+   * treinamento ali passaria a ser oferecido como equipamento.
+   */
+  function campoDaDemanda(t: Treinamento): Record<string, unknown> {
+    return {
+      tipo: 'TREINAMENTO',
+      cliente_id: t.cliente_id,
+      cliente_nome: t.cliente_nome,
+      local: t.local,
+      tecnico_id: t.tecnico_id,
+      data_planejada: t.data,
+      observacao: `Treinamento ${fmtHora(t.hora_inicio)}–${fmtHora(t.hora_fim)}: ${t.tema}`,
+      // Sem técnico ainda não é plano, é intenção — e o quadro do planejamento é
+      // justamente onde se resolve isso.
+      status: t.tecnico_id ? 'PLANEJADO' : 'AGUARDANDO_ROTEIRIZACAO',
+      origem: 'TREINAMENTO',
+      quantidade: 1,
+    }
+  }
+
+  /**
+   * Leva para a demanda o que mudou no treinamento.
+   *
+   * Não mexe em demanda já encerrada nem em `ordem_parada`: a posição da parada é
+   * decisão do PCM no quadro, e remarcar a hora da aula não pode reembaralhar o
+   * roteiro do dia. Trocar a DATA, sim, tira a demanda da ordem antiga — ela vai
+   * para outro dia, onde ainda não tem lugar.
+   */
+  async function sincronizarDemanda(t: Treinamento): Promise<void> {
+    if (!t.demanda_id) return
+    try {
+      const [d] = await db.select<Demanda>(T, { eq: { id: t.demanda_id } })
+      if (!d || STATUS_ARQUIVADOS.includes(d.status)) return
+      const p = campoDaDemanda(t)
+      delete p.status
+      if (d.data_planejada !== t.data) p.ordem_parada = null
+      await patch(t.demanda_id, p)
+    } catch { /* a demanda pode ter sido excluída à mão */ }
+  }
 
   return {
     // ---------------- Fila ----------------
@@ -537,6 +585,185 @@ export function criarAcoes(db: Db) {
 
     async excluir(id: string) {
       return db.remove(T, id)
+    },
+
+    // ---------------- Treinamentos ----------------
+    /**
+     * Agenda um treinamento E cria a demanda que leva o instrutor até lá.
+     *
+     * POR QUE AS DUAS COISAS
+     *
+     * O treinamento é um compromisso do técnico como qualquer outro: ocupa a manhã
+     * dele, sai de carro e concorre com as entregas do dia. Se ele vivesse só na
+     * agenda, o PCM montaria o roteiro sem saber que o Igor está em Nova Iguaçu às
+     * nove — e o descobriria na véspera, pelo WhatsApp. Era exatamente o que
+     * acontecia antes deste módulo.
+     *
+     * QUEM MANDA É A AGENDA. A demanda é o reflexo: mudou a data ou o instrutor
+     * aqui, `sincronizarDemanda` leva a mudança para lá. O caminho contrário não
+     * existe de propósito — dois donos para a mesma data é como se perde uma.
+     *
+     * Se a demanda falhar (RLS, migração não aplicada), o treinamento fica salvo
+     * sem ela. É o lado certo para falhar: a agenda é o registro, e o app mostra
+     * "sem demanda" para quem precisa consertar.
+     */
+    async agendarTreinamento(nova: NovoTreinamento): Promise<{ treinamento: Treinamento; demanda: Demanda | null }> {
+      if (!nova.tema?.trim()) throw new DbError('Informe o tema do treinamento.')
+      if (!nova.data) throw new DbError('Informe a data do treinamento.')
+      const [t] = await db.insert<Treinamento>(TT, [{
+        ...nova,
+        tema: nova.tema.trim().toUpperCase(),
+        hora_inicio: fmtHora(nova.hora_inicio) || '09:00',
+        hora_fim: fmtHora(nova.hora_fim) || '11:00',
+        status: nova.status ?? 'AGENDADO',
+      }])
+
+      let demanda: Demanda | null = null
+      try {
+        const [d] = await db.insert<Demanda>(T, [campoDaDemanda(t)])
+        demanda = d
+        await db.update<Treinamento>(TT, t.id, { demanda_id: d.id })
+        t.demanda_id = d.id
+      } catch { /* a agenda já está salva; a tela mostra que falta a demanda */ }
+      return { treinamento: t, demanda }
+    },
+
+    /** Altera o treinamento e leva a mudança para a demanda que o acompanha. */
+    async editarTreinamento(t: Treinamento, mudanca: Partial<NovoTreinamento>): Promise<Treinamento> {
+      const p: Record<string, unknown> = { ...mudanca }
+      if (typeof p.tema === 'string') p.tema = p.tema.trim().toUpperCase()
+      if (typeof p.hora_inicio === 'string') p.hora_inicio = fmtHora(p.hora_inicio)
+      if (typeof p.hora_fim === 'string') p.hora_fim = fmtHora(p.hora_fim)
+      const novo = await db.update<Treinamento>(TT, t.id, p)
+      await sincronizarDemanda(novo)
+      return novo
+    },
+
+    /**
+     * Cancela o treinamento e a demanda junto. Quem cancela a aula não quer o
+     * técnico dirigindo até o cliente no dia seguinte.
+     *
+     * A lista de presença NÃO é apagada: treinamento cancelado com gente já
+     * digitada é erro de operação, e apagar o que alguém digitou esconde o erro
+     * em vez de mostrá-lo.
+     */
+    async cancelarTreinamento(t: Treinamento, motivo: string | null): Promise<Treinamento> {
+      const p: Record<string, unknown> = { status: 'CANCELADO' }
+      if (motivo) p.observacao = motivo
+      const novo = await db.update<Treinamento>(TT, t.id, p)
+      if (t.demanda_id) {
+        try { await patch(t.demanda_id, { status: 'CANCELADO', ordem_parada: null, observacao: motivo || 'Treinamento cancelado' }) }
+        catch { /* a demanda pode ter sido excluída à mão */ }
+      }
+      return novo
+    },
+
+    /**
+     * Dá o treinamento por realizado e encerra a demanda.
+     *
+     * A demanda também é finalizada aqui, e não só pelo técnico no `Meu roteiro`:
+     * quem digita a lista de presença assinada está afirmando que a aula aconteceu,
+     * o que é uma prova mais forte que um toque na tela. Se o técnico já tiver
+     * finalizado, o patch é inócuo.
+     */
+    async concluirTreinamento(t: Treinamento): Promise<Treinamento> {
+      const novo = await db.update<Treinamento>(TT, t.id, { status: 'REALIZADO' })
+      if (t.demanda_id) {
+        try { await patch(t.demanda_id, { status: 'FINALIZADO' }) }
+        catch { /* a demanda pode ter sido excluída à mão */ }
+      }
+      return novo
+    },
+
+    /** Volta um treinamento realizado ou cancelado para a agenda. */
+    async reabrirTreinamento(t: Treinamento): Promise<Treinamento> {
+      const novo = await db.update<Treinamento>(TT, t.id, { status: 'AGENDADO' })
+      await sincronizarDemanda(novo)
+      return novo
+    },
+
+    async excluirTreinamento(t: Treinamento): Promise<void> {
+      // A demanda vai junto: ela existe só para levar o instrutor a um treinamento
+      // que deixou de existir. As presenças caem pelo `on delete cascade` da 0016.
+      if (t.demanda_id) { try { await db.remove(T, t.demanda_id) } catch { /* segue */ } }
+      await db.remove(TT, t.id)
+    },
+
+    /**
+     * Põe alguém na lista de presença, cadastrando a pessoa se ela ainda não existir.
+     *
+     * A pessoa é procurada primeiro pelo CPF e depois pelo nome dentro do cliente —
+     * a mesma ordem das duas chaves únicas da 0016. É isso que faz o encarregado que
+     * volta ao terceiro treinamento do ano ser a MESMA linha, com o nome escrito de
+     * um jeito só nos três certificados.
+     */
+    async adicionarPresenca(
+      treinamento: Treinamento,
+      pessoa: { nome: string; documento: string | null; cargo: string | null },
+      conhecidos: Participante[],
+      jaNaLista: Presenca[],
+    ): Promise<{ participante: Participante; presenca: Presenca }> {
+      const nome = pessoa.nome.trim().replace(/\s+/g, ' ')
+      if (nome.length < 3) throw new DbError('Informe o nome completo do participante.')
+      const doc = soDigitos(pessoa.documento) || null
+      // Vazio pode; errado não — o CPF vai impresso no certificado (ver lib/treinamentos.ts).
+      if (doc && !cpfValido(doc)) throw new DbError('CPF inválido. Confira os números ou deixe o campo em branco.')
+
+      let participante =
+        (doc && conhecidos.find(p => p.documento === doc)) ||
+        conhecidos.find(p => !p.documento && normalizar(p.nome) === normalizar(nome) && p.cliente_id === treinamento.cliente_id)
+
+      if (participante) {
+        // Completar o cadastro de quem já existe: o CPF que faltava, o cargo novo.
+        const p: Record<string, unknown> = {}
+        if (doc && !participante.documento) p.documento = doc
+        if (pessoa.cargo && !participante.cargo) p.cargo = pessoa.cargo.trim().toUpperCase()
+        if (!participante.cliente_id && treinamento.cliente_id) p.cliente_id = treinamento.cliente_id
+        if (Object.keys(p).length) participante = await db.update<Participante>('participantes', participante.id, p)
+      } else {
+        const [novo] = await db.insert<Participante>('participantes', [{
+          nome: nome.toUpperCase(),
+          documento: doc,
+          cargo: pessoa.cargo?.trim().toUpperCase() || null,
+          cliente_id: treinamento.cliente_id,
+          criado_automaticamente: true,
+        }])
+        participante = novo
+      }
+
+      const repetido = jaNaLista.find(x => x.participante_id === participante!.id)
+      if (repetido) throw new DbError(`${participante.nome} já está nesta lista.`)
+
+      const [presenca] = await db.insert<Presenca>('presencas', [{
+        treinamento_id: treinamento.id, participante_id: participante.id, presente: true,
+      }])
+      return { participante, presenca }
+    },
+
+    async marcarPresenca(id: string, presente: boolean): Promise<Presenca> {
+      return db.update<Presenca>('presencas', id, { presente })
+    },
+
+    async removerPresenca(id: string): Promise<void> {
+      return db.remove('presencas', id)
+    },
+
+    async editarParticipante(id: string, p: Partial<Participante>): Promise<Participante> {
+      const doc = p.documento === undefined ? undefined : (soDigitos(p.documento) || null)
+      if (doc && !cpfValido(doc)) throw new DbError('CPF inválido. Confira os números ou deixe o campo em branco.')
+      const patchP: Record<string, unknown> = {}
+      if (p.nome !== undefined) patchP.nome = p.nome.trim().replace(/\s+/g, ' ').toUpperCase()
+      if (doc !== undefined) patchP.documento = doc
+      if (p.cargo !== undefined) patchP.cargo = p.cargo?.trim().toUpperCase() || null
+      // Deixou de ser um nome que o sistema inventou sozinho: alguém conferiu.
+      patchP.criado_automaticamente = false
+      return db.update<Participante>('participantes', id, patchP)
+    },
+
+    /** Registra que o certificado saiu. Responde "já mandei o dele?" sem depender de memória. */
+    async registrarCertificados(ids: string[]): Promise<Presenca[]> {
+      if (!ids.length) return []
+      return db.updateMany<Presenca>('presencas', ids, { certificado_em: new Date().toISOString() })
     },
   }
 }

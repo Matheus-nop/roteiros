@@ -130,6 +130,7 @@ export type Acao =
   | 'expedicao.separar' | 'expedicao.fechar'
   | 'roteiro.executar' | 'roteiro.editar'
   | 'pendencias.reagendar'
+  | 'treinamentos.editar'
   | 'cadastros.editar' | 'usuarios.editar'
   | 'historico.restaurar'
 
@@ -140,9 +141,11 @@ const PERMISSOES: Record<Papel, Acao[] | 'todas'> = {
     'planejamento.editar', 'planejamento.gerar_roteiro',
     'expedicao.separar', 'expedicao.fechar',
     'roteiro.executar', 'roteiro.editar',
-    'pendencias.reagendar', 'cadastros.editar', 'historico.restaurar',
+    'pendencias.reagendar', 'treinamentos.editar', 'cadastros.editar', 'historico.restaurar',
   ],
-  COMERCIAL: ['fila.lancar', 'fila.triar', 'fila.enviar_planejamento', 'pendencias.reagendar'],
+  // O treinamento é do comercial: quem combina a data com o cliente é quem vende
+  // o equipamento. A RLS da 0016 diz o mesmo — aqui é só o menu e os botões.
+  COMERCIAL: ['fila.lancar', 'fila.triar', 'fila.enviar_planejamento', 'pendencias.reagendar', 'treinamentos.editar'],
   EXPEDICAO: ['expedicao.separar', 'expedicao.fechar'],
   TECNICO: ['roteiro.executar'],
 }

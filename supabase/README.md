@@ -42,6 +42,7 @@ quebra nada.
 | `0013_veiculo_na_insercao.sql` | o veículo acompanha o técnico também na inserção |
 | `0014_reagendamento_no_relatorio.sql` | a coluna "Reag." dos relatórios volta a contar |
 | `0015_ultima_saida_da_pendencia.sql` | o "veio de" da expedição passa a ser a última saída, não a primeira |
+| `0016_treinamentos.sql` | agenda de treinamentos: `treinamentos`, `participantes`, `presencas` e `v_temas_treinamento` |
 
 Scripts avulsos ficam em `scripts/` e **não** fazem parte da sequência: são correções
 pontuais e testes, cada um com a explicação no topo do arquivo. Um deles é obrigatório
@@ -74,6 +75,16 @@ não altera tabelas existentes. Duas saídas:
 | COMERCIAL  | Lançar e triar demandas na fila; **criar** (não editar) cliente e equipamento |
 | EXPEDICAO  | Expedição e pré-carga (separação, fechamento do dia)                   |
 | TECNICO    | Imp. técnico e roteiro (finalizar / pendente)                          |
+
+Treinamentos (0016) seguem esse mesmo desenho: ADMIN, PCM e COMERCIAL agendam e
+digitam a lista de presença; EXPEDICAO e TECNICO só leem. O técnico fica de fora da
+escrita porque o caminho é o papel primeiro — a folha sai impressa, as pessoas assinam
+em obra, e os nomes são digitados no escritório. Se o técnico também pudesse gravar,
+existiriam duas listas para o mesmo treinamento e a assinada não seria necessariamente
+a que virou certificado. A prova está em `scripts/testar-rls-0016.sql`, que espera 20
+"OK" — e que também confere o que o banco recusa: hora de fim antes da de início, CPF
+repetido, a mesma pessoa duas vezes na mesma turma, e escrita na coluna gerada
+`carga_horaria`.
 
 A migração foi validada num PostgreSQL 16 local com um shim do schema `auth`
 (triggers de histórico, perfil automático, RLS por papel e reordenação de paradas).

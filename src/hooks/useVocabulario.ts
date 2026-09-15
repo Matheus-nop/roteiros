@@ -68,6 +68,37 @@ export function juntarSemRepetir(...listas: string[][]): string[] {
   return saida
 }
 
+/**
+ * Os temas de treinamento já usados. Mesma ideia das três de baixo, com outra
+ * fonte: a view `v_temas_treinamento` (0016) e, de reserva, os treinamentos já
+ * carregados em memória.
+ *
+ * Aqui a repetição é ainda mais forte que nas localidades: "OPERAÇÃO SEGURA DE
+ * MARTELO ROMPEDOR" é o mesmo treinamento dado o ano inteiro, para clientes
+ * diferentes. Digitar de novo produz três grafias do mesmo curso — e três
+ * grafias saem impressas em três certificados.
+ */
+export function useTemasTreinamento(): string[] {
+  const { treinamentos } = useData()
+  const [daView, setDaView] = useState<string[] | null>(null)
+
+  useEffect(() => {
+    let vivo = true
+    db.select<LinhaUso>('v_temas_treinamento', { order: [{ col: 'usos', asc: false }] })
+      .then(r => { if (vivo) setDaView(r.map(x => x.nome).filter(Boolean)) })
+      .catch(() => { if (vivo) setDaView(null) })
+    return () => { vivo = false }
+  }, [])
+
+  const daMemoria = useMemo(() => {
+    const contagem = new Map<string, number>()
+    for (const t of treinamentos) if (t.tema) contagem.set(t.tema, (contagem.get(t.tema) ?? 0) + 1)
+    return Array.from(contagem.entries()).sort((a, b) => b[1] - a[1]).map(([nome]) => nome)
+  }, [treinamentos])
+
+  return useMemo(() => juntarSemRepetir(daView ?? [], daMemoria), [daView, daMemoria])
+}
+
 export const useLocalidades = () => useMaisUsados('v_localidades', d => d.local)
 export const useClientesMaisUsados = () => useMaisUsados('v_clientes_uso', d => d.cliente_nome)
 export const useEquipamentosMaisUsados = () => useMaisUsados('v_equipamentos_uso', d => d.equipamento_nome)

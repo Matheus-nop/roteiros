@@ -3,7 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { db } from '../lib'
 import { criarAcoes, type Acoes } from '../lib/actions'
-import type { Cliente, Demanda, Equipamento, Expedidor, Fechamento, Perfil, Tecnico, Veiculo } from '../lib/types'
+import type { Cliente, Demanda, Equipamento, Expedidor, Fechamento, Participante, Perfil, Presenca, Tecnico, Treinamento, Veiculo } from '../lib/types'
 import type { EventoTabela } from '../lib/db'
 import { STATUS_ARQUIVADOS } from '../lib/status'
 
@@ -15,8 +15,15 @@ interface DataCtx {
   equipamentos: Equipamento[]
   expedidores: Expedidor[]
   fechamentos: Fechamento[]
+  treinamentos: Treinamento[]
+  participantes: Participante[]
+  presencas: Presenca[]
   carregando: boolean
   erro: string | null
+  /** Erro só da agenda de treinamentos — normalmente "relation does not exist",
+   *  quando a migração 0016 ainda não foi aplicada. A tela de Treinamentos explica
+   *  o que fazer; o resto do app não pode cair por causa disso. */
+  erroTreinamentos: string | null
   conectado: boolean
   ultimaAtualizacao: Date | null
   recarregar(): Promise<void>
@@ -90,6 +97,12 @@ export function DataProvider({ children }: { children: ReactNode }) {
   // Tabela de dez linhas: carregar inteira sai mais barato que consultar por autor.
   const perfis = useTabelaRealtime<Perfil>('perfis', { order: [{ col: 'nome' }] })
 
+  // Treinamentos: seis por mês, não seis por dia. Carregar tudo custa menos que
+  // recortar por data — e é o que faz o calendário andar de mês sem ir ao banco.
+  const treinamentos = useTabelaRealtime<Treinamento>('treinamentos', { order: [{ col: 'data' }, { col: 'hora_inicio' }] })
+  const participantes = useTabelaRealtime<Participante>('participantes', { order: [{ col: 'nome' }] })
+  const presencas = useTabelaRealtime<Presenca>('presencas', { order: [{ col: 'created_at' }] })
+
   const [ultima, setUltima] = useState<Date | null>(null)
   const tickTotal = demandas.tick + tecnicos.tick + fechamentos.tick
   useEffect(() => { if (tickTotal > 0) setUltima(new Date()) }, [tickTotal])
@@ -106,12 +119,16 @@ export function DataProvider({ children }: { children: ReactNode }) {
     equipamentos: [...equipamentos.linhas].sort((a, b) => a.nome.localeCompare(b.nome) || (a.patrimonio ?? '').localeCompare(b.patrimonio ?? '')),
     expedidores: expedidores.linhas,
     fechamentos: fechamentos.linhas,
+    treinamentos: treinamentos.linhas,
+    participantes: participantes.linhas,
+    presencas: presencas.linhas,
     carregando: demandas.carregando || tecnicos.carregando,
     erro: demandas.erro ?? tecnicos.erro ?? null,
+    erroTreinamentos: treinamentos.erro,
     conectado: !demandas.erro && demandas.realtime !== false,
     ultimaAtualizacao: ultima,
     recarregar: async () => {
-      await Promise.all([demandas.recarregar(), tecnicos.recarregar(), veiculos.recarregar(), clientes.recarregar(), equipamentos.recarregar(), expedidores.recarregar(), fechamentos.recarregar()])
+      await Promise.all([demandas.recarregar(), tecnicos.recarregar(), veiculos.recarregar(), clientes.recarregar(), equipamentos.recarregar(), expedidores.recarregar(), fechamentos.recarregar(), treinamentos.recarregar(), participantes.recarregar(), presencas.recarregar()])
     },
     acoes,
     tecnicoPorId: (id) => (id ? tecMap.get(id) : undefined),
