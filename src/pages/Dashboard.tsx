@@ -9,13 +9,14 @@
 // Cada barra é rotulada com o número, então nada depende só da cor.
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, Inbox, MapPin, Building2, Truck } from 'lucide-react'
+import { AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, GraduationCap, Inbox, MapPin, Building2, Truck } from 'lucide-react'
 import { useData } from '../hooks/useData'
 import { useEncerradas } from '../hooks/useEncerradas'
 import { Cartao, Pagina, cx } from '../components/ui'
 import { STATUS_A_ROTEIRIZAR, STATUS_EM_ROTA, STATUS_FILA, separaNaExpedicao } from '../lib/status'
 import { addDias, hojeISO, fmtData, diaSemana, normalizar, agrupar } from '../lib/format'
 import { chaveIdentidade } from '../lib/actions'
+import { ROTULO_PROXIMIDADE, TOM_PROXIMIDADE, fmtHora, paraAvisar } from '../lib/treinamentos'
 import type { Demanda } from '../lib/types'
 
 /** Uma medida, uma cor. O âmbar é destaque de "hoje", não uma segunda série. */
@@ -24,7 +25,7 @@ const COR_HOJE = '#d97706'
 const DIAS_ADIANTE = 7
 
 export function Dashboard() {
-  const { demandas, tecnicos, carregando } = useData()
+  const { demandas, tecnicos, treinamentos, carregando } = useData()
   const nav = useNavigate()
   const hoje = hojeISO()
   const encerradasHoje = useEncerradas(useMemo(() => [hoje], [hoje]), null, true)
@@ -94,8 +95,30 @@ export function Dashboard() {
 
   const alertas = m.semTecnico.length + m.semVeiculo.length + m.semData.length + m.atrasadas.length + m.duplicatasFila + m.pendencias.length
 
+  // Treinamento não entra no funil: ele não está "parado" em lugar nenhum, tem
+  // hora marcada. O que o painel precisa dizer sobre ele é uma coisa só — está
+  // chegando — e por isso vem como faixa no topo, antes de qualquer contagem.
+  const proximosTreinamentos = useMemo(() => paraAvisar(treinamentos, hoje), [treinamentos, hoje])
+
   return (
     <Pagina titulo="Painel da operação" subtitulo={`${diaSemana(hoje)}, ${fmtData(hoje)}${carregando ? ' · carregando…' : ''}`}>
+      {proximosTreinamentos.length > 0 && (
+        <div className="mb-3 flex flex-wrap gap-2">
+          {proximosTreinamentos.map(({ t, quando }) => (
+            <button key={t.id} onClick={() => nav('/treinamentos')}
+              className={cx('flex items-center gap-2 rounded-lg px-3 py-2 text-left text-[12.5px] ring-1 ring-inset transition hover:brightness-95', TOM_PROXIMIDADE[quando])}>
+              <GraduationCap size={15} className="shrink-0 opacity-70" />
+              <span>
+                <b>Treinamento {ROTULO_PROXIMIDADE[quando].toLowerCase()}</b> · {fmtData(t.data)} {fmtHora(t.hora_inicio)} ·{' '}
+                {t.cliente_nome ?? 'cliente a definir'} · {t.tema}
+                {t.tecnico_id ? '' : ' · sem instrutor'}
+              </span>
+              <ArrowRight size={13} className="shrink-0 opacity-50" />
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* 1. Funil: onde o trabalho está parado. */}
       <div className="grid grid-cols-2 gap-2.5 sm:gap-3 lg:grid-cols-4">
         <Etapa rotulo="Na fila" n={m.fila.length} legenda="aguardando triagem" icone={Inbox} onClick={() => nav('/fila')} />

@@ -4,6 +4,11 @@ App web de gestão de roteiros: da entrada da demanda (OM) ao planejamento, sepa
 
 **Princípio central:** uma demanda é **um único registro** na tabela `demandas`. As telas (Fila, Planejamento, Expedição, Pré-carga, Roteiro, Meu roteiro, Imp. técnico, Pendências, Histórico) são **filtros por status** sobre essa tabela. Nada é copiado entre "abas", então nada descasa.
 
+A única tela que não é filtro de `demandas` é **Treinamentos**: ela tem tabela própria,
+porque um treinamento tem uma lista de pessoas e uma demanda tem uma peça só. Mas ele
+continua aparecendo no roteiro — agendar cria a demanda de tipo TREINAMENTO (veja
+[Treinamentos](#treinamentos)).
+
 ## Stack
 
 - **Front:** React 19 + Vite 7 + TypeScript + Tailwind CSS 4 (PWA instalável)
@@ -39,7 +44,10 @@ src/lib/db.ts + supabaseDb.ts         camada de acesso (Supabase) — tudo por u
 src/lib/demo/                         implementação em memória para o modo demonstração
 src/hooks/useData.tsx                 fonte única de dados com Realtime
 src/pages/                            uma tela por arquivo, na ordem do menu
+src/lib/treinamentos.ts               regras da agenda: o aviso da véspera, o CPF, a carga horária
 src/components/Etiqueta.tsx           etiquetas EXP-/ROT- e folha de roteiro para impressão
+src/components/FolhaPresenca.tsx      a folha que vai para a obra ser assinada à caneta
+src/components/Certificado.tsx        o certificado, um A4 deitado por participante
 src/components/Cards.tsx              card de demanda e o quadro kanban (colunas fluidas)
 src/components/Logo.tsx               logomarca da empresa, símbolo do produto e o lockup da barra
 src/hooks/usePwa.ts                   service worker, aviso de versão nova e convite de instalação
@@ -81,6 +89,51 @@ ligar para ninguém. Quem é do PCM abre a mesma tela e escolhe de quem é o rot
 
 O técnico **não** fecha o roteiro do dia por aqui: isso é do PCM/expedição, e a RLS de
 `fechamentos` nem deixaria gravar.
+
+## Treinamentos
+
+A empresa dá treinamento gratuito ao cliente que loca equipamento. Antes, isso era uma
+demanda de tipo TREINAMENTO na fila — o que resolve o transporte (quem vai, em que
+carro, em que dia) e não resolve o treinamento: não havia tema, nem horário, nem quem
+assistiu, nem certificado. A data morava no WhatsApp e o certificado num Word.
+
+`/treinamentos` é a agenda: **calendário do mês**, e não mais uma tabela, porque a
+pergunta que se faz aqui é "que dia da semana que vem ainda está livre?" — e isso uma
+lista ordenada por data responde mal.
+
+**Agendar cria a demanda.** O treinamento ocupa a manhã do técnico e concorre com as
+entregas do dia; se vivesse só na agenda, o PCM montaria o roteiro sem saber que o Igor
+está em Nova Iguaçu às nove. Quem manda é a agenda: mudou a data ou o instrutor lá, a
+demanda acompanha. O caminho contrário não existe — dois donos para a mesma data é como
+se perde uma. O tema vai na **observação** da demanda (é o campo que o `Meu roteiro`
+mostra em destaque), e não em `equipamento_nome`, que alimenta a sugestão do formulário
+de demandas.
+
+**O aviso** aparece no painel e na própria tela a partir de **3 dias antes**, destacando
+hoje e amanhã. Três, e não sete: é o tempo de separar material e confirmar com o cliente.
+Aviso que fica uma semana na tela vira parte do cenário e para de ser lido. Treinamento
+cuja data passou sem ninguém fechar continua aparecendo — ou aconteceu e falta digitar a
+lista, ou não aconteceu e o cliente ficou esperando.
+
+**A lista de presença é papel primeiro.** A folha sai impressa com quem já está
+cadastrado e mais doze linhas em branco, as pessoas assinam à caneta em obra (onde não
+há sinal), e os nomes voltam digitados no escritório. É da digitação que saem os
+certificados — um A4 deitado por participante, com nome, CPF, tema, carga horária, data,
+local e a assinatura do instrutor.
+
+**Participante é cadastro, não texto solto.** O mesmo encarregado assiste a três
+treinamentos no ano, e o nome dele não pode sair escrito de três jeitos em três
+certificados. Nasce do que se digita (como cliente e equipamento), e é procurado
+primeiro pelo CPF, depois pelo nome dentro do cliente. Digitar um nome que já existe
+preenche CPF e função sozinho.
+
+**A carga horária é conta, não digitação:** coluna gerada no banco a partir do horário
+(0016). Duas pessoas digitando "2h" e "09:00–12:00" no mesmo registro é uma delas
+mentindo no certificado.
+
+**O CPF pode ficar vazio; não pode ficar errado.** Ele vai impresso, e um dígito trocado
+só aparece meses depois, quando o cliente pede a segunda via de um papel que não bate
+com o RH dele. O app confere o dígito verificador antes de aceitar.
 
 ## Fluxo da demanda
 

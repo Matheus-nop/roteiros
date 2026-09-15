@@ -79,7 +79,9 @@ export function EspelhoRoteiro({ tecnico, data, itens }: { tecnico: Tecnico | un
                   const qtd = g.reduce((s, d) => s + (Number(d.quantidade) || 1), 0)
                   return (
                     <div key={j} className="esp-eq">
-                      <div className="esp-eq-h"><span className="esp-tipo">{g[0].tipo}</span><span>{g[0].equipamento_nome}</span>{(porQtd || g.length > 1) && <span className="esp-qtd">{porQtd ? `${fmtNum(qtd)} ${g[0].unidade?.toLowerCase() ?? 'un'}` : `${g.length} un`}</span>}</div>
+                      {/* Sem equipamento, mostra a observação: é o caso do TREINAMENTO, cujo tema
+                          mora ali. Uma linha em branco no papel não diz ao técnico o que ele vai fazer. */}
+                      <div className="esp-eq-h"><span className="esp-tipo">{g[0].tipo}</span><span>{g[0].equipamento_nome || g[0].observacao || '—'}</span>{(porQtd || g.length > 1) && <span className="esp-qtd">{porQtd ? `${fmtNum(qtd)} ${g[0].unidade?.toLowerCase() ?? 'un'}` : `${g.length} un`}</span>}</div>
                       <div className="esp-chips">
                         {g.filter(d => d.patrimonio).map(d => <span key={d.id} className="esp-pat">{d.patrimonio}</span>)}
                         {Array.from(new Set(g.map(d => d.om).filter(Boolean))).map(om => <span key={om!} className="esp-os">OS {om}</span>)}

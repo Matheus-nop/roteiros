@@ -26,6 +26,7 @@ const PreCarga = tela(() => import('./pages/PreCarga'), 'PreCarga')
 const Roteiro = tela(() => import('./pages/Roteiro'), 'Roteiro')
 const ImpTecnico = tela(() => import('./pages/ImpTecnico'), 'ImpTecnico')
 const Pendencias = tela(() => import('./pages/Pendencias'), 'Pendencias')
+const Treinamentos = tela(() => import('./pages/Treinamentos'), 'Treinamentos')
 const Tecnicos = tela(() => import('./pages/Tecnicos'), 'Tecnicos')
 const Cadastros = tela(() => import('./pages/Cadastros'), 'Cadastros')
 const Historico = tela(() => import('./pages/Historico'), 'Historico')
@@ -53,6 +54,7 @@ function Protegido() {
           <Route path="roteiro" element={<Roteiro />} />
           <Route path="imp-tecnico" element={<ImpTecnico />} />
           <Route path="pendencias" element={<Pendencias />} />
+          <Route path="treinamentos" element={<Treinamentos />} />
           <Route path="tecnicos" element={<Tecnicos />} />
           <Route path="cadastros" element={<Cadastros />} />
           <Route path="arquivo" element={<Arquivo />} />

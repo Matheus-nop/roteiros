@@ -1,5 +1,5 @@
 // Dados fictícios para o modo demonstração (sem Supabase).
-import type { Cliente, Demanda, Equipamento, Expedidor, Tecnico, Veiculo, Tipo, Status } from '../types'
+import type { Cliente, Demanda, Equipamento, Expedidor, Participante, Presenca, Tecnico, Treinamento, Veiculo, Tipo, Status } from '../types'
 import { addDias, hojeISO } from '../format'
 
 let seq = 1
@@ -166,4 +166,84 @@ export function gerarDemandasSeed(): Demanda[] {
   }
   out.push(nova(n++, { status: 'CANCELADO', observacao: 'Cancelado pelo cliente' }))
   return out
+}
+
+// ---------------------------------------------------------------------
+// Treinamentos (0016)
+// ---------------------------------------------------------------------
+const temasSeed = [
+  'OPERAÇÃO SEGURA DE MARTELO ROMPEDOR',
+  'OPERAÇÃO E MANUTENÇÃO DE GERADOR DE ENERGIA',
+  'USO DE COMPACTADOR DE SOLO E PLACA VIBRATÓRIA',
+  'MONTAGEM SEGURA DE ANDAIME TUBULAR',
+]
+
+const pessoasSeed = [
+  ['ANDERSON LIMA DA SILVA', 'ENCARREGADO'], ['CARLOS EDUARDO MOTA', 'OPERADOR'],
+  ['DENILSON ROCHA', 'PEDREIRO'], ['ELIANE FERREIRA COSTA', 'TÉCNICA DE SEGURANÇA'],
+  ['FÁBIO NASCIMENTO', 'OPERADOR'], ['GILSON ALVES PEREIRA', 'MESTRE DE OBRAS'],
+  ['HELENA MARTINS', 'ENGENHEIRA'], ['IVAN BATISTA SOUZA', 'AJUDANTE'],
+]
+
+/**
+ * Turma fictícia para o modo demonstração.
+ *
+ * Os CPFs ficam VAZIOS de propósito: um CPF que passa no dígito verificador é o
+ * CPF de alguém de verdade, e não se inventa documento de gente que existe nem
+ * para demonstração. A tela funciona sem ele — o certificado sai sem o campo.
+ */
+export function gerarTreinamentosSeed(): { treinamentos: Treinamento[]; participantes: Participante[]; presencas: Presenca[] } {
+  const hoje = hojeISO()
+  const agora = new Date().toISOString()
+
+  const participantes: Participante[] = pessoasSeed.map(([nome, cargo]) => ({
+    id: uuid(), nome, documento: null, cliente_id: null, cargo, criado_automaticamente: true, created_at: agora,
+  }))
+
+  const plano: { dias: number; status: Treinamento['status']; turma: number }[] = [
+    { dias: -21, status: 'REALIZADO', turma: 5 },
+    { dias: -7, status: 'REALIZADO', turma: 3 },
+    { dias: 0, status: 'AGENDADO', turma: 4 },
+    { dias: 2, status: 'AGENDADO', turma: 2 },
+    { dias: 11, status: 'AGENDADO', turma: 0 },
+  ]
+
+  const treinamentos: Treinamento[] = []
+  const presencas: Presenca[] = []
+
+  plano.forEach((x, i) => {
+    const cli = pick(clientesSeed, i + 2)
+    const t: Treinamento = {
+      id: uuid(),
+      numero: i + 1,
+      cliente_id: cli.id,
+      cliente_nome: cli.nome,
+      local: pick(locais, i * 3 + 1),
+      tema: pick(temasSeed, i),
+      data: addDias(hoje, x.dias),
+      hora_inicio: i % 2 === 0 ? '09:00' : '14:00',
+      hora_fim: i % 2 === 0 ? '11:00' : '16:30',
+      carga_horaria: i % 2 === 0 ? 2 : 2.5,
+      tecnico_id: pick(tecnicosSeed, i).id,
+      demanda_id: null,
+      status: x.status,
+      observacao: null,
+      created_at: agora,
+      updated_at: agora,
+      created_by: null,
+    }
+    treinamentos.push(t)
+    for (let k = 0; k < x.turma; k++) {
+      presencas.push({
+        id: uuid(),
+        treinamento_id: t.id,
+        participante_id: pick(participantes, i * 3 + k).id,
+        presente: true,
+        certificado_em: x.status === 'REALIZADO' ? agora : null,
+        created_at: new Date(Date.now() + k).toISOString(),
+      })
+    }
+  })
+
+  return { treinamentos, participantes, presencas }
 }

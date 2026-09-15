@@ -4,7 +4,7 @@ import type { Db, EventoTabela, Filtro } from '../db'
 import { DbError } from '../db'
 import type { Demanda, Historico, Papel, Tecnico, Usuario } from '../types'
 import { daDemanda } from '../relatorios'
-import { clientesSeed, equipamentosSeed, expedidoresSeed, gerarDemandasSeed, tecnicosSeed, veiculosSeed } from './seed'
+import { clientesSeed, equipamentosSeed, expedidoresSeed, gerarDemandasSeed, gerarTreinamentosSeed, tecnicosSeed, veiculosSeed } from './seed'
 
 type Linha = Record<string, any>
 type Store = Record<string, Linha[]>
@@ -18,6 +18,7 @@ function uuid() {
 }
 
 function seedInicial(): Store {
+  const treino = gerarTreinamentosSeed()
   return {
     tecnicos: tecnicosSeed,
     veiculos: veiculosSeed,
@@ -28,7 +29,19 @@ function seedInicial(): Store {
     historico: [],
     fechamentos: [],
     perfis: [],
+    treinamentos: treino.treinamentos,
+    participantes: treino.participantes,
+    presencas: treino.presencas,
   }
+}
+
+/** A coluna gerada `carga_horaria` da 0016, em horas. */
+function cargaGerada(t: Linha): number {
+  const min = (h: string) => {
+    const [a, b] = String(h ?? '').split(':').map(Number)
+    return (a || 0) * 60 + (b || 0)
+  }
+  return Math.max(0, Math.round(((min(t.hora_fim) - min(t.hora_inicio)) / 60) * 100) / 100)
 }
 
 const cmp = (a: any, b: any) => {
@@ -50,6 +63,16 @@ export class DemoDb implements Db {
     let s: Store | null = null
     try { const raw = localStorage.getItem(CHAVE); if (raw) s = JSON.parse(raw) } catch { /* ignore */ }
     this.store = s ?? seedInicial()
+    // Store guardado antes da 0016 não tem as tabelas de treinamento. Semear só o
+    // que falta é melhor que trocar a chave do localStorage: quem estava usando a
+    // demonstração não perde o que já tinha mexido.
+    if (s && !s.treinamentos) {
+      const treino = gerarTreinamentosSeed()
+      this.store.treinamentos = treino.treinamentos
+      this.store.participantes = treino.participantes
+      this.store.presencas = treino.presencas
+      this.persistir()
+    }
     if (!s) this.persistir()
     try { const u = localStorage.getItem(CHAVE_USER); if (u) this.usuario = JSON.parse(u) } catch { /* ignore */ }
     if (typeof BroadcastChannel !== 'undefined') {
@@ -122,6 +145,14 @@ export class DemoDb implements Db {
     if (tabela === 'v_localidades') return contar('local')
     if (tabela === 'v_clientes_uso') return contar('cliente_nome')
     if (tabela === 'v_equipamentos_uso') return contar('equipamento_nome')
+    if (tabela === 'v_temas_treinamento') {
+      const contagem = new Map<string, number>()
+      for (const t of this.tabela('treinamentos')) {
+        const v = String(t.tema ?? '').trim()
+        if (v) contagem.set(v, (contagem.get(v) ?? 0) + 1)
+      }
+      return Array.from(contagem.entries()).map(([nome, usos]) => ({ nome, usos })).sort((a, b) => b.usos - a.usos)
+    }
     if (tabela === 'v_rel_demandas') {
       const tecnicos = new Map((this.tabela('tecnicos') as Tecnico[]).map(t => [t.id, t.nome]))
       return (this.tabela('demandas') as Demanda[]).map(d => daDemanda(d, id => (id ? tecnicos.get(id) ?? null : null)))
@@ -174,6 +205,23 @@ export class DemoDb implements Db {
         row.created_by = this.usuario?.id ?? null
         for (const k of ['om','cliente_id','cliente_nome','local','equipamento_id','equipamento_nome','patrimonio','unidade','tecnico_id','veiculo','data_planejada','data_reagendada','separado_por','data_separacao','ordem_parada','origem','observacao','finalizado_em'])
           row[k] ??= null
+      }
+      if (tabela === 'treinamentos') {
+        const max = t.reduce((m, r) => Math.max(m, r.numero ?? 0), 0)
+        row.numero = max + 1
+        row.updated_at = agora
+        row.status ??= 'AGENDADO'
+        row.hora_inicio ??= '09:00'
+        row.hora_fim ??= '11:00'
+        row.carga_horaria = cargaGerada(row)
+        for (const k of ['cliente_id','cliente_nome','local','tecnico_id','demanda_id','observacao'])
+          row[k] ??= null
+        row.created_by = this.usuario?.id ?? null
+      }
+      if (tabela === 'presencas') { row.presente ??= true; row.certificado_em ??= null }
+      if (tabela === 'participantes') {
+        for (const k of ['documento','cliente_id','cargo']) row[k] ??= null
+        row.criado_automaticamente ??= false
       }
       t.push(row)
       out.push(row)
@@ -242,6 +290,11 @@ export class DemoDb implements Db {
     const p = tabela === 'demandas' ? this.marcarTempos(antigo, { ...patch }) : patch
     const novo = { ...t[i], ...p }
     if (tabela === 'demandas') novo.updated_at = new Date().toISOString()
+    if (tabela === 'treinamentos') {
+      novo.updated_at = new Date().toISOString()
+      // Espelha a coluna GERADA da 0016: a carga horária sai da hora, sempre.
+      novo.carga_horaria = cargaGerada(novo)
+    }
     t[i] = novo
     if (tabela === 'demandas') this.registrarHistorico(antigo, novo)
     this.emitir(tabela, { tipo: 'UPDATE', novo: structuredClone(novo), antigo })
