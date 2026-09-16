@@ -30,6 +30,13 @@
 // logo abaixo — está centrado. Era um escorregão do arquivo do Canva. Aqui eles
 // vão no meio, junto com o resto.
 //
+// A ASSINATURA DO TÉCNICO É À CANETA. A arte trazia a rubrica digitalizada de
+// uma pessoa só, e o instrutor muda de turma para turma — o papel sairia com a
+// letra de um sobre o nome de outro. Então do lado direito ficou só a régua: o
+// app escreve embaixo dela o nome de quem deu a aula, e quem deu a aula assina
+// em cima antes de entregar. A rubrica do diretor, à esquerda, continua na arte:
+// ela é sempre a mesma pessoa.
+//
 // TROCAR O MODELO: exporte de novo pelo Canva em PNG na proporção A4 paisagem,
 // apague as linhas variáveis e substitua `modelo.png`. Se o desenho mudar de
 // lugar, `CAMPOS` é o que se ajusta — e nada mais.

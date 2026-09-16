@@ -134,6 +134,12 @@ fonte é a mesma — Montserrat, confirmada contra o próprio modelo (a linha fi
 "CONCLUIU COM APROVEITAMENTO…", que continua sendo parte da imagem, bate com 0,3% de
 diferença de largura).
 
+**A assinatura do técnico é à caneta.** A arte trazia a rubrica digitalizada de uma
+pessoa só, e o instrutor muda de turma para turma — o certificado sairia com a letra de
+um sobre o nome de outro. Do lado direito ficou só a régua: o app escreve embaixo dela o
+nome de quem deu a aula, e quem deu a aula assina em cima antes de entregar. A rubrica do
+diretor, à esquerda, continua na arte, porque ali é sempre a mesma pessoa.
+
 O que o certificado resolve sozinho: **nome comprido** diminui de corpo em vez de sair
 cortado; **mais tópicos do que cabe** encolhem em conjunto em vez de a lista ser
 truncada; e quem **não tem CPF** cadastrado recebe o certificado no arranjo original de
