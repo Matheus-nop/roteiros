@@ -153,18 +153,22 @@ fonte é a mesma — Montserrat, confirmada contra o próprio modelo (a linha fi
 "CONCLUIU COM APROVEITAMENTO…", que continua sendo parte da imagem, bate com 0,3% de
 diferença de largura).
 
-**Uma assinatura só, a do diretor.** A arte trazia duas rubricas digitalizadas, e a do
-lado do técnico era de uma pessoa só — mas o instrutor muda de turma para turma, e o
-certificado sairia com a letra de um sobre o nome de outro.
+**Uma assinatura só, a de quem deu a aula.** A arte trazia duas rubricas digitalizadas —
+diretor à esquerda, técnico à direita. As duas saíram: quem responde pelo treinamento é
+quem o ministrou, e o instrutor muda de turma para turma, então uma rubrica fixa sairia
+com a letra de um sobre o nome de outro.
 
-Deixar a régua vazia para assinar à caneta resolveria isso e criaria outro problema:
-régua em branco é convite para assinar, e o certificado só poderia ser entregue depois de
-caçar o técnico para assinar folha por folha — numa turma de vinte, vinte vezes. Quem
-emite é o escritório; quem deu a aula está na rua.
+Agora o app desenha o bloco inteiro, centrado: **assinatura, régua, nome e função**. A
+assinatura é o nome do técnico escrito em letra de mão — a mesma letra para todo mundo,
+de propósito. É um bloco de assinatura padronizado da empresa, não a imitação do punho de
+ninguém: quem responde pelo documento é o Grupo Nova Opção, e o nome impresso embaixo diz
+quem deu a aula. Ninguém precisa assinar folha por folha — numa turma de vinte, vinte
+vezes — para o certificado poder ser entregue.
 
-Então o lado direito **não é assinatura, é crédito**: o nome de quem deu a aula e a
-função dele, sem régua. Quem assina o documento é o diretor, à esquerda, que é sempre a
-mesma pessoa e cuja rubrica continua na arte.
+A assinatura **cresce e encolhe** conforme o nome: "Igor" sobre uma régua de quatro
+centímetros ficaria do tamanho de um carimbo, e "Maria Aparecida do Nascimento" encostaria
+nas duas pontas. Ela procura ocupar a mesma largura em todos os casos, dentro de limites
+que impedem nome curto de virar letreiro.
 
 O que o certificado resolve sozinho: **nome comprido** diminui de corpo em vez de sair
 cortado; **mais tópicos do que cabe** encolhem em conjunto em vez de a lista ser

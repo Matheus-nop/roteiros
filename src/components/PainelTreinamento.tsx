@@ -108,6 +108,7 @@ export function PainelTreinamento({ treinamento, onFechar, onEditar }: {
       fonte("500 20px 'Montserrat Certificado'"),
       fonte("italic 600 20px 'Montserrat Certificado'"),
       fonte("italic 700 20px 'Montserrat Certificado'"),
+      fonte("400 60px 'Assinatura Certificado'"),
       imagem,
     ])
   }

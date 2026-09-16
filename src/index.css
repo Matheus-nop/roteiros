@@ -53,6 +53,20 @@
   src: url('/certificado/montserrat-italic.woff2') format('woff2');
 }
 
+/* A assinatura do instrutor, desenhada pelo app.
+ *
+ * É a MESMA letra para todo mundo, de propósito: é um bloco de assinatura
+ * padronizado da empresa, não a imitação do punho de ninguém. Quem responde
+ * pelo documento é o Grupo Nova Opção, e o nome impresso embaixo é quem deu a
+ * aula. */
+@font-face {
+  font-family: 'Assinatura Certificado';
+  font-style: normal;
+  font-weight: 400;
+  font-display: block;
+  src: url('/certificado/assinatura.woff2') format('woff2');
+}
+
 html { color-scheme: light; }
 body { @apply bg-slate-50 text-slate-800 antialiased; }
 
