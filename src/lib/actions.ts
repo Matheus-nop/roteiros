@@ -118,7 +118,14 @@ export function criarAcoes(db: Db) {
       local: t.local,
       tecnico_id: t.tecnico_id,
       data_planejada: t.data,
-      observacao: `Treinamento ${fmtHora(t.hora_inicio)}–${fmtHora(t.hora_fim)}: ${t.tema}`,
+      // O contato entra na observação porque é ela que o `Meu roteiro` mostra em
+      // destaque na tela do técnico. A capa impressa diz a mesma coisa; quem
+      // esqueceu o papel no carro ainda tem para quem ligar.
+      observacao: [
+        `Treinamento ${fmtHora(t.hora_inicio)}–${fmtHora(t.hora_fim)}: ${t.tema}`,
+        t.endereco,
+        [t.contato_nome && `procurar ${t.contato_nome}`, t.contato_telefone].filter(Boolean).join(' ') || null,
+      ].filter(Boolean).join(' · '),
       // Sem técnico ainda não é plano, é intenção — e o quadro do planejamento é
       // justamente onde se resolve isso.
       status: t.tecnico_id ? 'PLANEJADO' : 'AGUARDANDO_ROTEIRIZACAO',

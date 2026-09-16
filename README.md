@@ -47,6 +47,7 @@ src/pages/                            uma tela por arquivo, na ordem do menu
 src/lib/treinamentos.ts               regras da agenda: o aviso da véspera, o CPF, a carga horária
 src/components/Etiqueta.tsx           etiquetas EXP-/ROT- e folha de roteiro para impressão
 src/components/FolhaPresenca.tsx      a folha que vai para a obra ser assinada à caneta
+src/components/CapaTreinamento.tsx    a capa do técnico: onde entrar, quem procurar
 src/components/Certificado.tsx        o certificado: a arte do Canva de fundo, o app escreve por cima
 public/certificado/                   o modelo exportado do Canva e a Montserrat dele
 src/components/Cards.tsx              card de demanda e o quadro kanban (colunas fluidas)
@@ -106,15 +107,33 @@ lista ordenada por data responde mal.
 entregas do dia; se vivesse só na agenda, o PCM montaria o roteiro sem saber que o Igor
 está em Nova Iguaçu às nove. Quem manda é a agenda: mudou a data ou o instrutor lá, a
 demanda acompanha. O caminho contrário não existe — dois donos para a mesma data é como
-se perde uma. O tema vai na **observação** da demanda (é o campo que o `Meu roteiro`
-mostra em destaque), e não em `equipamento_nome`, que alimenta a sugestão do formulário
-de demandas.
+se perde uma.
+
+**Ela NÃO nasce na fila.** Nasce direto no planejamento: `PLANEJADO` quando o instrutor
+já está definido, `AGUARDANDO_ROTEIRIZACAO` quando não está. A fila é a esteira de
+triagem — quem chega por lá ainda precisa ser analisado e ter cliente, tipo e data
+definidos. Um treinamento agendado já passou por isso: tem cliente, tem dia, tem hora e
+tem tema. Mandá-lo para a fila seria pedir que alguém triasse o que já está decidido.
+
+O tema vai na **observação** da demanda (é o campo que o `Meu roteiro` mostra em
+destaque), junto com o endereço e o contato — e não em `equipamento_nome`, que alimenta a
+sugestão do formulário de demandas.
 
 **O aviso** aparece no painel e na própria tela a partir de **3 dias antes**, destacando
 hoje e amanhã. Três, e não sete: é o tempo de separar material e confirmar com o cliente.
 Aviso que fica uma semana na tela vira parte do cenário e para de ser lido. Treinamento
 cuja data passou sem ninguém fechar continua aparecendo — ou aconteceu e falta digitar a
 lista, ou não aconteceu e o cliente ficou esperando.
+
+**A capa do técnico** sai grampeada na frente da folha de presença, e é opcional (a
+caixinha ao lado do botão vem marcada). Ela existe para uma pergunta só: em que portão eu
+entro e quem eu procuro. Por isso o endereço e o contato são os dois blocos grandes da
+página, e o tema vem depois — o que ele vai fazer, ele já sabe.
+
+`local` continua sendo a **localidade** ("MAGÉ - PIABETÁ"), que agrupa o quadro do
+planejamento por região; o endereço de chegada é campo próprio (0018), preso ao
+treinamento e não ao cliente — a mesma construtora dá treinamento num canteiro este mês e
+em outro no mês que vem, com encarregado diferente em cada um.
 
 **A lista de presença é papel primeiro.** A folha sai impressa com quem já está
 cadastrado e mais doze linhas em branco, as pessoas assinam à caneta em obra (onde não

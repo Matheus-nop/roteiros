@@ -6,7 +6,7 @@
 // encerrar: é nela que se passa o tempo.
 import { useMemo, useState } from 'react'
 import {
-  AlertTriangle, Award, CheckCircle2, FileSignature, MapPin, Pencil, Printer,
+  AlertTriangle, Award, CheckCircle2, FileSignature, MapPin, Pencil, Phone, Printer,
   RotateCcw, Trash2, UserPlus, X,
 } from 'lucide-react'
 import { useData } from '../hooks/useData'
@@ -16,6 +16,7 @@ import { usePrint } from './Print'
 import { Badge, Botao, Campo, Checkbox, Confirmar, Input, Modal, cx } from './ui'
 import { CampoSugestao } from './CampoSugestao'
 import { FolhaPresenca } from './FolhaPresenca'
+import { CapaTreinamento } from './CapaTreinamento'
 import { Certificados } from './Certificado'
 import type { Participante, Presenca, Treinamento } from '../lib/types'
 import { fmtData, fmtDataHora, normalizar } from '../lib/format'
@@ -42,6 +43,10 @@ export function PainelTreinamento({ treinamento, onFechar, onEditar }: {
   const [nova, setNova] = useState<Nova>(vazia())
   const [salvando, setSalvando] = useState(false)
   const [confirmar, setConfirmar] = useState<'cancelar' | 'excluir' | null>(null)
+  // Ligada por padrão: a capa é o motivo de o técnico não ligar para o
+  // escritório perguntando em que portão entrar. Quem só quer a folha para
+  // recolher assinatura desmarca ali mesmo, ao lado do botão.
+  const [comCapa, setComCapa] = useState(true)
 
   const instrutor = tecnicoPorId(t.tecnico_id)
   const porId = useMemo(() => new Map(participantes.map(p => [p.id, p])), [participantes])
@@ -152,7 +157,18 @@ export function PainelTreinamento({ treinamento, onFechar, onEditar }: {
               <Badge tone={STATUS_TREINAMENTO_TONE[t.status]}>{STATUS_TREINAMENTO_LABEL[t.status]}</Badge>
               <span className="text-[13px] font-semibold text-slate-800">{t.cliente_nome ?? 'Cliente a definir'}</span>
             </div>
-            {t.local && <div className="mt-1 flex items-center gap-1 text-[12.5px] text-slate-500"><MapPin size={12} />{t.local}</div>}
+            {(t.local || t.endereco) && (
+              <div className="mt-1 flex items-start gap-1 text-[12.5px] text-slate-500">
+                <MapPin size={12} className="mt-0.5 shrink-0" />
+                <span>{t.endereco ?? t.local}{t.endereco && t.local && <span className="text-slate-400"> · {t.local}</span>}</span>
+              </div>
+            )}
+            {(t.contato_nome || t.contato_telefone) && (
+              <div className="mt-0.5 flex items-center gap-1 text-[12.5px] text-slate-500">
+                <Phone size={12} className="shrink-0" />
+                {[t.contato_nome, t.contato_telefone].filter(Boolean).join(' · ')}
+              </div>
+            )}
           </div>
           {podeEditar && <Botao tamanho="sm" onClick={() => onEditar(t)}><Pencil size={13} />Editar</Botao>}
         </div>
@@ -187,18 +203,26 @@ export function PainelTreinamento({ treinamento, onFechar, onEditar }: {
           </ul>
         )}
 
-        <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
-          <Botao variante="primario" onClick={() => imprimir(<FolhaPresenca treinamento={t} instrutor={instrutor} lista={lista} />)}>
-            <Printer size={14} />Folha de presença
+        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-slate-200 pt-3">
+          <Botao variante="primario" onClick={() => imprimir(<>
+            {comCapa && <CapaTreinamento treinamento={t} instrutor={instrutor} lista={lista} />}
+            <FolhaPresenca treinamento={t} instrutor={instrutor} lista={lista} />
+          </>)}>
+            <Printer size={14} />{comCapa ? 'Capa + folha de presença' : 'Folha de presença'}
           </Botao>
+          <label className="flex cursor-pointer select-none items-center gap-1.5 text-[12px] text-slate-600">
+            <Checkbox checked={comCapa} onChange={e => setComCapa(e.target.checked)} />
+            com capa do técnico
+          </label>
           <Botao variante="sucesso" onClick={imprimirCertificados} disabled={!daTurma.length}>
             <Award size={14} />Certificados ({daTurma.length})
           </Botao>
-          <span className="flex items-center text-[11.5px] text-slate-500">
-            <FileSignature size={13} className="mr-1 text-slate-400" />
-            A folha sai em branco para assinar em obra; os nomes voltam digitados aqui.
-          </span>
         </div>
+        <p className="mt-1.5 flex items-start gap-1.5 text-[11.5px] text-slate-500">
+          <FileSignature size={13} className="mt-px shrink-0 text-slate-400" />
+          A capa leva endereço e contato para o técnico ir direto; a folha atrás dela sai em
+          branco para assinar em obra, e os nomes voltam digitados aqui.
+        </p>
 
         {/* ---------------------------------------------------------- a turma */}
         <div className="mt-4">
