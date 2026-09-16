@@ -60,6 +60,7 @@ const NAVY = '#2e3660'
 const CINZA = '#858585'
 const QUASE_PRETO = '#12101b'
 const FAMILIA = "'Montserrat Certificado', system-ui, sans-serif"
+const FAMILIA_ASSINATURA = "'Assinatura Certificado', cursive"
 
 type Campo = {
   /** Topo e base das MAIÚSCULAS, em pixels do modelo. É o que ancora a linha. */
@@ -69,6 +70,23 @@ type Campo = {
   /** Até onde a linha pode crescer antes de a fonte ter que diminuir. */
   larguraMax: number
   cor: string; peso: number; italico?: boolean
+  /** Fonte de assinatura em vez da Montserrat. A régua de maiúsculas não serve
+   *  para ela — letra cursiva quase não tem caixa alta reta —, então o corpo
+   *  vem em `corpoPx` e `capTopo`/`capBase` só posicionam a linha de base. */
+  script?: boolean
+  corpoPx?: number
+  /**
+   * Só para a assinatura: a largura que ela procura ocupar.
+   *
+   * As outras linhas só ENCOLHEM quando não cabem. A assinatura também cresce,
+   * porque senão "Igor" sai do tamanho de um carimbo sobre uma régua de quatro
+   * centímetros, e "Leonardo Oliveira" sai encostando nas duas pontas — a mesma
+   * página com dois pesos visuais diferentes conforme quem deu a aula. Os
+   * limites abaixo impedem o outro extremo: nome curto virando letreiro.
+   */
+  alvoLargura?: number
+  minEscala?: number
+  maxEscala?: number
 }
 
 const CAMPOS: Record<string, Campo> = {
@@ -91,9 +109,24 @@ const CAMPOS: Record<string, Campo> = {
   empresa:   { capTopo: 651.05, capBase: 668,   centro: 1000, larguraMax: 1240, cor: NAVY,        peso: 700 },
   tema:      { capTopo: 743.87, capBase: 761,   centro: 1000, larguraMax: 1240, cor: QUASE_PRETO, peso: 700, italico: true },
   carga:     { capTopo: 783,   capBase: 800,    centro: 1000, larguraMax: 1240, cor: CINZA,       peso: 600, italico: true },
-  instrutor: { capTopo: 1240,  capBase: 1255,   centro: 1276, larguraMax: 440,  cor: NAVY,        peso: 700 },
+  /**
+   * O bloco de assinatura, agora um só e no meio da página.
+   *
+   * O modelo trazia dois: diretor à esquerda, técnico à direita, cada um com a
+   * rubrica digitalizada de uma pessoa. Os dois saíram da arte — o do diretor
+   * porque o certificado passou a ser assinado por quem deu a aula, e o do
+   * técnico porque o instrutor muda de turma para turma. Agora o app desenha o
+   * bloco inteiro: assinatura, régua, nome e função.
+   */
+  assinatura: { capTopo: 1150, capBase: 1203,  centro: 1000, larguraMax: 440,  cor: QUASE_PRETO, peso: 400,
+                script: true, corpoPx: 66, alvoLargura: 330, minEscala: 0.8, maxEscala: 1.55 },
+  instrutor: { capTopo: 1240,  capBase: 1255,   centro: 1000, larguraMax: 620,  cor: NAVY,        peso: 700 },
+  cargo:     { capTopo: 1270,  capBase: 1284,   centro: 1000, larguraMax: 400,  cor: NAVY,        peso: 500 },
   data:      { capTopo: 1310,  capBase: 1326,   centro: 1000, larguraMax: 1000, cor: NAVY,        peso: 500 },
 }
+
+/** A régua sob a assinatura: mesma medida e cor da que existia na arte. */
+const REGUA = { largura: 405, y: 1208, altura: 4, cor: NAVY }
 
 /** Os tópicos: alinhados à esquerda, com o passo medido entre as linhas do modelo. */
 const LISTA = { x: 521, capTopo: 870, passo: 39.75, capAltura: 17.35, larguraMax: 880, base: 1105 }
@@ -125,8 +158,8 @@ let pincel: CanvasRenderingContext2D | null | undefined
 function larguraDoTexto(texto: string, c: Campo, capAltura: number): number {
   if (pincel === undefined) pincel = document.createElement('canvas').getContext('2d')
   if (!pincel) return 0
-  const corpo = capAltura / CORPO
-  pincel.font = `${c.italico ? 'italic ' : ''}${c.peso} ${corpo}px ${FAMILIA}`
+  const corpo = c.corpoPx ?? capAltura / CORPO
+  pincel.font = `${c.italico ? 'italic ' : ''}${c.peso} ${corpo}px ${c.script ? FAMILIA_ASSINATURA : FAMILIA}`
   // O mesmo aperto de -0,02em do CSS: sem isto a conta de "cabe?" seria feita
   // num texto mais largo do que o que vai ser desenhado.
   return pincel.measureText(texto).width - corpo * -APERTO * texto.length
@@ -141,23 +174,42 @@ function capQueCabe(texto: string, c: Campo): number {
 }
 
 /**
+ * O fator de tamanho da linha. Para quase tudo é só "encolheu ou não";
+ * para a assinatura é o ajuste em torno da largura que ela procura ocupar.
+ */
+function escalaDaLinha(texto: string, c: Campo): number {
+  const cap = c.capBase - c.capTopo
+  if (!c.alvoLargura) return capQueCabe(texto, c) / cap
+  const largura = larguraDoTexto(texto, c, cap)
+  if (!largura) return 1
+  const alvo = c.alvoLargura / largura
+  const limitada = Math.min(Math.max(alvo, c.minEscala ?? 1), c.maxEscala ?? 1)
+  // Caber continua mandando: nome comprido não estoura a folha para bater no alvo.
+  return Math.min(limitada, c.larguraMax / largura)
+}
+
+/**
  * Posiciona a linha pela FAIXA DAS MAIÚSCULAS medida no modelo e centra o texto
  * dentro dela. Assim a base do texto cai onde caía no original sem depender de a
  * fonte ter exatamente a métrica que a gente supôs — e uma linha que precisou
  * encolher continua apoiada na mesma base, em vez de subir.
  */
 function estiloDaLinha(c: Campo, texto: string): React.CSSProperties {
-  const cap = capQueCabe(texto, c)
+  const escala = escalaDaLinha(texto, c)
+  const cap = (c.capBase - c.capTopo) * escala
   const folga = cap * 0.55
+  const corpo = c.corpoPx ? c.corpoPx * escala : cap / CORPO
   return {
     position: 'absolute',
     left: pctX(c.centro),
     transform: 'translateX(-50%)',
     top: pctY(c.capBase - cap - folga),
     height: pctY(cap + folga * 2),
-    fontSize: `${((cap / CORPO) / MODELO.altura) * 210}mm`,
+    fontSize: `${(corpo / MODELO.altura) * 210}mm`,
     fontWeight: c.peso,
     fontStyle: c.italico ? 'italic' : 'normal',
+    fontFamily: c.script ? FAMILIA_ASSINATURA : undefined,
+    letterSpacing: c.script ? 'normal' : undefined,
     color: c.cor,
   }
 }
@@ -226,7 +278,22 @@ export function Certificados({ treinamento, instrutor, participantes }: {
             }}>• {topico}</div>
           ))}
 
-          {instrutor && linha('instrutor', instrutor.nome)}
+          {/* O bloco de assinatura inteiro: a rubrica em letra de mão, a régua,
+              o nome e a função. Sem instrutor definido não sai nada — melhor um
+              vazio que uma assinatura em branco assinando por ninguém. */}
+          {instrutor && <>
+            {linha('assinatura', instrutor.nome)}
+            <div style={{
+              position: 'absolute',
+              left: pctX(MODELO.largura / 2 - REGUA.largura / 2),
+              width: pctX(REGUA.largura),
+              top: pctY(REGUA.y),
+              height: pctY(REGUA.altura),
+              background: REGUA.cor,
+            }} />
+            {linha('instrutor', instrutor.nome)}
+            {linha('cargo', 'TÉCNICO')}
+          </>}
           {linha('data', `RIO DE JANEIRO, ${dataPorExtenso(t.data)}`)}
         </section>
       ))}
