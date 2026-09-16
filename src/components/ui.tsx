@@ -1,5 +1,5 @@
 import { X } from 'lucide-react'
-import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
+import { useEffect, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react'
 import type { Status } from '../lib/types'
 import { STATUS_LABEL, STATUS_TONE } from '../lib/status'
 
@@ -32,6 +32,9 @@ export function Input(p: InputHTMLAttributes<HTMLInputElement>) {
 }
 export function Select(p: SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...p} className={cx('campo', p.className)} />
+}
+export function Textarea(p: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return <textarea {...p} className={cx('campo resize-y leading-relaxed', p.className)} />
 }
 export function Campo({ rotulo, children, className }: { rotulo: string; children: ReactNode; className?: string }) {
   return <label className={cx('block', className)}><span className="rotulo">{rotulo}</span>{children}</label>

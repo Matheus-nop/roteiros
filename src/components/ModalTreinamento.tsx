@@ -4,20 +4,22 @@
 // Carga horária não é campo — ela sai da hora (coluna gerada na 0016) e aparece
 // calculada embaixo, para quem está marcando conferir antes de salvar.
 import { useMemo, useState } from 'react'
-import { CalendarClock, Info } from 'lucide-react'
+import { CalendarClock, Info, Sparkles } from 'lucide-react'
 import { useData } from '../hooks/useData'
 import { useToast } from '../hooks/useToast'
 import { useClientesMaisUsados, useLocalidades, useTemasTreinamento, juntarSemRepetir } from '../hooks/useVocabulario'
 import type { NovoTreinamento, Treinamento } from '../lib/types'
 import { normalizar, hojeISO } from '../lib/format'
-import { cargaPrevista, fmtCarga, fmtHora } from '../lib/treinamentos'
-import { Botao, Campo, Input, Modal, Select } from './ui'
+import { cargaPrevista, conteudoDoTema, fmtCarga, fmtHora } from '../lib/treinamentos'
+import { Botao, Campo, Input, Modal, Select, Textarea } from './ui'
 import { CampoSugestao } from './CampoSugestao'
 
 type Form = {
   tema: string; cliente: string; local: string
   data: string; hora_inicio: string; hora_fim: string
   tecnico_id: string; observacao: string
+  /** Um tópico por linha — é assim que eles saem no certificado. */
+  conteudo: string
 }
 
 const doTreinamento = (t: Treinamento | null, dataSugerida?: string): Form => ({
@@ -29,6 +31,7 @@ const doTreinamento = (t: Treinamento | null, dataSugerida?: string): Form => ({
   hora_fim: fmtHora(t?.hora_fim) || '11:00',
   tecnico_id: t?.tecnico_id ?? '',
   observacao: t?.observacao ?? '',
+  conteudo: (t?.conteudo ?? []).join('\n'),
 })
 
 export function ModalTreinamento({ aberto, treinamento, dataSugerida, onFechar }: {
@@ -38,7 +41,7 @@ export function ModalTreinamento({ aberto, treinamento, dataSugerida, onFechar }
   dataSugerida?: string
   onFechar(): void
 }) {
-  const { acoes, clientes, tecnicos } = useData()
+  const { acoes, clientes, tecnicos, treinamentos } = useData()
   const { toast, erro } = useToast()
   const localidades = useLocalidades()
   const clientesUsados = useClientesMaisUsados()
@@ -71,8 +74,15 @@ export function ModalTreinamento({ aberto, treinamento, dataSugerida, onFechar }
       hora_fim: f.hora_fim,
       tecnico_id: f.tecnico_id || null,
       observacao: f.observacao.trim() || null,
+      conteudo: f.conteudo.split('\n'),
     }
   }
+
+  // O conteúdo que este mesmo tema já usou. Só oferece quando o campo está
+  // vazio: sugestão que sobrescreve o que a pessoa escreveu não é sugestão.
+  const sugestaoConteudo = useMemo(
+    () => (f.conteudo.trim() ? [] : conteudoDoTema(f.tema, treinamentos)),
+    [f.tema, f.conteudo, treinamentos])
 
   const salvar = async () => {
     if (!f.tema.trim()) { toast('Informe o tema do treinamento.', 'erro'); return }
@@ -125,6 +135,22 @@ export function ModalTreinamento({ aberto, treinamento, dataSugerida, onFechar }
             {tecnicos.filter(t => t.ativo || t.id === f.tecnico_id).map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
           </Select>
         </Campo>
+        <Campo rotulo="Conteúdo programático — um tópico por linha, sai em lista no certificado" className="col-span-2 md:col-span-4">
+          <Textarea rows={5} value={f.conteudo} onChange={e => set('conteudo', e.target.value)}
+            placeholder={'INSTRUÇÃO DE OPERAÇÃO ANTES/DURANTE E APÓS O USO;\nMEDIDAS PREVENTIVAS;\nMEDIDAS DE SEGURANÇA E EPI\'S;'} />
+        </Campo>
+        {sugestaoConteudo.length > 0 && (
+          <div className="col-span-2 md:col-span-4 -mt-1">
+            <button type="button" onClick={() => set('conteudo', sugestaoConteudo.join('\n'))}
+              className="flex w-full items-start gap-2 rounded-lg bg-brand-50 px-3 py-2 text-left text-[12px] text-brand-800 ring-1 ring-brand-100 transition hover:bg-brand-100">
+              <Sparkles size={14} className="mt-px shrink-0 text-brand-500" />
+              <span>
+                <b>Usar o conteúdo do último treinamento deste tema</b> ({sugestaoConteudo.length} tópicos):{' '}
+                <span className="text-brand-700/80">{sugestaoConteudo.join(' · ')}</span>
+              </span>
+            </button>
+          </div>
+        )}
         <Campo rotulo="Observação" className="col-span-2 md:col-span-4">
           <Input value={f.observacao} onChange={e => set('observacao', e.target.value)} placeholder="material necessário, contato no local…" />
         </Campo>

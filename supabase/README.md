@@ -43,6 +43,7 @@ quebra nada.
 | `0014_reagendamento_no_relatorio.sql` | a coluna "Reag." dos relatórios volta a contar |
 | `0015_ultima_saida_da_pendencia.sql` | o "veio de" da expedição passa a ser a última saída, não a primeira |
 | `0016_treinamentos.sql` | agenda de treinamentos: `treinamentos`, `participantes`, `presencas` e `v_temas_treinamento` |
+| `0017_conteudo_do_treinamento.sql` | `treinamentos.conteudo`: os tópicos que saem em lista no certificado |
 
 Scripts avulsos ficam em `scripts/` e **não** fazem parte da sequência: são correções
 pontuais e testes, cada um com a explicação no topo do arquivo. Um deles é obrigatório

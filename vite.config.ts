@@ -56,6 +56,11 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2}'],
+        // O modelo do certificado e a fonte dele ficam FORA do pacote instalado:
+        // são ~350KB que só o escritório usa, e o técnico não pode pagar por
+        // isso no 4G do canteiro para imprimir um certificado que ele nunca
+        // imprime. São buscados da rede na hora de emitir.
+        globIgnores: ['**/certificado/**'],
         // Sem isso o cache da versão anterior fica no disco do usuário para sempre.
         cleanupOutdatedCaches: true,
         navigateFallbackDenylist: [/^\/rest/, /^\/auth/, /^\/version\.json$/],

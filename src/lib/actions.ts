@@ -83,6 +83,20 @@ export function encontrarDuplicata(nova: Pick<Demanda, 'om' | 'equipamento_nome'
   return ativas.find(d => !STATUS_ARQUIVADOS.includes(d.status) && chaveIdentidade(d) === k)
 }
 
+/**
+ * Os tópicos como vão para o banco: sem linha vazia, sem espaço sobrando, em
+ * maiúsculas e sem o marcador que alguém tenha digitado junto.
+ *
+ * O "•" é do desenho do certificado, não do dado. Deixar o marcador entrar
+ * gravado faria a lista sair com dois em cada linha para quem copiou do papel
+ * antigo — e só apareceria na hora da impressão.
+ */
+export function limparConteudo(linhas: string[] | null | undefined): string[] {
+  return (linhas ?? [])
+    .map(l => l.replace(/^\s*[•·*-]\s*/, '').trim().toUpperCase())
+    .filter(Boolean)
+}
+
 export function criarAcoes(db: Db) {
   const patchMany = (ids: string[], patch: Record<string, unknown>) => db.updateMany<Demanda>(T, ids, patch)
   const patch = (id: string, p: Record<string, unknown>) => db.update<Demanda>(T, id, p)
@@ -613,6 +627,7 @@ export function criarAcoes(db: Db) {
       const [t] = await db.insert<Treinamento>(TT, [{
         ...nova,
         tema: nova.tema.trim().toUpperCase(),
+        conteudo: limparConteudo(nova.conteudo),
         hora_inicio: fmtHora(nova.hora_inicio) || '09:00',
         hora_fim: fmtHora(nova.hora_fim) || '11:00',
         status: nova.status ?? 'AGENDADO',
@@ -632,6 +647,7 @@ export function criarAcoes(db: Db) {
     async editarTreinamento(t: Treinamento, mudanca: Partial<NovoTreinamento>): Promise<Treinamento> {
       const p: Record<string, unknown> = { ...mudanca }
       if (typeof p.tema === 'string') p.tema = p.tema.trim().toUpperCase()
+      if (mudanca.conteudo) p.conteudo = limparConteudo(mudanca.conteudo)
       if (typeof p.hora_inicio === 'string') p.hora_inicio = fmtHora(p.hora_inicio)
       if (typeof p.hora_fim === 'string') p.hora_fim = fmtHora(p.hora_fim)
       const novo = await db.update<Treinamento>(TT, t.id, p)
