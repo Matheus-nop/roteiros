@@ -30,12 +30,19 @@
 // logo abaixo — está centrado. Era um escorregão do arquivo do Canva. Aqui eles
 // vão no meio, junto com o resto.
 //
-// A ASSINATURA DO TÉCNICO É À CANETA. A arte trazia a rubrica digitalizada de
-// uma pessoa só, e o instrutor muda de turma para turma — o papel sairia com a
-// letra de um sobre o nome de outro. Então do lado direito ficou só a régua: o
-// app escreve embaixo dela o nome de quem deu a aula, e quem deu a aula assina
-// em cima antes de entregar. A rubrica do diretor, à esquerda, continua na arte:
-// ela é sempre a mesma pessoa.
+// UMA ASSINATURA SÓ, A DO DIRETOR. A arte trazia duas rubricas digitalizadas,
+// e a do lado do técnico era de uma pessoa só — mas o instrutor muda de turma
+// para turma, e o papel sairia com a letra de um sobre o nome de outro.
+//
+// Tirar a rubrica e deixar a régua vazia resolveria isso e criaria outro
+// problema: régua em branco é convite para assinar, e aí o certificado só
+// poderia ser entregue depois de caçar o técnico para assinar folha por folha —
+// numa turma de vinte, vinte vezes. Quem emite é o escritório; quem deu a aula
+// está na rua.
+//
+// Então o lado direito não é assinatura: é crédito. O nome de quem deu a aula e
+// a função dele, sem régua. Quem assina o documento é o diretor, à esquerda,
+// que é sempre a mesma pessoa e cuja rubrica continua na arte.
 //
 // TROCAR O MODELO: exporte de novo pelo Canva em PNG na proporção A4 paisagem,
 // apague as linhas variáveis e substitua `modelo.png`. Se o desenho mudar de

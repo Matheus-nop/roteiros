@@ -134,11 +134,18 @@ fonte é a mesma — Montserrat, confirmada contra o próprio modelo (a linha fi
 "CONCLUIU COM APROVEITAMENTO…", que continua sendo parte da imagem, bate com 0,3% de
 diferença de largura).
 
-**A assinatura do técnico é à caneta.** A arte trazia a rubrica digitalizada de uma
-pessoa só, e o instrutor muda de turma para turma — o certificado sairia com a letra de
-um sobre o nome de outro. Do lado direito ficou só a régua: o app escreve embaixo dela o
-nome de quem deu a aula, e quem deu a aula assina em cima antes de entregar. A rubrica do
-diretor, à esquerda, continua na arte, porque ali é sempre a mesma pessoa.
+**Uma assinatura só, a do diretor.** A arte trazia duas rubricas digitalizadas, e a do
+lado do técnico era de uma pessoa só — mas o instrutor muda de turma para turma, e o
+certificado sairia com a letra de um sobre o nome de outro.
+
+Deixar a régua vazia para assinar à caneta resolveria isso e criaria outro problema:
+régua em branco é convite para assinar, e o certificado só poderia ser entregue depois de
+caçar o técnico para assinar folha por folha — numa turma de vinte, vinte vezes. Quem
+emite é o escritório; quem deu a aula está na rua.
+
+Então o lado direito **não é assinatura, é crédito**: o nome de quem deu a aula e a
+função dele, sem régua. Quem assina o documento é o diretor, à esquerda, que é sempre a
+mesma pessoa e cuja rubrica continua na arte.
 
 O que o certificado resolve sozinho: **nome comprido** diminui de corpo em vez de sair
 cortado; **mais tópicos do que cabe** encolhem em conjunto em vez de a lista ser
