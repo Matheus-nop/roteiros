@@ -47,7 +47,8 @@ src/pages/                            uma tela por arquivo, na ordem do menu
 src/lib/treinamentos.ts               regras da agenda: o aviso da véspera, o CPF, a carga horária
 src/components/Etiqueta.tsx           etiquetas EXP-/ROT- e folha de roteiro para impressão
 src/components/FolhaPresenca.tsx      a folha que vai para a obra ser assinada à caneta
-src/components/Certificado.tsx        o certificado, um A4 deitado por participante
+src/components/Certificado.tsx        o certificado: a arte do Canva de fundo, o app escreve por cima
+public/certificado/                   o modelo exportado do Canva e a Montserrat dele
 src/components/Cards.tsx              card de demanda e o quadro kanban (colunas fluidas)
 src/components/Logo.tsx               logomarca da empresa, símbolo do produto e o lockup da barra
 src/hooks/usePwa.ts                   service worker, aviso de versão nova e convite de instalação
@@ -118,14 +119,47 @@ lista, ou não aconteceu e o cliente ficou esperando.
 **A lista de presença é papel primeiro.** A folha sai impressa com quem já está
 cadastrado e mais doze linhas em branco, as pessoas assinam à caneta em obra (onde não
 há sinal), e os nomes voltam digitados no escritório. É da digitação que saem os
-certificados — um A4 deitado por participante, com nome, CPF, tema, carga horária, data,
-local e a assinatura do instrutor.
+certificados — um A4 deitado por participante.
+
+**O certificado é a arte do Canva que a empresa já usava.** Ela vira imagem de fundo
+(`public/certificado/modelo.png`, exportada a 2000×1414, que é A4 paisagem exato) e o
+app escreve por cima só o que muda: nome, CPF, empresa, tema, carga horária, os tópicos,
+o instrutor e a data. O desenho é o mesmo que o cliente já recebeu; o que acabou foi
+digitar tudo à mão, um participante por vez.
+
+As coordenadas de cada linha não são chute: saíram de medir os pixels do modelo antes de
+apagar o texto dele, e depois a página renderizada foi comparada com a arte original
+linha por linha até bater. Hoje o texto do app cai dentro de 1mm de onde estava, e a
+fonte é a mesma — Montserrat, confirmada contra o próprio modelo (a linha fixa
+"CONCLUIU COM APROVEITAMENTO…", que continua sendo parte da imagem, bate com 0,3% de
+diferença de largura).
+
+O que o certificado resolve sozinho: **nome comprido** diminui de corpo em vez de sair
+cortado; **mais tópicos do que cabe** encolhem em conjunto em vez de a lista ser
+truncada; e quem **não tem CPF** cadastrado recebe o certificado no arranjo original de
+duas linhas, sem buraco.
+
+**Trocar o modelo** é substituir `modelo.png` por outra exportação do Canva em A4
+paisagem, com as linhas variáveis apagadas. Se o desenho mudar de lugar, o que se ajusta
+é a tabela `CAMPOS` em `components/Certificado.tsx` — e nada mais.
+
+O modelo e a fonte ficam **fora do pacote instalado** do PWA (`globIgnores`, no
+`vite.config.ts`): são ~350KB que só o escritório usa, e o técnico não pode pagar por
+isso no 4G do canteiro para imprimir um certificado que ele nunca imprime. Na hora de
+emitir, o app espera os dois chegarem antes de mandar imprimir — senão a primeira
+emissão de cada máquina sairia sem o fundo e com a fonte errada.
 
 **Participante é cadastro, não texto solto.** O mesmo encarregado assiste a três
 treinamentos no ano, e o nome dele não pode sair escrito de três jeitos em três
 certificados. Nasce do que se digita (como cliente e equipamento), e é procurado
 primeiro pelo CPF, depois pelo nome dentro do cliente. Digitar um nome que já existe
 preenche CPF e função sozinho.
+
+**O conteúdo programático** (os tópicos que saem em lista no certificado) é campo do
+treinamento, não da arte (0017): martelo rompedor não tem os mesmos tópicos que gerador
+de energia, e um arquivo do Canva por tema é o que se esquece de trocar. Como o tema se
+repete o ano inteiro, o formulário oferece o conteúdo do último treinamento com o mesmo
+tema — digita uma vez, reaproveita sempre.
 
 **A carga horária é conta, não digitação:** coluna gerada no banco a partir do horário
 (0016). Duas pessoas digitando "2h" e "09:00–12:00" no mesmo registro é uma delas

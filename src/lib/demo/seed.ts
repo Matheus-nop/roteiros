@@ -171,11 +171,36 @@ export function gerarDemandasSeed(): Demanda[] {
 // ---------------------------------------------------------------------
 // Treinamentos (0016)
 // ---------------------------------------------------------------------
-const temasSeed = [
-  'OPERAÇÃO SEGURA DE MARTELO ROMPEDOR',
-  'OPERAÇÃO E MANUTENÇÃO DE GERADOR DE ENERGIA',
-  'USO DE COMPACTADOR DE SOLO E PLACA VIBRATÓRIA',
-  'MONTAGEM SEGURA DE ANDAIME TUBULAR',
+// Tema e o conteúdo programático que sai em lista no certificado (0017).
+const temasSeed: [string, string[]][] = [
+  ['OPERAÇÃO SEGURA DE MARTELO ROMPEDOR', [
+    'INSTRUÇÃO DE OPERAÇÃO ANTES/DURANTE E APÓS O USO;',
+    'MEDIDAS PREVENTIVAS;',
+    "MEDIDAS DE SEGURANÇA E EPI'S;",
+    'ARMAZENAGEM CORRETA;',
+    'TRANSPORTE ADEQUADO.',
+  ]],
+  ['OPERAÇÃO E MANUTENÇÃO DE GERADOR DE ENERGIA', [
+    'PARTIDA E PARADA SEGURA DO EQUIPAMENTO;',
+    'ABASTECIMENTO E NÍVEL DE ÓLEO;',
+    'ATERRAMENTO E LIGAÇÃO DE CARGAS;',
+    "MEDIDAS DE SEGURANÇA E EPI'S;",
+    'ARMAZENAGEM E TRANSPORTE.',
+  ]],
+  ['USO DE COMPACTADOR DE SOLO E PLACA VIBRATÓRIA', [
+    'INSPEÇÃO ANTES DO USO;',
+    'OPERAÇÃO EM TERRENO IRREGULAR;',
+    'RISCOS DE VIBRAÇÃO E RUÍDO;',
+    "MEDIDAS DE SEGURANÇA E EPI'S;",
+    'ARMAZENAGEM CORRETA.',
+  ]],
+  ['MONTAGEM SEGURA DE ANDAIME TUBULAR', [
+    'CONFERÊNCIA DAS PEÇAS E DO PISO;',
+    'SEQUÊNCIA DE MONTAGEM E TRAVAMENTO;',
+    'GUARDA-CORPO E RODAPÉ;',
+    'TRABALHO EM ALTURA E CINTO DE SEGURANÇA;',
+    'DESMONTAGEM E ARMAZENAGEM.',
+  ]],
 ]
 
 const pessoasSeed = [
@@ -219,7 +244,8 @@ export function gerarTreinamentosSeed(): { treinamentos: Treinamento[]; particip
       cliente_id: cli.id,
       cliente_nome: cli.nome,
       local: pick(locais, i * 3 + 1),
-      tema: pick(temasSeed, i),
+      tema: pick(temasSeed, i)[0],
+      conteudo: pick(temasSeed, i)[1],
       data: addDias(hoje, x.dias),
       hora_inicio: i % 2 === 0 ? '09:00' : '14:00',
       hora_fim: i % 2 === 0 ? '11:00' : '16:30',

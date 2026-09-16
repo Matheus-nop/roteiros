@@ -147,6 +147,8 @@ export interface Treinamento {
   hora_fim: string
   /** Coluna GERADA no banco (0016), em horas. Nunca se escreve nela. */
   carga_horaria: number
+  /** Tópicos cobertos na aula (0017). Saem em lista no certificado, abaixo do tema. */
+  conteudo: string[]
   tecnico_id: string | null
   demanda_id: string | null
   status: StatusTreinamento

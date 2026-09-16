@@ -81,10 +81,38 @@ export function PainelTreinamento({ treinamento, onFechar, onEditar }: {
     } catch (e) { erro(e) } finally { setSalvando(false) }
   }
 
+  /**
+   * Espera o modelo e a fonte chegarem antes de mandar imprimir.
+   *
+   * Sem isto o certificado sai errado na PRIMEIRA emissão de cada máquina, e só
+   * nela: o modelo e a Montserrat ficam fora do pacote instalado (vite.config),
+   * então na primeira vez eles vêm da rede — e a impressão dispara antes. O
+   * resultado é uma folha branca com o texto numa fonte qualquer. Depois entram
+   * no cache do navegador e ninguém mais reproduz o problema, que é justamente
+   * o tipo de defeito que ninguém consegue explicar.
+   */
+  const prepararModelo = async () => {
+    const fonte = (spec: string) => document.fonts?.load?.(spec) ?? Promise.resolve()
+    const imagem = new Promise<void>(pronto => {
+      const img = new Image()
+      img.onload = img.onerror = () => pronto()
+      img.src = '/certificado/modelo.png'
+    })
+    await Promise.all([
+      fonte("700 40px 'Montserrat Certificado'"),
+      fonte("500 20px 'Montserrat Certificado'"),
+      fonte("italic 600 20px 'Montserrat Certificado'"),
+      fonte("italic 700 20px 'Montserrat Certificado'"),
+      imagem,
+    ])
+  }
+
   const imprimirCertificados = async () => {
     if (!daTurma.length) { toast('Ninguém marcado como presente — nada a certificar.', 'erro'); return }
     const semCpf = daTurma.filter(x => !x.participante.documento)
     if (semCpf.length) toast(`${semCpf.length} participante(s) sem CPF: o certificado sai sem esse dado.`, 'info')
+    if (!t.conteudo?.length) toast('Este treinamento está sem conteúdo programático: o certificado sai sem a lista de tópicos.', 'info')
+    await prepararModelo()
     imprimir(<Certificados treinamento={t} instrutor={instrutor} participantes={daTurma.map(x => x.participante)} />)
     // Marca quem já teve certificado emitido. Responde "já mandei o dele?" meses
     // depois, quando alguém liga pedindo segunda via.
@@ -137,6 +165,13 @@ export function PainelTreinamento({ treinamento, onFechar, onEditar }: {
         </div>
         {t.observacao && <p className="mt-2 rounded-md bg-amber-50 px-2.5 py-1.5 text-[12.5px] text-amber-900">{t.observacao}</p>}
 
+        {podeEditar && !t.conteudo?.length && (
+          <p className="mt-2 flex items-start gap-1.5 rounded-md bg-slate-50 px-2.5 py-1.5 text-[12px] text-slate-600 ring-1 ring-slate-200">
+            <AlertTriangle size={14} className="mt-px shrink-0 text-slate-400" />
+            Sem conteúdo programático. O certificado sai sem a lista de tópicos — informe em <b>Editar</b>.
+          </p>
+        )}
+
         {demandaSumida && t.status === 'AGENDADO' && (
           <p className="mt-2 flex items-start gap-1.5 rounded-md bg-red-50 px-2.5 py-1.5 text-[12px] text-red-800">
             <AlertTriangle size={14} className="mt-px shrink-0" />
@@ -146,6 +181,12 @@ export function PainelTreinamento({ treinamento, onFechar, onEditar }: {
         )}
 
         {/* ---------------------------------------------------------- os papéis */}
+        {t.conteudo?.length > 0 && (
+          <ul className="mt-2 space-y-0.5 rounded-md bg-slate-50 px-3 py-2 text-[12px] text-slate-600 ring-1 ring-slate-200">
+            {t.conteudo.map((c, i) => <li key={i}>• {c}</li>)}
+          </ul>
+        )}
+
         <div className="mt-4 flex flex-wrap gap-2 border-t border-slate-200 pt-3">
           <Botao variante="primario" onClick={() => imprimir(<FolhaPresenca treinamento={t} instrutor={instrutor} lista={lista} />)}>
             <Printer size={14} />Folha de presença

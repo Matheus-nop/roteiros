@@ -214,6 +214,7 @@ export class DemoDb implements Db {
         row.hora_inicio ??= '09:00'
         row.hora_fim ??= '11:00'
         row.carga_horaria = cargaGerada(row)
+        row.conteudo ??= []
         for (const k of ['cliente_id','cliente_nome','local','tecnico_id','demanda_id','observacao'])
           row[k] ??= null
         row.created_by = this.usuario?.id ?? null
