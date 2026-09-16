@@ -140,7 +140,13 @@ export interface Treinamento {
   numero: number
   cliente_id: string | null
   cliente_nome: string | null
+  /** A LOCALIDADE, que agrupa o planejamento por região ("MAGÉ - PIABETÁ"). */
   local: string | null
+  /** O endereço de chegada: rua, número, portão, referência (0018). */
+  endereco: string | null
+  /** Quem o técnico procura ao chegar, e o telefone dele (0018). */
+  contato_nome: string | null
+  contato_telefone: string | null
   tema: string
   data: string
   hora_inicio: string

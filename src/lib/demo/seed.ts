@@ -203,6 +203,15 @@ const temasSeed: [string, string[]][] = [
   ]],
 ]
 
+// Endereço de chegada e contato — o que a capa do técnico imprime (0018).
+const contatosSeed: [string, string, string][] = [
+  ['RUA JOSÉ DE ALVARENGA, 340 — entrar pelo portão 2, ao lado do almoxarifado', 'ENCARREGADO MARCOS', '(21) 98812-4470'],
+  ['ESTRADA DO CANAL, KM 4 — canteiro da obra, procurar no contêiner azul', 'TÉCNICA DE SEGURANÇA PRISCILA', '(21) 99604-1128'],
+  ['AV. GOVERNADOR ROBERTO SILVEIRA, 1200 — sala 3, 2º andar', 'MESTRE DE OBRAS JOÃO BATISTA', '(21) 3771-0042 / ramal 18'],
+  ['RUA DAS PALMEIRAS, 77 — galpão dos fundos', 'ENCARREGADO SÉRGIO', '(21) 98140-2255'],
+  ['ROD. WASHINGTON LUÍS, KM 12 — pátio de máquinas, falar na guarita antes', 'SUPERVISOR ANDRÉ', '(21) 99321-7788'],
+]
+
 const pessoasSeed = [
   ['ANDERSON LIMA DA SILVA', 'ENCARREGADO'], ['CARLOS EDUARDO MOTA', 'OPERADOR'],
   ['DENILSON ROCHA', 'PEDREIRO'], ['ELIANE FERREIRA COSTA', 'TÉCNICA DE SEGURANÇA'],
@@ -244,6 +253,9 @@ export function gerarTreinamentosSeed(): { treinamentos: Treinamento[]; particip
       cliente_id: cli.id,
       cliente_nome: cli.nome,
       local: pick(locais, i * 3 + 1),
+      endereco: contatosSeed[i % contatosSeed.length][0],
+      contato_nome: contatosSeed[i % contatosSeed.length][1],
+      contato_telefone: contatosSeed[i % contatosSeed.length][2],
       tema: pick(temasSeed, i)[0],
       conteudo: pick(temasSeed, i)[1],
       data: addDias(hoje, x.dias),

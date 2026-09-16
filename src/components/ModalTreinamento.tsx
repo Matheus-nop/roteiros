@@ -16,6 +16,7 @@ import { CampoSugestao } from './CampoSugestao'
 
 type Form = {
   tema: string; cliente: string; local: string
+  endereco: string; contato_nome: string; contato_telefone: string
   data: string; hora_inicio: string; hora_fim: string
   tecnico_id: string; observacao: string
   /** Um tópico por linha — é assim que eles saem no certificado. */
@@ -26,6 +27,9 @@ const doTreinamento = (t: Treinamento | null, dataSugerida?: string): Form => ({
   tema: t?.tema ?? '',
   cliente: t?.cliente_nome ?? '',
   local: t?.local ?? '',
+  endereco: t?.endereco ?? '',
+  contato_nome: t?.contato_nome ?? '',
+  contato_telefone: t?.contato_telefone ?? '',
   data: t?.data ?? dataSugerida ?? hojeISO(),
   hora_inicio: fmtHora(t?.hora_inicio) || '09:00',
   hora_fim: fmtHora(t?.hora_fim) || '11:00',
@@ -69,6 +73,9 @@ export function ModalTreinamento({ aberto, treinamento, dataSugerida, onFechar }
       cliente_id: cli?.id ?? null,
       cliente_nome: cli?.nome ?? (f.cliente.trim().toUpperCase() || null),
       local: f.local.trim().toUpperCase() || null,
+      endereco: f.endereco.trim() || null,
+      contato_nome: f.contato_nome.trim().toUpperCase() || null,
+      contato_telefone: f.contato_telefone.trim() || null,
       data: f.data,
       hora_inicio: f.hora_inicio,
       hora_fim: f.hora_fim,
@@ -125,6 +132,16 @@ export function ModalTreinamento({ aberto, treinamento, dataSugerida, onFechar }
         </Campo>
         <Campo rotulo="Local" className="col-span-2">
           <CampoSugestao valor={f.local} onChange={v => set('local', v)} sugestoes={localidades} placeholder="comece a digitar: duque…" />
+        </Campo>
+        <Campo rotulo="Endereço de chegada — rua, número, portão, referência" className="col-span-2 md:col-span-4">
+          <Input value={f.endereco} onChange={e => set('endereco', e.target.value)}
+            placeholder="RUA DAS OBRAS, 200 — entrar pelo portão 3, ao lado do posto" />
+        </Campo>
+        <Campo rotulo="Quem procurar" className="col-span-2">
+          <Input value={f.contato_nome} onChange={e => set('contato_nome', e.target.value.toUpperCase())} placeholder="ENCARREGADO RAFAEL" />
+        </Campo>
+        <Campo rotulo="Telefone do contato" className="col-span-2">
+          <Input value={f.contato_telefone} onChange={e => set('contato_telefone', e.target.value)} placeholder="(21) 99999-0000" />
         </Campo>
         <Campo rotulo="Data"><Input type="date" value={f.data} onChange={e => set('data', e.target.value)} /></Campo>
         <Campo rotulo="Início"><Input type="time" value={f.hora_inicio} onChange={e => set('hora_inicio', e.target.value)} /></Campo>
