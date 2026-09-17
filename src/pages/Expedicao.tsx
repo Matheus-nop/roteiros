@@ -45,6 +45,9 @@ export function Expedicao() {
   const semTec = itens.filter(d => !d.tecnico_id)
 
   const n = (s: StatusSeparacao) => base.filter(d => d.status_separacao === s).length
+  // A carga que o técnico conferiu e não bateu. Zero quase todo dia — e é
+  // justamente por isso que, quando não for zero, tem que aparecer.
+  const divergentes = useMemo(() => base.filter(d => d.conferencia === 'DIVERGENTE'), [base])
   const quem = () => usuario?.perfil.nome ?? null
   const run = async (fn: () => Promise<unknown>, msg?: string) => { try { await fn(); if (msg) toast(msg) } catch (e) { erro(e) } }
 
@@ -102,7 +105,7 @@ export function Expedicao() {
     // último select saía cortado pela borda. Com o teto, ele encolhe até o
     // cartão e o `flex-wrap` de dentro passa a quebrar os crachás.
     return (
-      <div className={cx('flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5', d.status_separacao === 'SEPARADO' && 'bg-emerald-50/40', sel.has(d.id) && 'bg-blue-50/60')}>
+      <div className={cx('flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5', d.status_separacao === 'SEPARADO' && 'bg-emerald-50/40', d.conferencia === 'DIVERGENTE' && '!bg-red-50 ring-1 ring-inset ring-red-200', sel.has(d.id) && 'bg-blue-50/60')}>
         <div className="flex min-w-[17rem] flex-1 items-start gap-3">
         <input type="checkbox" checked={sel.has(d.id)} onChange={e => setSel(s => { const x = new Set(s); e.target.checked ? x.add(d.id) : x.delete(d.id); return x })} className="mt-0.5 h-4 w-4 shrink-0 rounded border-slate-300" />
         <div className="min-w-0 flex-1">
@@ -111,6 +114,17 @@ export function Expedicao() {
         </div>
         </div>
         <div className="flex min-w-0 max-w-full shrink-0 flex-wrap items-center gap-2 pl-7 sm:pl-0">
+        {/* O que o TÉCNICO viu ao carregar (0019). Vem antes do tipo porque é a
+            única coisa nesta linha que pede ação de quem está nesta tela — e
+            porque ninguém vai procurar: tem que saltar. */}
+        {d.conferencia === 'DIVERGENTE' && (
+          <Badge tone="bg-red-600 text-white ring-red-600" className="uppercase">
+            ⚠ {d.divergencia}{d.conferido_por ? ` · ${d.conferido_por}` : ''}
+          </Badge>
+        )}
+        {d.conferencia === 'OK' && (
+          <Badge tone="bg-emerald-50 text-emerald-800 ring-emerald-200">✓ conferido</Badge>
+        )}
         <BadgeTipo tipo={d.tipo} />
         {/* Item que já voltou de uma pendência: carga que falhou uma vez, e que
             pode estar carregada no carro de outro técnico desde então. */}
@@ -145,6 +159,24 @@ export function Expedicao() {
       <SeletorData valor={data} onChange={setData} />
     </>}>
       <div className="mb-3 relative"><Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400" /><Input value={busca} onChange={e => setBusca(e.target.value)} placeholder="Buscar técnico, cliente, local, equipamento, OS…" className="pl-8" /></div>
+      {/* A faixa só aparece quando há o que resolver. Um aviso permanente vira
+          papel de parede, e papel de parede ninguém lê. */}
+      {divergentes.length > 0 && (
+        <div className="mb-3 rounded-xl bg-red-50 px-4 py-3 ring-1 ring-red-300">
+          <p className="text-[13px] font-bold text-red-900">
+            {divergentes.length} item(ns) o técnico conferiu e não bateu
+          </p>
+          <ul className="mt-1.5 space-y-0.5">
+            {divergentes.map(d => (
+              <li key={d.id} className="text-[12.5px] text-red-900">
+                <b>{d.cliente_nome ?? '—'}</b> · <span className={d.patrimonio ? 'font-mono' : ''}>{fmtPatrimonio(d)}</span>
+                {' — '}{d.divergencia}
+                {d.conferido_por ? <span className="text-red-700"> ({d.conferido_por})</span> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <div className="mb-3 grid grid-cols-2 gap-3 md:grid-cols-5">
         <Contador rotulo="Total" valor={base.length} />
         <Contador rotulo="Não separado" valor={n('NAO_SEPARADO')} tom="text-red-700" />

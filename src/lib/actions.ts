@@ -1,7 +1,7 @@
 // Operações de negócio sobre `demandas`. Todas identificam registros por uuid.
 import type { Db } from './db'
 import { DbError } from './db'
-import type { Cliente, Demanda, Equipamento, Fechamento, NovaDemanda, Status, Historico, StatusSeparacao, EtiquetaAvulsa, RoteiroArquivado, NovoTreinamento, Participante, Presenca, Treinamento } from './types'
+import type { Cliente, Conferencia, Demanda, Equipamento, Fechamento, NovaDemanda, Status, Historico, StatusSeparacao, EtiquetaAvulsa, RoteiroArquivado, NovoTreinamento, Participante, Presenca, Treinamento } from './types'
 import { STATUS_ARQUIVADOS, STATUS_EM_ROTA, familiaDoTipo, proximaTriagem } from './status'
 import { hojeISO, normalizar, ordenarParadas } from './format'
 import { cpfValido, fmtHora, soDigitos } from './treinamentos'
@@ -587,6 +587,48 @@ export function criarAcoes(db: Db) {
       const p: Record<string, unknown> = { status: 'CANCELADO', ordem_parada: null }
       if (motivo) p.observacao = motivo
       return patchMany(ids, p)
+    },
+
+
+    // ---------------- Conferência da carga (0019) ----------------
+    /**
+     * A segunda vista sobre a mesma carga.
+     *
+     * Quem separa não confere o próprio trabalho — não por má-fé, mas porque
+     * quem já olhou dez vezes para uma lista não enxerga mais o que falta nela.
+     * Aqui quem marca é o técnico, com o caminhão na frente.
+     *
+     * NÃO trava a saída. Caminhão parado custa mais que entrega errada, e
+     * travar ensinaria o técnico a marcar tudo OK para conseguir sair. A
+     * divergência fica na demanda, acende na expedição e sobra no histórico
+     * com nome e hora — quem erra não é barrado, é visto.
+     */
+    async conferir(id: string, estado: Conferencia, quem: string | null, divergencia?: string | null) {
+      const motivo = (divergencia ?? '').trim()
+      // A mesma trava existe no banco (check da 0019). Aqui é só para a pessoa
+      // ler uma frase em vez de um erro de constraint.
+      if (estado === 'DIVERGENTE' && !motivo) {
+        throw new DbError('Escreva o que está errado — é isso que a expedição vai ler.')
+      }
+      return patch(id, estado === 'NAO_CONFERIDO'
+        ? { conferencia: 'NAO_CONFERIDO', conferido_por: null, conferido_em: null, divergencia: null }
+        : {
+            conferencia: estado,
+            conferido_por: quem,
+            conferido_em: new Date().toISOString(),
+            divergencia: estado === 'DIVERGENTE' ? motivo : null,
+          })
+    },
+
+    /** "Conferi tudo": marca OK só o que ainda não foi tocado. Quem já tem
+     *  divergência apontada não é apagado por um toque coletivo. */
+    async conferirTudo(itens: Demanda[], quem: string | null) {
+      const ids = itens.filter(d => d.conferencia === 'NAO_CONFERIDO').map(d => d.id)
+      if (!ids.length) throw new DbError('Nada pendente de conferência.')
+      await patchMany(ids, {
+        conferencia: 'OK', conferido_por: quem, conferido_em: new Date().toISOString(), divergencia: null,
+      })
+      return ids.length
     },
 
     // ---------------- Histórico ----------------
