@@ -1,4 +1,4 @@
-import type { Status, Tipo, Papel, StatusSeparacao, Prioridade } from './types'
+import type { Status, Tipo, Papel, StatusSeparacao, Prioridade, Conferencia } from './types'
 
 // ---------------------------------------------------------------------
 // Máquina de estados: o status determina em qual tela a demanda aparece.
@@ -129,6 +129,7 @@ export type Acao =
   | 'planejamento.editar' | 'planejamento.gerar_roteiro'
   | 'expedicao.separar' | 'expedicao.fechar'
   | 'roteiro.executar' | 'roteiro.editar'
+  | 'carga.conferir'
   | 'pendencias.reagendar'
   | 'treinamentos.editar'
   | 'cadastros.editar' | 'usuarios.editar'
@@ -140,14 +141,14 @@ const PERMISSOES: Record<Papel, Acao[] | 'todas'> = {
     'fila.lancar', 'fila.triar', 'fila.enviar_planejamento',
     'planejamento.editar', 'planejamento.gerar_roteiro',
     'expedicao.separar', 'expedicao.fechar',
-    'roteiro.executar', 'roteiro.editar',
+    'roteiro.executar', 'roteiro.editar', 'carga.conferir',
     'pendencias.reagendar', 'treinamentos.editar', 'cadastros.editar', 'historico.restaurar',
   ],
   // O treinamento é do comercial: quem combina a data com o cliente é quem vende
   // o equipamento. A RLS da 0016 diz o mesmo — aqui é só o menu e os botões.
   COMERCIAL: ['fila.lancar', 'fila.triar', 'fila.enviar_planejamento', 'pendencias.reagendar', 'treinamentos.editar'],
   EXPEDICAO: ['expedicao.separar', 'expedicao.fechar'],
-  TECNICO: ['roteiro.executar'],
+  TECNICO: ['roteiro.executar', 'carga.conferir'],
 }
 
 export function pode(papel: Papel | undefined, acao: Acao): boolean {
@@ -158,4 +159,11 @@ export function pode(papel: Papel | undefined, acao: Acao): boolean {
 
 export const PAPEL_LABEL: Record<Papel, string> = {
   ADMIN: 'Administrador', PCM: 'PCM', COMERCIAL: 'Comercial', EXPEDICAO: 'Expedição', TECNICO: 'Técnico',
+}
+
+/** Como cada estado da conferência se chama na tela. */
+export const CONFERENCIA_LABEL: Record<Conferencia, string> = {
+  NAO_CONFERIDO: 'A conferir',
+  OK: 'Conferido',
+  DIVERGENTE: 'Divergente',
 }

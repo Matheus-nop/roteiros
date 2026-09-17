@@ -10,6 +10,8 @@ export type Tipo =
   | 'RETIRADA PARA ORÇAMENTO' | 'TREINAMENTO' | 'ASSINATURA' | 'SOMENTE ASSINATURA' | 'IDENTIFICAÇÃO'
 
 export type StatusSeparacao = 'NAO_SEPARADO' | 'EM_SEPARACAO' | 'SEPARADO'
+
+export type Conferencia = 'NAO_CONFERIDO' | 'OK' | 'DIVERGENTE'
 export type StatusTreinamento = 'AGENDADO' | 'REALIZADO' | 'CANCELADO'
 export type Prioridade = 'NORMAL' | 'ALTA' | 'URGENTE' | 'CRÍTICA'
 
@@ -77,6 +79,14 @@ export interface Demanda {
   status_separacao: StatusSeparacao
   separado_por: string | null
   data_separacao: string | null
+  /** O que o TÉCNICO viu ao carregar o caminhão (migração 0019). É a segunda
+   *  vista sobre a mesma carga: quem separa não confere o próprio trabalho. */
+  conferencia: Conferencia
+  conferido_por: string | null
+  conferido_em: string | null
+  /** O que o técnico apontou. Só existe quando conferencia = 'DIVERGENTE' —
+   *  o banco recusa divergência sem motivo escrito. */
+  divergencia: string | null
   ordem_parada: number | null
   origem: string | null
   prioridade?: Prioridade
@@ -208,6 +218,9 @@ export type NovaDemanda = Omit<
   Demanda,
   'id' | 'numero' | 'created_at' | 'updated_at' | 'status' | 'status_separacao' | 'herdado_de_pendencia'
     | 'finalizado_em' | 'created_by' | 'separado_por' | 'data_separacao' | 'ordem_parada'
+    // Nascem do padrão do banco (0019), como a separação: demanda nova não
+    // chega conferida.
+    | 'conferencia' | 'conferido_por' | 'conferido_em' | 'divergencia'
 > & Partial<Pick<Demanda, 'status' | 'status_separacao' | 'herdado_de_pendencia' | 'origem' | 'ordem_parada'>>
 
 export type NovoTreinamento = Omit<Treinamento, 'id' | 'numero' | 'carga_horaria' | 'created_at' | 'updated_at' | 'created_by' | 'status' | 'demanda_id'>

@@ -18,6 +18,7 @@ const tela = <T extends string>(carregar: () => Promise<Record<T, React.Componen
 
 const Dashboard = tela(() => import('./pages/Dashboard'), 'Dashboard')
 const MeuRoteiro = tela(() => import('./pages/MeuRoteiro'), 'MeuRoteiro')
+const Conferencia = tela(() => import('./pages/Conferencia'), 'Conferencia')
 const Fila = tela(() => import('./pages/Fila'), 'Fila')
 const Planejamento = tela(() => import('./pages/Planejamento'), 'Planejamento')
 const PreRoteiro = tela(() => import('./pages/PreRoteiro'), 'PreRoteiro')
@@ -46,6 +47,7 @@ function Protegido() {
         <Route element={<Layout />}>
           <Route index element={inicio === '/' ? <Dashboard /> : <Navigate to={inicio} replace />} />
           <Route path="meu-roteiro" element={<MeuRoteiro />} />
+          <Route path="conferencia" element={<Conferencia />} />
           <Route path="fila" element={<Fila />} />
           <Route path="planejamento" element={<Planejamento />} />
           <Route path="pre-roteiro" element={<PreRoteiro />} />

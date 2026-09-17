@@ -1,5 +1,5 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { BarChart3, LayoutDashboard, Inbox, CalendarRange, Route, PackageCheck, Truck, Map, ClipboardCheck, Clock, Users, Database, History, Archive, GraduationCap, LogOut, RefreshCw, Plus, ChevronDown, Menu, X, Wifi, WifiOff, Smartphone, DownloadCloud } from 'lucide-react'
+import { PackageSearch, BarChart3, LayoutDashboard, Inbox, CalendarRange, Route, PackageCheck, Truck, Map, ClipboardCheck, Clock, Users, Database, History, Archive, GraduationCap, LogOut, RefreshCw, Plus, ChevronDown, Menu, X, Wifi, WifiOff, Smartphone, DownloadCloud } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { Marca } from './Logo'
 import { useAuth } from '../hooks/useAuth'
@@ -20,6 +20,7 @@ type ItemMenu = { to: string; rotulo: string; icone: typeof Inbox; papeis?: Pape
 // são as permissões (lib/status.ts) e as regras do banco.
 const MENU: ItemMenu[] = [
   { to: '/meu-roteiro', rotulo: 'Meu roteiro', icone: Map, papeis: ['TECNICO'] },
+  { to: '/conferencia', rotulo: 'Conferir carga', icone: PackageSearch, papeis: ['TECNICO', 'ADMIN', 'PCM'] },
   { to: '/', rotulo: 'Dashboard', icone: LayoutDashboard, papeis: ['ADMIN', 'PCM', 'COMERCIAL'] },
   { to: '/fila', rotulo: 'Fila', icone: Inbox, papeis: ['ADMIN', 'PCM', 'COMERCIAL'], sep: true },
   { to: '/planejamento', rotulo: 'Planejamento', icone: CalendarRange, papeis: ['ADMIN', 'PCM', 'COMERCIAL'] },

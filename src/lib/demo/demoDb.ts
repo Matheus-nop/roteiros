@@ -113,6 +113,7 @@ export class DemoDb implements Db {
     else if (antigo && novo) {
       if (antigo.status !== novo.status) acao.push(`status ${antigo.status} → ${novo.status}`)
       if (antigo.status_separacao !== novo.status_separacao) acao.push(`separação ${novo.status_separacao}${novo.separado_por ? ' por ' + novo.separado_por : ''}`)
+      if (antigo.conferencia !== novo.conferencia) acao.push(`conferência ${novo.conferencia}${novo.conferido_por ? ' por ' + novo.conferido_por : ''}${novo.divergencia ? ' · ' + novo.divergencia : ''}`)
       if (antigo.tecnico_id !== novo.tecnico_id) acao.push('técnico alterado')
       if (antigo.data_planejada !== novo.data_planejada) acao.push(`data planejada ${antigo.data_planejada ?? '—'} → ${novo.data_planejada ?? '—'}`)
       if (antigo.veiculo !== novo.veiculo) acao.push(`veículo ${antigo.veiculo ?? '—'} → ${novo.veiculo ?? '—'}`)
@@ -199,11 +200,12 @@ export class DemoDb implements Db {
         row.updated_at = agora
         row.status ??= 'FILA'
         row.status_separacao ??= 'NAO_SEPARADO'
+        row.conferencia ??= 'NAO_CONFERIDO'
         row.quantidade ??= 1
         row.herdado_de_pendencia ??= false
         row.data_abertura ??= agora.slice(0, 10)
         row.created_by = this.usuario?.id ?? null
-        for (const k of ['om','cliente_id','cliente_nome','local','equipamento_id','equipamento_nome','patrimonio','unidade','tecnico_id','veiculo','data_planejada','data_reagendada','separado_por','data_separacao','ordem_parada','origem','observacao','finalizado_em'])
+        for (const k of ['om','cliente_id','cliente_nome','local','equipamento_id','equipamento_nome','patrimonio','unidade','tecnico_id','veiculo','data_planejada','data_reagendada','separado_por','data_separacao','conferido_por','conferido_em','divergencia','ordem_parada','origem','observacao','finalizado_em'])
           row[k] ??= null
       }
       if (tabela === 'treinamentos') {
