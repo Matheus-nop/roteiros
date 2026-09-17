@@ -11,12 +11,12 @@
 // contam a história. Enquanto a migração não roda, a tela cai nas demandas ativas em
 // memória e diz isso na cara do usuário: relatório que não avisa que está incompleto é
 // pior do que relatório nenhum.
-import { AlertTriangle, BarChart3, Building2, MapPin, Package, RotateCcw, Users } from 'lucide-react'
+import { AlertTriangle, BarChart3, Building2, ClipboardCheck, MapPin, Package, RotateCcw, ShieldAlert, Users } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { useData } from '../hooks/useData'
 import { db } from '../lib'
 import {
-  agrupar, daDemanda, porMes, resumir, topo, ultimosMeses,
+  agrupar, conferenciaDaCarga, daDemanda, porMes, resumir, topo, ultimosMeses,
   type LinhaFato, type Ranking,
 } from '../lib/relatorios'
 import { Cartao, Pagina, Vazio, cx } from '../components/ui'
@@ -86,6 +86,7 @@ export function Relatorios() {
   const tecnicos = useMemo(() => agrupar(linhas, l => l.tecnico), [linhas])
   const locais = useMemo(() => agrupar(linhas, l => l.localidade), [linhas])
   const serie = useMemo(() => porMes(linhas, meses), [linhas, meses])
+  const conf = useMemo(() => conferenciaDaCarga(linhas), [linhas])
 
   const pct = (v: number | null) => (v === null ? '—' : `${Math.round(v * 100)}%`)
 
@@ -137,6 +138,107 @@ export function Relatorios() {
               <Lista dados={topo(locais, 'total', 8)} campo="total" sufixo="demandas" />
             </Cartao>
           </div>
+
+          {/* ── Conferência da carga (0019/0020) ──
+              Fica acima dos rankings de sempre porque responde a uma pergunta
+              mais urgente que "quem atende mais": a carga que sai está certa?
+              E, antes disso, alguém está olhando? */}
+          {conf.base > 0 && (
+            <div className="mb-4">
+              <h2 className="mb-2 flex items-center gap-2 text-[15px] font-bold text-slate-800">
+                <ClipboardCheck size={16} className="text-slate-400" />
+                Conferência da carga
+              </h2>
+
+              {/* A adesão vem primeiro e sozinha na frente do resto: divergência
+                  zero não quer dizer carga certa, quer dizer que ninguém
+                  conferiu. Sem este aviso o relatório vira otimismo. */}
+              {(conf.adesao ?? 0) < 0.5 && (
+                <div className="mb-3 flex items-start gap-2.5 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900">
+                  <ShieldAlert size={16} className="mt-0.5 shrink-0" />
+                  <div>
+                    <b>Leia a adesão antes dos números.</b> {conf.conferidos === 0
+                      ? 'Nenhum item foi conferido no período — o zero de divergências abaixo não significa carga certa, significa que ninguém olhou.'
+                      : `Só ${pct(conf.adesao)} da carga foi conferida. O que aparece abaixo é o que deu para ver nessa fatia, não o retrato do período.`}
+                  </div>
+                </div>
+              )}
+
+              <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
+                <Numero rotulo="Adesão" valor={pct(conf.adesao)}
+                  legenda={`${conf.conferidos} de ${conf.base} itens de carga`}
+                  tom={(conf.adesao ?? 0) >= 0.8 ? 'text-emerald-700' : 'text-amber-700'} />
+                <Numero rotulo="Divergências" valor={conf.divergentes}
+                  tom={conf.divergentes > 0 ? 'text-red-600' : 'text-emerald-700'}
+                  legenda="itens que o técnico apontou" />
+                <Numero rotulo="Taxa de erro" legenda="sobre o que foi conferido"
+                  valor={conf.conferidos ? pct(conf.divergentes / conf.conferidos) : '—'} />
+                <Numero rotulo="Saíram sem conferência" valor={conf.base - conf.conferidos}
+                  legenda="ninguém olhou antes de sair"
+                  tom={conf.base - conf.conferidos > 0 ? 'text-amber-700' : undefined} />
+              </div>
+
+              <div className="grid items-start gap-4 xl:grid-cols-3">
+                <Cartao titulo={<Titulo icone={ShieldAlert}>Quem separou o que não bateu</Titulo>} className="min-w-0">
+                  {conf.porExpedidor.length ? (
+                    <>
+                      <Tabela
+                        dados={conf.porExpedidor}
+                        colunas={[
+                          { r: 'Separou', v: d => d.base },
+                          { r: 'Não bateu', v: d => d.divergencias, alerta: d => d.divergencias > 0 },
+                          { r: 'Taxa', v: d => pct(d.taxa) },
+                        ]} />
+                      {/* O aviso que evita a leitura errada mais provável desta
+                          tabela — e a mais cara, porque é a que vira conversa
+                          injusta com quem trabalha mais. */}
+                      <p className="border-t border-slate-100 px-4 py-2 text-[11.5px] text-slate-500">
+                        Ordenado pela taxa, não pelo número. Quem separa mais erra mais em
+                        quantidade sem errar mais em proporção.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="px-4 py-6 text-center text-[13px] text-slate-500">
+                      Nenhuma divergência apontada no período.
+                    </p>
+                  )}
+                </Cartao>
+
+                <Cartao titulo={<Titulo icone={AlertTriangle}>O que mais acontece</Titulo>} className="min-w-0">
+                  {conf.porMotivo.length ? (
+                    <ul className="space-y-2 px-4 py-3">
+                      {conf.porMotivo.slice(0, 8).map(m => (
+                        <li key={m.rotulo} className="flex items-center gap-3">
+                          <span className="w-1/2 truncate text-[12.5px] font-medium text-slate-700" title={m.rotulo}>{m.rotulo}</span>
+                          <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-slate-100">
+                            <div className="h-full rounded-full"
+                              style={{ width: `${(m.total / conf.porMotivo[0].total) * 100}%`, background: COR_BARRA }} />
+                          </div>
+                          <span className="w-7 shrink-0 text-right text-[12px] font-bold tabular-nums text-slate-700">{m.total}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="px-4 py-6 text-center text-[13px] text-slate-500">Nada apontado no período.</p>
+                  )}
+                </Cartao>
+
+                <Cartao titulo={<Titulo icone={Users}>Quem está conferindo</Titulo>} className="min-w-0">
+                  <Tabela
+                    dados={conf.porTecnico.slice(0, 12)}
+                    colunas={[
+                      { r: 'Carga', v: d => d.base },
+                      { r: 'Conferiu', v: d => d.conferidos },
+                      { r: 'Adesão', v: d => pct(d.adesao), alerta: d => (d.adesao ?? 1) < 0.5 },
+                    ]} />
+                  <p className="border-t border-slate-100 px-4 py-2 text-[11.5px] text-slate-500">
+                    Do menor para o maior: quem está no topo carregou sem conferir, e é
+                    carga que ninguém olhou.
+                  </p>
+                </Cartao>
+              </div>
+            </div>
+          )}
 
           <div className="grid items-start gap-4 xl:grid-cols-2">
             <Cartao titulo={<Titulo icone={Building2}>Clientes</Titulo>} className="min-w-0">
@@ -262,10 +364,13 @@ function Lista({ dados, campo, sufixo }: { dados: Ranking[]; campo: keyof Rankin
   )
 }
 
-type Coluna = { r: string; v(d: Ranking): number | string; alerta?(d: Ranking): boolean }
+type Coluna<T> = { r: string; v(d: T): number | string; alerta?(d: T): boolean }
 
-/** Ranking com colunas. Rola na horizontal no celular em vez de espremer o nome. */
-function Tabela({ dados, colunas }: { dados: Ranking[]; colunas: Coluna[] }) {
+/** Ranking com colunas. Rola na horizontal no celular em vez de espremer o nome.
+ *  Genérica porque a conferência da carga tem forma própria (`LinhaConferencia`)
+ *  e duplicar a tabela por causa do tipo seria duas tabelas divergindo no
+ *  primeiro ajuste. */
+function Tabela<T extends { rotulo: string }>({ dados, colunas }: { dados: T[]; colunas: Coluna<T>[] }) {
   if (!dados.length) return <p className="px-4 py-6 text-center text-[13px] text-slate-500">Sem dados no período.</p>
   return (
     <div className="overflow-x-auto">

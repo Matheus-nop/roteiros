@@ -5,8 +5,8 @@
 // migração 0008 rodou, e as demandas em memória quando não rodou (ou no modo
 // demonstração). As duas viram `LinhaFato`, e daí para frente o caminho é um só. Duas
 // contagens paralelas divergiriam no primeiro ajuste.
-import type { Demanda, Status, Tipo } from './types'
-import { STATUS_ARQUIVADOS } from './status'
+import type { Conferencia, Demanda, Status, Tipo } from './types'
+import { STATUS_ARQUIVADOS, STATUS_EM_ROTA, separaNaExpedicao } from './status'
 
 /** Uma demanda, com as dimensões do relatório já resolvidas. Espelha `v_rel_demandas`. */
 export type LinhaFato = {
@@ -25,6 +25,12 @@ export type LinhaFato = {
   reagendamentos: number
   pendente_desde: string | null
   finalizado_em: string | null
+  /** A segunda vista sobre a carga (0019/0020). */
+  conferencia: Conferencia
+  conferido_por: string | null
+  /** Quem SEPAROU. É por ele que a divergência é ranqueada — não por quem conferiu. */
+  separado_por: string | null
+  divergencia: string | null
 }
 
 /** Tipos que significam "esse equipamento deu problema", e não "esse equipamento foi entregue". */
@@ -63,6 +69,10 @@ export function daDemanda(d: Demanda, nomeTecnico: (id: string | null) => string
     reagendamentos: d.status === 'REAGENDADO' || d.herdado_de_pendencia ? 1 : 0,
     pendente_desde: d.pendente_desde ?? null,
     finalizado_em: d.finalizado_em ?? null,
+    conferencia: d.conferencia,
+    conferido_por: d.conferido_por,
+    separado_por: d.separado_por,
+    divergencia: d.divergencia,
   }
 }
 
@@ -147,4 +157,120 @@ export function porMes(linhas: LinhaFato[], meses: string[]) {
       concluidas: doMes.filter(l => l.status === 'FINALIZADO').length,
     }
   })
+}
+
+
+// ─────────────────────────────────────────────────────────────────────
+// Conferência da carga (0019/0020)
+// ─────────────────────────────────────────────────────────────────────
+//
+// DUAS ARMADILHAS, E COMO ESTE CÓDIGO DESVIA DELAS
+//
+// 1. Divergência zero não quer dizer carga certa — quer dizer que ninguém
+//    conferiu. Por isso a ADESÃO vem antes de qualquer ranking, e o
+//    denominador dela é o que dava para conferir, não o que foi conferido.
+//
+// 2. Contagem crua pune quem separa mais. Quem separou duzentos itens e errou
+//    quatro está melhor que quem separou vinte e errou três. Por isso cada
+//    linha do ranking carrega o próprio denominador e a taxa.
+
+/**
+ * Onde a conferência já era possível.
+ *
+ * A lista tem que ser a MESMA que a tela de conferência usa (`STATUS_EM_ROTA`,
+ * mais os desfechos), senão o item conferido de verdade não apareceria no
+ * relatório — e ninguém consegue explicar por que o número da tela não bate
+ * com o número do gestor. Foi assim na primeira versão disto: a tela contava a
+ * partir de ROTEIRIZADO e o relatório a partir de AGUARDANDO_SAIDA.
+ *
+ * O preço é o item roteirizado de hoje, que ainda não saiu e entra no
+ * denominador como "sem conferência". Num recorte de meses isso é ruído; a
+ * alternativa — dois critérios diferentes para a mesma palavra — não é.
+ */
+const JA_DAVA_PARA_CONFERIR: Status[] = [
+  ...STATUS_EM_ROTA,
+  'FINALIZADO', 'PENDENTE', 'REAGENDADO',
+]
+
+export const conferivel = (l: LinhaFato) =>
+  separaNaExpedicao(l.tipo) && JA_DAVA_PARA_CONFERIR.includes(l.status)
+
+export type LinhaConferencia = {
+  rotulo: string
+  /** Itens dele que dava para conferir — o denominador. */
+  base: number
+  divergencias: number
+  /** divergencias / base. Null quando não há base: 0 de 0 não é 0%, é nada. */
+  taxa: number | null
+}
+
+export type ResumoConferencia = {
+  /** Itens que passaram pelo caminhão no período. */
+  base: number
+  conferidos: number
+  divergentes: number
+  /** conferidos / base. É o número que diz se o resto do relatório vale algo. */
+  adesao: number | null
+  /** Por quem SEPAROU: onde o erro nasceu. */
+  porExpedidor: LinhaConferencia[]
+  /** Por quem CARREGOU: quem está conferindo de fato, e quem não está. Forma
+   *  própria de propósito — aqui a fração é ADESÃO, não taxa de erro, e um
+   *  campo `taxa` servindo às duas coisas acabaria com o rótulo trocado. */
+  porTecnico: { rotulo: string; base: number; conferidos: number; adesao: number | null }[]
+  /** O que mais acontece. */
+  porMotivo: { rotulo: string; total: number }[]
+}
+
+function ranquear(
+  linhas: LinhaFato[],
+  chave: (l: LinhaFato) => string | null,
+): LinhaConferencia[] {
+  const mapa = new Map<string, LinhaConferencia>()
+  for (const l of linhas) {
+    const k = (chave(l) ?? '').trim()
+    // Linha sem nome não vira "(sem expedidor)" no topo do ranking: isso não é
+    // informação, é ruído — a mesma regra do `agrupar`.
+    if (!k) continue
+    const r = mapa.get(k) ?? { rotulo: k, base: 0, divergencias: 0, taxa: null }
+    r.base++
+    if (l.conferencia === 'DIVERGENTE') r.divergencias++
+    mapa.set(k, r)
+  }
+  for (const r of mapa.values()) r.taxa = r.base ? r.divergencias / r.base : null
+  return Array.from(mapa.values())
+}
+
+export function conferenciaDaCarga(linhas: LinhaFato[]): ResumoConferencia {
+  const base = linhas.filter(conferivel)
+  const conferidos = base.filter(l => l.conferencia !== 'NAO_CONFERIDO')
+  const divergentes = base.filter(l => l.conferencia === 'DIVERGENTE')
+
+  const motivos = new Map<string, number>()
+  for (const l of divergentes) {
+    const m = (l.divergencia ?? '').trim()
+    if (m) motivos.set(m, (motivos.get(m) ?? 0) + 1)
+  }
+
+  return {
+    base: base.length,
+    conferidos: conferidos.length,
+    divergentes: divergentes.length,
+    adesao: base.length ? conferidos.length / base.length : null,
+    // Ordenados pela TAXA, não pela contagem — ver a armadilha 2 acima. O
+    // desempate é pela base, para que quem separa mais suba antes num empate.
+    porExpedidor: ranquear(base, l => l.separado_por)
+      .filter(r => r.divergencias > 0)
+      .sort((a, b) => (b.taxa ?? 0) - (a.taxa ?? 0) || b.base - a.base)
+      .slice(0, 10),
+    // Aqui a ordem é a INVERSA da de cima: o topo é quem MENOS confere, porque
+    // é quem precisa de conversa. Técnico que não confere transforma a carga
+    // dele num ponto cego — e o relatório inteiro num otimismo.
+    porTecnico: ranquear(base, l => l.tecnico).map(r => {
+      const conferidos = base.filter(
+        l => (l.tecnico ?? '').trim() === r.rotulo && l.conferencia !== 'NAO_CONFERIDO').length
+      return { rotulo: r.rotulo, base: r.base, conferidos, adesao: r.base ? conferidos / r.base : null }
+    }).sort((a, b) => (a.adesao ?? 1) - (b.adesao ?? 1) || b.base - a.base),
+    porMotivo: Array.from(motivos, ([rotulo, total]) => ({ rotulo, total }))
+      .sort((a, b) => b.total - a.total || a.rotulo.localeCompare(b.rotulo)),
+  }
 }
