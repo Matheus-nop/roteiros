@@ -35,7 +35,36 @@ interface DataCtx {
 
 const Ctx = createContext<DataCtx | null>(null)
 
-function useTabelaRealtime<T extends { id: string }>(tabela: string, filtro?: Parameters<typeof db.select>[1], aceitar?: (t: T) => boolean) {
+/**
+ * A RECARGA É PISO, NÃO PLANO B.
+ *
+ * Antes, a recarga periódica só ligava quando o app tinha CERTEZA de que o
+ * realtime havia caído (`if (realtime !== false) return`). E é justamente a
+ * queda silenciosa que não avisa: o computador hiberna, o wi-fi oscila, o proxy
+ * da empresa mata uma conexão parada. O canal continua dizendo "assinado",
+ * evento nenhum chega, e aquela aba fica na foto de ontem por tempo
+ * indeterminado — foi o que aconteceu com a demanda cancelada que seguia
+ * aparecendo no computador do PCM.
+ *
+ * Agora o realtime é o caminho RÁPIDO e a batida é permanente, por baixo.
+ */
+const BATIDA_NORMAL = 90_000
+/** Realtime declaradamente fora: bate mais rápido, que é o que já se fazia. */
+const BATIDA_SEM_REALTIME = 30_000
+/** Piso entre duas idas da MESMA tabela ao banco. Destravar a tela dispara
+ *  `visibilitychange`, `focus` e às vezes `online` em sequência — sem piso,
+ *  seriam três consultas por tabela de uma vez. */
+const PISO_ENTRE_IDAS = 10_000
+/** Depois disto sem dado novo nenhum, o indicador para de dizer que está bem. */
+const FRESCOR = BATIDA_NORMAL * 3
+
+/**
+ * @param vigiada  tabela que muda o dia inteiro e por isso ganha a batida
+ *   periódica. Cadastro (técnicos, clientes, equipamentos) fica de fora: ele
+ *   quase não muda, e onze tabelas batendo juntas seria consulta à toa.
+ *   Todas, vigiadas ou não, recarregam quando a aba volta ao foco.
+ */
+function useTabelaRealtime<T extends { id: string }>(tabela: string, filtro?: Parameters<typeof db.select>[1], aceitar?: (t: T) => boolean, vigiada = false) {
   const [linhas, setLinhas] = useState<T[]>([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState<string | null>(null)
@@ -43,8 +72,14 @@ function useTabelaRealtime<T extends { id: string }>(tabela: string, filtro?: Pa
   const [realtime, setRealtime] = useState<boolean | null>(null)   // null = ainda conectando
   const aceitarRef = useRef(aceitar)
   aceitarRef.current = aceitar
+  const ultimaIda = useRef(0)
 
-  const recarregar = useCallback(async () => {
+  /** @param forcar `false` respeita o piso — é o que os despertadores usam. */
+  const recarregar = useCallback(async (forcar = true) => {
+    if (!forcar && Date.now() - ultimaIda.current < PISO_ENTRE_IDAS) return
+    // Marcado ANTES da consulta: dois despertadores no mesmo segundo não viram
+    // duas idas ao banco.
+    ultimaIda.current = Date.now()
     try {
       const rows = await db.select<T>(tabela, filtro)
       setLinhas(rows)
@@ -76,24 +111,43 @@ function useTabelaRealtime<T extends { id: string }>(tabela: string, filtro?: Pa
     return off
   }, [tabela, recarregar])
 
-  // Sem realtime, recarrega periodicamente para não ficar com dados velhos.
+  // A batida. Ela não espera mais o app perceber que caiu — ver o comentário
+  // de BATIDA_NORMAL. Quando o realtime está declaradamente fora, bate rápido.
   useEffect(() => {
-    if (realtime !== false) return
-    const id = setInterval(recarregar, 30000)
+    if (!vigiada) return
+    const ms = realtime === false ? BATIDA_SEM_REALTIME : BATIDA_NORMAL
+    const id = setInterval(() => { recarregar() }, ms)
     return () => clearInterval(id)
-  }, [realtime, recarregar])
+  }, [vigiada, realtime, recarregar])
+
+  // Os despertadores. Destravar o computador de manhã tem que trazer o dia de
+  // hoje — o app já ouvia `visibilitychange`, mas só para checar se havia saído
+  // versão nova dele mesmo, nunca para buscar dado.
+  useEffect(() => {
+    const acordar = () => { if (!document.hidden) void recarregar(false) }
+    document.addEventListener('visibilitychange', acordar)
+    window.addEventListener('focus', acordar)
+    window.addEventListener('online', acordar)
+    return () => {
+      document.removeEventListener('visibilitychange', acordar)
+      window.removeEventListener('focus', acordar)
+      window.removeEventListener('online', acordar)
+    }
+  }, [recarregar])
 
   return { linhas, carregando, erro, recarregar, tick, realtime }
 }
 
 export function DataProvider({ children }: { children: ReactNode }) {
-  const demandas = useTabelaRealtime<Demanda>('demandas', { notIn: { status: STATUS_ARQUIVADOS }, order: [{ col: 'created_at' }] }, d => !STATUS_ARQUIVADOS.includes(d.status))
+  // As duas que mudam o dia inteiro, e cuja defasagem manda gente para a rua:
+  // a demanda cancelada que continua no roteiro, o fechamento que já saiu.
+  const demandas = useTabelaRealtime<Demanda>('demandas', { notIn: { status: STATUS_ARQUIVADOS }, order: [{ col: 'created_at' }] }, d => !STATUS_ARQUIVADOS.includes(d.status), true)
   const tecnicos = useTabelaRealtime<Tecnico>('tecnicos', { order: [{ col: 'nome' }] })
   const veiculos = useTabelaRealtime<Veiculo>('veiculos', { order: [{ col: 'nome' }] })
   const clientes = useTabelaRealtime<Cliente>('clientes', { order: [{ col: 'nome' }] })
   const equipamentos = useTabelaRealtime<Equipamento>('equipamentos', { order: [{ col: 'nome' }] })
   const expedidores = useTabelaRealtime<Expedidor>('expedidores', { order: [{ col: 'nome' }] })
-  const fechamentos = useTabelaRealtime<Fechamento>('fechamentos', { order: [{ col: 'fechado_em', asc: false }], limit: 200 })
+  const fechamentos = useTabelaRealtime<Fechamento>('fechamentos', { order: [{ col: 'fechado_em', asc: false }], limit: 200 }, undefined, true)
   // Tabela de dez linhas: carregar inteira sai mais barato que consultar por autor.
   const perfis = useTabelaRealtime<Perfil>('perfis', { order: [{ col: 'nome' }] })
 
@@ -106,6 +160,15 @@ export function DataProvider({ children }: { children: ReactNode }) {
   const [ultima, setUltima] = useState<Date | null>(null)
   const tickTotal = demandas.tick + tecnicos.tick + fechamentos.tick
   useEffect(() => { if (tickTotal > 0) setUltima(new Date()) }, [tickTotal])
+
+  // Um relógio só para o indicador. Sem ele, "isto aqui está velho" só
+  // apareceria quando alguma outra coisa fizesse a tela redesenhar — e é
+  // exatamente quando nada acontece que a pessoa precisa ser avisada.
+  const [agora, setAgora] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setAgora(Date.now()), 30_000)
+    return () => clearInterval(id)
+  }, [])
 
   const acoes = useMemo(() => criarAcoes(db), [])
   const tecMap = useMemo(() => new Map(tecnicos.linhas.map(t => [t.id, t])), [tecnicos.linhas])
@@ -125,7 +188,10 @@ export function DataProvider({ children }: { children: ReactNode }) {
     carregando: demandas.carregando || tecnicos.carregando,
     erro: demandas.erro ?? tecnicos.erro ?? null,
     erroTreinamentos: treinamentos.erro,
-    conectado: !demandas.erro && demandas.realtime !== false,
+    // Conectado passou a significar "estou vendo dado de agora", e não "o canal
+    // disse que assinou". Websocket morto continua dizendo que assinou: era esse
+    // indicador verde mentindo enquanto a tela mostrava a véspera.
+    conectado: !demandas.erro && ultima !== null && agora - ultima.getTime() < FRESCOR,
     ultimaAtualizacao: ultima,
     recarregar: async () => {
       await Promise.all([demandas.recarregar(), tecnicos.recarregar(), veiculos.recarregar(), clientes.recarregar(), equipamentos.recarregar(), expedidores.recarregar(), fechamentos.recarregar(), treinamentos.recarregar(), participantes.recarregar(), presencas.recarregar()])
