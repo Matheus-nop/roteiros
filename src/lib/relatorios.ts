@@ -195,6 +195,35 @@ const JA_DAVA_PARA_CONFERIR: Status[] = [
 export const conferivel = (l: LinhaFato) =>
   separaNaExpedicao(l.tipo) && JA_DAVA_PARA_CONFERIR.includes(l.status)
 
+/**
+ * A partir de quando faz sentido cobrar conferência.
+ *
+ * ERA O BURACO DA PRIMEIRA VERSÃO. O denominador pegava todo o período
+ * escolhido — três meses, doze meses —, incluindo carga que saiu ANTES de a
+ * tela de conferência existir. Aqueles itens não deixaram de ser conferidos:
+ * não havia como conferi-los. Contá-los como falha condenava a adesão a nascer
+ * perto de zero e a nunca mais subir, por mais que a equipe usasse a tela — e
+ * indicador que não reage ao trabalho de ninguém para de ser olhado em uma
+ * semana.
+ *
+ * A régua é a carga: a data da PRIMEIRA carga que alguém conferiu. Dali para a
+ * frente o relatório cobra; para trás, não existe.
+ *
+ * Nota de manutenção: a data sai de `l.data` (a data da carga), e não do
+ * instante em que se conferiu. É o que a operação chama de "da carga conferida
+ * em diante". O preço é que conferir hoje uma carga antiga puxa a janela para
+ * trás junto com ela; se isso virar incômodo, o conserto é levar
+ * `conferido_em` para a `v_rel_demandas` e cortar por ele.
+ */
+export function inicioDaConferencia(linhas: LinhaFato[]): string | null {
+  let menor: string | null = null
+  for (const l of linhas) {
+    if (l.conferencia === 'NAO_CONFERIDO' || !l.data) continue
+    if (menor === null || l.data < menor) menor = l.data
+  }
+  return menor
+}
+
 export type LinhaConferencia = {
   rotulo: string
   /** Itens dele que dava para conferir — o denominador. */
@@ -205,7 +234,10 @@ export type LinhaConferencia = {
 }
 
 export type ResumoConferencia = {
-  /** Itens que passaram pelo caminhão no período. */
+  /** Data da primeira carga conferida. `null` = a conferência ainda não começou,
+   *  e então não há o que cobrar de ninguém. */
+  inicio: string | null
+  /** Itens de carga do período, JÁ CORTADOS em `inicio`. */
   base: number
   conferidos: number
   divergentes: number
@@ -241,7 +273,12 @@ function ranquear(
 }
 
 export function conferenciaDaCarga(linhas: LinhaFato[]): ResumoConferencia {
-  const base = linhas.filter(conferivel)
+  const inicio = inicioDaConferencia(linhas)
+  // Sem início não há denominador: nada a cobrar de um período em que a tela
+  // não existia. A tela trata `base = 0` dizendo isso, em vez de mostrar 0%.
+  const base = inicio === null
+    ? []
+    : linhas.filter(l => conferivel(l) && !!l.data && l.data >= inicio)
   const conferidos = base.filter(l => l.conferencia !== 'NAO_CONFERIDO')
   const divergentes = base.filter(l => l.conferencia === 'DIVERGENTE')
 
@@ -252,6 +289,7 @@ export function conferenciaDaCarga(linhas: LinhaFato[]): ResumoConferencia {
   }
 
   return {
+    inicio,
     base: base.length,
     conferidos: conferidos.length,
     divergentes: divergentes.length,

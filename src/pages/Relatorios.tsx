@@ -20,6 +20,7 @@ import {
   type LinhaFato, type Ranking,
 } from '../lib/relatorios'
 import { Cartao, Pagina, Vazio, cx } from '../components/ui'
+import { fmtData } from '../lib/format'
 
 const COR_BARRA = '#1f4f7f'
 const COR_APOIO = '#d97706'
@@ -143,13 +144,32 @@ export function Relatorios() {
               Fica acima dos rankings de sempre porque responde a uma pergunta
               mais urgente que "quem atende mais": a carga que sai está certa?
               E, antes disso, alguém está olhando? */}
-          {conf.base > 0 && (
-            <div className="mb-4">
-              <h2 className="mb-2 flex items-center gap-2 text-[15px] font-bold text-slate-800">
-                <ClipboardCheck size={16} className="text-slate-400" />
-                Conferência da carga
-              </h2>
+          <div className="mb-4">
+            <h2 className="mb-2 flex items-center gap-2 text-[15px] font-bold text-slate-800">
+              <ClipboardCheck size={16} className="text-slate-400" />
+              Conferência da carga
+              {/* De quando em diante estes números valem. Sem isto, a adesão
+                  muda de tamanho quando a janela muda e ninguém sabe por quê —
+                  e número que muda sem explicação é número em que não se
+                  confia. */}
+              {conf.inicio && (
+                <span className="text-[12px] font-medium text-slate-500">
+                  · desde {fmtData(conf.inicio)}, a primeira carga conferida
+                </span>
+              )}
+            </h2>
 
+            {conf.base === 0 ? (
+              /* A tela é nova. Cobrar adesão de um período em que ela não
+                 existia seria inventar uma falha que não houve — e a primeira
+                 coisa que o gestor faria com esse 0% é uma conversa injusta. */
+              <p className="rounded-xl bg-white px-4 py-6 text-center text-[13px] text-slate-500 shadow-sm ring-1 ring-slate-200">
+                Nenhuma carga foi conferida ainda. Assim que o primeiro técnico conferir,
+                esta seção passa a contar <b>daquela carga em diante</b> — o que saiu antes
+                não entra, porque não havia como conferir.
+              </p>
+            ) : (
+              <>
               {/* A adesão vem primeiro e sozinha na frente do resto: divergência
                   zero não quer dizer carga certa, quer dizer que ninguém
                   conferiu. Sem este aviso o relatório vira otimismo. */}
@@ -237,8 +257,9 @@ export function Relatorios() {
                   </p>
                 </Cartao>
               </div>
-            </div>
-          )}
+              </>
+            )}
+          </div>
 
           <div className="grid items-start gap-4 xl:grid-cols-2">
             <Cartao titulo={<Titulo icone={Building2}>Clientes</Titulo>} className="min-w-0">
