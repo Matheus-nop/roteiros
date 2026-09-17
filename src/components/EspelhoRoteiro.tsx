@@ -8,6 +8,24 @@ import type { Demanda, Tecnico } from '../lib/types'
 import { agrupar, chaveParada, fmtData, fmtNum, ordenarParadas } from '../lib/format'
 import { veiculosDoGrupo } from './GrupoTecnico'
 
+/**
+ * Demanda cancelada NAO vai no papel.
+ *
+ * Quem chama o espelho junta as encerradas de proposito, para o item concluido
+ * continuar na lista e provar o progresso do dia (Imp. tecnico e Meu roteiro
+ * fazem isso, e esta certo). So que `STATUS_ARQUIVADOS` é FINALIZADO **e**
+ * CANCELADO — e a cancelada vinha junto na carona.
+ *
+ * Na tela isso ate ajuda: o PCM ve que aquela parada foi desmarcada. No papel
+ * nao: o tecnico nao le status, ele le endereco. Parada cancelada impressa e
+ * viagem perdida, e cliente recebendo maquina que ninguem pediu.
+ *
+ * O filtro mora AQUI, e nao em cada chamada, porque a regra e do espelho: esta
+ * folha e o que vai dentro do caminhao. Concluida fica — ela foi feita, e o
+ * quadradinho de executado ao lado dela conta a historia.
+ */
+const VAI_NO_CAMINHAO = (d: Demanda) => d.status !== 'CANCELADO'
+
 const CSS = `
 .esp{font-family:'Segoe UI',Inter,Arial,sans-serif;color:#0f172a;font-size:10.5px;line-height:1.25}
 .esp-head{display:flex;justify-content:space-between;align-items:stretch;background:linear-gradient(135deg,#134e4a,#0f766e);color:#fff;border-radius:10px;padding:10px 14px;margin-bottom:8px;break-inside:avoid}
@@ -41,11 +59,15 @@ const CSS = `
 `
 
 export function EspelhoRoteiro({ tecnico, data, itens }: { tecnico: Tecnico | undefined; data: string; itens: Demanda[] }) {
-  const ordenados = [...itens].sort(ordenarParadas)
+  // Filtra ANTES de agrupar: assim a parada que so tinha o item cancelado
+  // desaparece inteira, em vez de imprimir um card vazio — e a numeracao das
+  // paradas fecha com o que o tecnico vai encontrar na rua.
+  const daRota = itens.filter(VAI_NO_CAMINHAO)
+  const ordenados = [...daRota].sort(ordenarParadas)
   const paradas = Array.from(agrupar(ordenados, chaveParada).values())
-  const veic = veiculosDoGrupo(itens).join(' / ')
-  const sep = itens.filter(d => d.status_separacao === 'SEPARADO').length
-  const compacto = paradas.length > 6 || itens.length > 14
+  const veic = veiculosDoGrupo(daRota).join(' / ')
+  const sep = daRota.filter(d => d.status_separacao === 'SEPARADO').length
+  const compacto = paradas.length > 6 || daRota.length > 14
   return (
     <div className="esp">
       <style>{CSS}</style>
@@ -56,7 +78,7 @@ export function EspelhoRoteiro({ tecnico, data, itens }: { tecnico: Tecnico | un
           <div className="esp-sub">🚗 {veic || 'veículo não informado'} &nbsp;·&nbsp; 📅 Roteiro {fmtData(data)}</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <div className="esp-box"><div className="n">{paradas.length}</div><div className="l">paradas</div><div className="s">{itens.length} itens · {sep} sep.</div></div>
+          <div className="esp-box"><div className="n">{paradas.length}</div><div className="l">paradas</div><div className="s">{daRota.length} itens · {sep} sep.</div></div>
         </div>
       </div>
       <div className={'esp-grid' + (compacto ? '' : ' uma')}>
