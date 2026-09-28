@@ -194,7 +194,7 @@ export function Layout() {
         </div>
       )}
 
-      {usuario?.semPerfil && <AvisoSemAcesso motivo={usuario.motivo} detalhe={usuario.detalhe} />}
+      {usuario?.semPerfil && <AvisoSemAcesso motivo={usuario.motivo} detalhe={usuario.detalhe} onSair={sair} />}
       <main className="flex-1"><Outlet /></main>
       <ModalNovaDemanda aberto={nova} onFechar={() => setNova(false)} />
     </div>
@@ -212,7 +212,11 @@ export function Layout() {
  * `papel_atual()` sem o `nullif` da 0010, ou seja, devolveria acesso a TODA
  * pessoa marcada como SEM_ACESSO. O conselho saiu daqui por isso.
  */
-function AvisoSemAcesso({ motivo, detalhe }: { motivo?: MotivoSemPerfil; detalhe?: string }) {
+function AvisoSemAcesso({ motivo, detalhe, onSair }: {
+  motivo?: MotivoSemPerfil
+  detalhe?: string
+  onSair?: () => void
+}) {
   const texto = {
     sem_acesso: (
       <>
@@ -229,8 +233,8 @@ function AvisoSemAcesso({ motivo, detalhe }: { motivo?: MotivoSemPerfil; detalhe
     ),
     sem_login: (
       <>
-        <b>Sua sessão venceu.</b> Saia e entre de novo — os dados continuam todos aí, o que faltou foi o
-        login.
+        <b>Sua sessão venceu.</b> Nada se perdeu — os dados continuam todos aí, o que faltou foi o
+        login. Entre de novo e o painel volta.
       </>
     ),
     erro: (
@@ -243,8 +247,18 @@ function AvisoSemAcesso({ motivo, detalhe }: { motivo?: MotivoSemPerfil; detalhe
   }[motivo ?? 'sem_perfil']
 
   return (
-    <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 print:hidden">
-      {texto}
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 print:hidden">
+      <span>{texto}</span>
+      {/* Só no caso em que o botão resolve de verdade. Nos outros ele seria um
+          convite a perder tempo: sair e entrar não cria perfil nem libera papel. */}
+      {motivo === 'sem_login' && onSair && (
+        <button
+          onClick={() => onSair()}
+          className="shrink-0 rounded-md bg-red-700 px-2.5 py-1 text-[12px] font-bold text-white hover:bg-red-800"
+        >
+          Entrar de novo
+        </button>
+      )}
     </div>
   )
 }
