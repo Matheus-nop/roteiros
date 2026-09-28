@@ -5,7 +5,7 @@ import { Marca } from './Logo'
 import { useAuth } from '../hooks/useAuth'
 import { useData } from '../hooks/useData'
 import { PAPEL_LABEL, inicioDoPapel } from '../lib/status'
-import type { Papel } from '../lib/types'
+import type { MotivoSemPerfil, Papel } from '../lib/types'
 import { cx } from './ui'
 import { ModalNovaDemanda } from './FormDemanda'
 import { usePwa } from '../hooks/usePwa'
@@ -194,14 +194,57 @@ export function Layout() {
         </div>
       )}
 
-      {usuario?.semPerfil && (
-        <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 print:hidden">
-          <b>Seu usuário ainda não tem perfil.</b> Nada pode ser gravado até um administrador criar sua linha em <code>perfis</code>
-          (rodar de novo a migração <code>0001_schema.sql</code> no Supabase resolve: ela cria os perfis que faltam).
-        </div>
-      )}
+      {usuario?.semPerfil && <AvisoSemAcesso motivo={usuario.motivo} detalhe={usuario.detalhe} />}
       <main className="flex-1"><Outlet /></main>
       <ModalNovaDemanda aberto={nova} onFechar={() => setNova(false)} />
+    </div>
+  )
+}
+
+/**
+ * Por que este app não está deixando você trabalhar.
+ *
+ * A consulta a `perfis` volta vazia em três situações, e elas se consertam de
+ * maneiras diferentes — quem está SEM_ACESSO precisa de alguém que libere,
+ * quem não tem linha precisa de alguém que crie, e sessão vencida se resolve
+ * entrando de novo. Antes as três diziam a mesma frase, e a frase ainda
+ * mandava rodar de novo a `0001_schema.sql`: aquela migração recria
+ * `papel_atual()` sem o `nullif` da 0010, ou seja, devolveria acesso a TODA
+ * pessoa marcada como SEM_ACESSO. O conselho saiu daqui por isso.
+ */
+function AvisoSemAcesso({ motivo, detalhe }: { motivo?: MotivoSemPerfil; detalhe?: string }) {
+  const texto = {
+    sem_acesso: (
+      <>
+        <b>Seu usuário está marcado como SEM ACESSO neste app.</b> O cadastro existe — o que falta é a
+        liberação. Um administrador resolve em <code>perfis</code>, trocando o papel para PCM, COMERCIAL,
+        EXPEDIÇÃO, TÉCNICO ou ADMIN.
+      </>
+    ),
+    sem_perfil: (
+      <>
+        <b>Seu usuário ainda não tem perfil.</b> Nada pode ser gravado até um administrador criar sua
+        linha em <code>perfis</code> — é uma linha só, com o seu papel.
+      </>
+    ),
+    sem_login: (
+      <>
+        <b>Sua sessão venceu.</b> Saia e entre de novo — os dados continuam todos aí, o que faltou foi o
+        login.
+      </>
+    ),
+    erro: (
+      <>
+        <b>Não consegui ler o seu perfil.</b>{' '}
+        {detalhe ? `${detalhe.replace(/\.?$/, '.')} ` : 'O banco não respondeu. '}
+        Tente recarregar; se continuar, é do lado do banco.
+      </>
+    ),
+  }[motivo ?? 'sem_perfil']
+
+  return (
+    <div className="border-b border-red-200 bg-red-50 px-4 py-2 text-sm text-red-800 print:hidden">
+      {texto}
     </div>
   )
 }
