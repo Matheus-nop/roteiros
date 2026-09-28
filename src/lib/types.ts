@@ -206,12 +206,24 @@ export interface Perfil {
   tecnico_id: string | null
 }
 
+/**
+ * Por que o perfil não veio (0021).
+ *
+ * A consulta a `perfis` volta vazia em três situações diferentes, com três
+ * consertos diferentes — e antes a tela dizia a mesma frase para todas.
+ */
+export type MotivoSemPerfil = 'sem_login' | 'sem_perfil' | 'sem_acesso' | 'erro'
+
 export interface Usuario {
   id: string
   email: string
   perfil: Perfil
   /** true quando não existe linha em `perfis` para este usuário: sem papel, sem permissões. */
   semPerfil?: boolean
+  /** Qual das três situações é, quando `semPerfil`. Vem de `meu_estado()` (0021). */
+  motivo?: MotivoSemPerfil
+  /** O que o banco respondeu, quando o motivo é `erro`. */
+  detalhe?: string
 }
 
 export type NovaDemanda = Omit<

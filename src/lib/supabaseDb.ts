@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import type { Db, EventoTabela, Filtro } from './db'
 import { DbError } from './db'
-import type { Perfil, Usuario } from './types'
+import type { MotivoSemPerfil, Perfil, Usuario } from './types'
 
 function aplicarFiltro(q: any, f?: Filtro) {
   if (!f) return q
@@ -17,6 +17,19 @@ function aplicarFiltro(q: any, f?: Filtro) {
   if (f.offset) q = q.range(f.offset, f.offset + (f.limit ?? 1000) - 1)
   else if (f.limit) q = q.limit(f.limit)
   return q
+}
+
+/**
+ * O 401 do PostgREST, em todas as roupas que ele usa.
+ *
+ * `PGRST301` é o código do token recusado; a mensagem vem como "JWT expired",
+ * "invalid JWT" ou parecida, dependendo da versão. Qualquer uma delas quer
+ * dizer a mesma coisa para quem está na frente da tela: entre de novo.
+ */
+function sessaoVencida(e: { code?: string; message?: string } | null): boolean {
+  if (!e) return false
+  if (e.code === 'PGRST301' || e.code === '401') return true
+  return /\bjwt\b|token|not authenticated|unauthorized/i.test(e.message ?? '')
 }
 
 function erro(e: { message: string; details?: string; hint?: string } | null): never {
@@ -93,11 +106,46 @@ export class SupabaseDb implements Db {
   }
 
   private async montarUsuario(id: string, email: string): Promise<Usuario> {
-    const { data } = await this.client.from('perfis').select('*').eq('id', id).maybeSingle()
+    const { data, error } = await this.client.from('perfis').select('*').eq('id', id).maybeSingle()
     if (data) return { id, email, perfil: data as Perfil }
-    // Sem perfil: não assume papel nenhum (a RLS bloquearia de qualquer forma). O Layout avisa.
+
+    // Daqui para baixo é o caminho do "não veio perfil" — e ele tem TRÊS
+    // causas com três consertos diferentes (0021):
+    //
+    //   · não existe linha em `perfis`;
+    //   · existe e o papel é SEM_ACESSO — e aí a RLS esconde a própria linha
+    //     da pessoa, então esta consulta volta vazia mesmo com o perfil lá;
+    //   · a sessão expirou, ou o banco respondeu com erro.
+    //
+    // Antes as três viravam a mesma frase na tela. `meu_estado()` é
+    // `security definer` e sabe dizer qual é.
     const perfil: Perfil = { id, nome: email.split('@')[0], email, papel: 'PCM', tecnico_id: null }
-    return { id, email, perfil, semPerfil: true }
+    const semPerfil = { id, email, perfil, semPerfil: true } as const
+
+    // Token vencido é o caso 3, e é o mais comum de todos: a janela ficou
+    // aberta a noite inteira, o refresh falhou, e o PostgREST recusa com 401.
+    // A pessoa não perdeu nada — perdeu o login. Sem isto, o aviso era o
+    // genérico "não tem perfil", que manda procurar um administrador para
+    // resolver o que se resolve saindo e entrando.
+    if (error) {
+      return sessaoVencida(error)
+        ? { ...semPerfil, motivo: 'sem_login' }
+        : { ...semPerfil, motivo: 'erro', detalhe: error.message }
+    }
+
+    const { data: estado, error: erroEstado } = await this.client.rpc('meu_estado')
+    if (erroEstado && sessaoVencida(erroEstado)) return { ...semPerfil, motivo: 'sem_login' }
+    // A função pode não existir ainda (0021 não rodada). Nesse caso o aviso
+    // volta a ser o genérico de antes, que é o que já havia.
+    if (erroEstado || !estado) return { ...semPerfil, motivo: 'sem_perfil' }
+
+    const e = estado as { situacao?: MotivoSemPerfil | 'ok'; nome?: string | null; email?: string | null }
+    if (e.situacao === 'ok') return { ...semPerfil, motivo: 'erro', detalhe: 'o banco diz que há perfil, mas a leitura veio vazia' }
+    return {
+      ...semPerfil,
+      perfil: { ...perfil, nome: e.nome ?? perfil.nome, email: e.email ?? perfil.email },
+      motivo: e.situacao ?? 'sem_perfil',
+    }
   }
 
   auth = {
