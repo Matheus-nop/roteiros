@@ -4,18 +4,19 @@ import { useEffect, useRef, useState } from 'react'
 /**
  * Passar de um sistema do grupo para o outro sem procurar o endereço.
  *
- * A mesma caixinha existe nos três apps, com a mesma lista e na mesma ordem —
+ * A mesma caixinha existe nos quatro apps, com a mesma lista e na mesma ordem —
  * quem alterna o dia inteiro não pode ter que procurar em lugar diferente em
  * cada um.
  *
  * O endereço de cada sistema vem de variável (`VITE_URL_ESTOQUE`,
- * `VITE_URL_FROTA`). Sem a variável o item some, em vez de levar alguém para um
+ * `VITE_URL_FROTA`, `VITE_URL_MEDICOES`). Sem a variável o item some, em vez de levar alguém para um
  * endereço que não abre. Sem nenhum destino, a caixinha inteira some.
  *
- * Sobre a sessão, para não prometer o que não existe: o login é o mesmo nos
- * três (o `auth.users` do roteiros e do estoque é um só), mas a sessão não.
- * Este app guarda em localStorage, que é por origem; o estoque guarda em cookie
- * no domínio pai; e a frota mora num projeto Supabase próprio. Hoje se entra
+ * Sobre a sessão, para não prometer o que não existe: o login é o mesmo no
+ * roteiros, no estoque e em medições (o `auth.users` é um só), mas a sessão
+ * não. Este app guarda em localStorage, que é por origem; o estoque e medições
+ * guardam em cookie no domínio pai; e a frota mora num projeto Supabase
+ * próprio. Hoje se entra
  * uma vez de cada lado. Unificar são dois trabalhos separados — passar este app
  * para cookie e mover a frota para o projeto compartilhado.
  */
@@ -56,6 +57,7 @@ const SISTEMAS = [
   { id: 'roteiros', nome: 'Roteiros', descricao: 'Planejamento e rota dos técnicos', url: undefined as string | undefined },
   { id: 'estoque', nome: 'Estoque', descricao: 'Equipamentos, expedição e galpões', url: enderecoDeSistema(import.meta.env.VITE_URL_ESTOQUE) },
   { id: 'frota', nome: 'Frota', descricao: 'Veículos, checklist e manutenção', url: enderecoDeSistema(import.meta.env.VITE_URL_FROTA) },
+  { id: 'medicoes', nome: 'Medições', descricao: 'Boletins, contratos e faturamento', url: enderecoDeSistema(import.meta.env.VITE_URL_MEDICOES) },
 ]
 
 export function TrocaSistema() {
