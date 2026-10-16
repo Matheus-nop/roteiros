@@ -1,0 +1,135 @@
+/* GERADO por scripts/gerar-tema-escuro.mjs — não edite à mão; rode o script. */
+
+/* O modo escuro só vale na TELA: o papel (etiqueta, espelho, certificado,
+   folha de presença) sai sempre claro, seja qual for o tema de quem imprime. */
+@media screen {
+:root[data-tema="escuro"] {
+  color-scheme: dark;
+  --color-slate-50: #0b1017;
+  --color-slate-100: #1b232e;
+  --color-slate-200: #263140;
+  --color-slate-300: #38455a;
+  --color-slate-400: #6d798a;
+  --color-slate-500: #8a94a6;
+  --color-slate-600: #a2adbd;
+  --color-slate-700: #c3cad5;
+  --color-slate-800: #dde3ea;
+  --color-slate-900: #e8ecf2;
+  --color-slate-950: #f4f6f9;
+}
+
+/* Cartão branco vira superfície escura; o branco translúcido do topo azul
+   (bg-white/10, /20…) fica como está, porque é brilho sobre o azul. */
+:root[data-tema="escuro"] .bg-white,
+:root[data-tema="escuro"] .hover\:bg-white:hover,
+:root[data-tema="escuro"] .campo { background-color: #141b24; }
+:root[data-tema="escuro"] .bg-\[\#f5f7fa\] { background-color: #0b1017; }
+
+/* Fundo escuro de propósito continua escuro (o cinza inverteu por baixo). */
+:root[data-tema="escuro"] .bg-slate-800 { background-color: #1b232e; }
+:root[data-tema="escuro"] .bg-slate-900 { background-color: #0e141c; }
+:root[data-tema="escuro"] .bg-slate-900\/40 { background-color: rgb(0 0 0 / 0.55); }
+:root[data-tema="escuro"] .bg-slate-900\/50 { background-color: rgb(0 0 0 / 0.6); }
+
+/* O mapa de calor do planejamento (azul claro por carga do dia). */
+:root[data-tema="escuro"] .bg-\[\#f1f6fe\] { background-color: #142433; }
+:root[data-tema="escuro"] .bg-\[\#e2ecfc\] { background-color: #1a3350; }
+:root[data-tema="escuro"] .bg-\[\#cddefa\] { background-color: #22436b; }
+
+/* As regras de cor ficam na MESMA camada das utilidades do Tailwind, com
+   seletor mais forte (:root[data-tema] .x ganha de .x). Fora da camada também
+   ganhariam — menos a forma forçada (!bg-…), porque um !important dentro de
+   camada vence o de fora. */
+@layer utilities {
+/* Texto marinho sobre o botão âmbar (Nova demanda, Iniciar): o fundo não
+   muda no escuro, então o texto também não. */
+:root[data-tema="escuro"] [class~="bg-acento-500"].text-brand-900,
+:root[data-tema="escuro"] [class~="bg-acento-400"].text-brand-900 { color: #081c31; }
+
+:root[data-tema="escuro"] .bg-emerald-50 { background-color: color-mix(in oklab, oklch(69.6% 0.17 162.48) 16%, #141b24); }
+:root[data-tema="escuro"] .\!bg-emerald-50 { background-color: color-mix(in oklab, oklch(69.6% 0.17 162.48) 16%, #141b24) !important; }
+:root[data-tema="escuro"] .bg-emerald-50\/30 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(69.6% 0.17 162.48) 16%, #141b24) 30%, transparent); }
+:root[data-tema="escuro"] .bg-emerald-50\/40 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(69.6% 0.17 162.48) 16%, #141b24) 40%, transparent); }
+:root[data-tema="escuro"] .bg-emerald-50\/50 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(69.6% 0.17 162.48) 16%, #141b24) 50%, transparent); }
+:root[data-tema="escuro"] .bg-emerald-50\/70 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(69.6% 0.17 162.48) 16%, #141b24) 70%, transparent); }
+:root[data-tema="escuro"] .ring-emerald-200 { --tw-ring-color: color-mix(in oklab, oklch(69.6% 0.17 162.48) 38%, #141b24); }
+:root[data-tema="escuro"] .\!border-emerald-300 { border-color: color-mix(in oklab, oklch(69.6% 0.17 162.48) 52%, #141b24) !important; }
+:root[data-tema="escuro"] .text-emerald-600 { color: oklch(76.5% 0.177 163.223); }
+:root[data-tema="escuro"] .text-emerald-700 { color: oklch(84.5% 0.143 164.978); }
+:root[data-tema="escuro"] .text-emerald-800 { color: oklch(84.5% 0.143 164.978); }
+:root[data-tema="escuro"] .\!text-emerald-800 { color: oklch(84.5% 0.143 164.978) !important; }
+:root[data-tema="escuro"] .text-emerald-900 { color: oklch(84.5% 0.143 164.978); }
+:root[data-tema="escuro"] .bg-teal-50 { background-color: color-mix(in oklab, oklch(70.4% 0.14 182.503) 16%, #141b24); }
+:root[data-tema="escuro"] .ring-teal-200 { --tw-ring-color: color-mix(in oklab, oklch(70.4% 0.14 182.503) 38%, #141b24); }
+:root[data-tema="escuro"] .text-teal-800 { color: oklch(85.5% 0.138 181.071); }
+:root[data-tema="escuro"] .bg-cyan-50 { background-color: color-mix(in oklab, oklch(71.5% 0.143 215.221) 16%, #141b24); }
+:root[data-tema="escuro"] .ring-cyan-200 { --tw-ring-color: color-mix(in oklab, oklch(71.5% 0.143 215.221) 38%, #141b24); }
+:root[data-tema="escuro"] .text-cyan-800 { color: oklch(86.5% 0.127 207.078); }
+:root[data-tema="escuro"] .bg-sky-50 { background-color: color-mix(in oklab, oklch(68.5% 0.169 237.323) 16%, #141b24); }
+:root[data-tema="escuro"] .ring-sky-200 { --tw-ring-color: color-mix(in oklab, oklch(68.5% 0.169 237.323) 38%, #141b24); }
+:root[data-tema="escuro"] .text-sky-800 { color: oklch(82.8% 0.111 230.318); }
+:root[data-tema="escuro"] .bg-blue-50 { background-color: color-mix(in oklab, oklch(62.3% 0.214 259.815) 16%, #141b24); }
+:root[data-tema="escuro"] .bg-blue-50\/60 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(62.3% 0.214 259.815) 16%, #141b24) 60%, transparent); }
+:root[data-tema="escuro"] .ring-blue-200 { --tw-ring-color: color-mix(in oklab, oklch(62.3% 0.214 259.815) 38%, #141b24); }
+:root[data-tema="escuro"] .text-blue-600 { color: oklch(70.7% 0.165 254.624); }
+:root[data-tema="escuro"] .text-blue-800 { color: oklch(80.9% 0.105 251.813); }
+:root[data-tema="escuro"] .bg-indigo-50 { background-color: color-mix(in oklab, oklch(58.5% 0.233 277.117) 16%, #141b24); }
+:root[data-tema="escuro"] .ring-indigo-200 { --tw-ring-color: color-mix(in oklab, oklch(58.5% 0.233 277.117) 38%, #141b24); }
+:root[data-tema="escuro"] .text-indigo-800 { color: oklch(78.5% 0.115 274.713); }
+:root[data-tema="escuro"] .bg-violet-50 { background-color: color-mix(in oklab, oklch(60.6% 0.25 292.717) 16%, #141b24); }
+:root[data-tema="escuro"] .ring-violet-200 { --tw-ring-color: color-mix(in oklab, oklch(60.6% 0.25 292.717) 38%, #141b24); }
+:root[data-tema="escuro"] .text-violet-700 { color: oklch(81.1% 0.111 293.571); }
+:root[data-tema="escuro"] .text-violet-800 { color: oklch(81.1% 0.111 293.571); }
+:root[data-tema="escuro"] .bg-red-50,
+:root[data-tema="escuro"] .hover\:bg-red-50:hover { background-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 16%, #141b24); }
+:root[data-tema="escuro"] .\!bg-red-50 { background-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 16%, #141b24) !important; }
+:root[data-tema="escuro"] .bg-red-50\/70 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(63.7% 0.237 25.331) 16%, #141b24) 70%, transparent); }
+:root[data-tema="escuro"] .bg-red-100 { background-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 24%, #141b24); }
+:root[data-tema="escuro"] .border-red-200 { border-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 38%, #141b24); }
+:root[data-tema="escuro"] .ring-red-200 { --tw-ring-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 38%, #141b24); }
+:root[data-tema="escuro"] .\!border-red-300 { border-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 52%, #141b24) !important; }
+:root[data-tema="escuro"] .ring-red-300 { --tw-ring-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 52%, #141b24); }
+:root[data-tema="escuro"] .text-red-600,
+:root[data-tema="escuro"] .hover\:text-red-600:hover { color: oklch(70.4% 0.191 22.216); }
+:root[data-tema="escuro"] .text-red-700 { color: oklch(80.8% 0.114 19.571); }
+:root[data-tema="escuro"] .text-red-800 { color: oklch(80.8% 0.114 19.571); }
+:root[data-tema="escuro"] .\!text-red-800 { color: oklch(80.8% 0.114 19.571) !important; }
+:root[data-tema="escuro"] .text-red-900 { color: oklch(80.8% 0.114 19.571); }
+:root[data-tema="escuro"] .bg-orange-50 { background-color: color-mix(in oklab, oklch(70.5% 0.213 47.604) 16%, #141b24); }
+:root[data-tema="escuro"] .bg-orange-100 { background-color: color-mix(in oklab, oklch(70.5% 0.213 47.604) 24%, #141b24); }
+:root[data-tema="escuro"] .ring-orange-200 { --tw-ring-color: color-mix(in oklab, oklch(70.5% 0.213 47.604) 38%, #141b24); }
+:root[data-tema="escuro"] .ring-orange-300 { --tw-ring-color: color-mix(in oklab, oklch(70.5% 0.213 47.604) 52%, #141b24); }
+:root[data-tema="escuro"] .text-orange-700 { color: oklch(83.7% 0.128 66.29); }
+:root[data-tema="escuro"] .text-orange-800 { color: oklch(83.7% 0.128 66.29); }
+:root[data-tema="escuro"] .bg-amber-50,
+:root[data-tema="escuro"] .hover\:bg-amber-50:hover { background-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 16%, #141b24); }
+:root[data-tema="escuro"] .\!bg-amber-50 { background-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 16%, #141b24) !important; }
+:root[data-tema="escuro"] .bg-amber-50\/40 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(76.9% 0.188 70.08) 16%, #141b24) 40%, transparent); }
+:root[data-tema="escuro"] .bg-amber-50\/60 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(76.9% 0.188 70.08) 16%, #141b24) 60%, transparent); }
+:root[data-tema="escuro"] .bg-amber-100 { background-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 24%, #141b24); }
+:root[data-tema="escuro"] .border-amber-200 { border-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 38%, #141b24); }
+:root[data-tema="escuro"] .ring-amber-200 { --tw-ring-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 38%, #141b24); }
+:root[data-tema="escuro"] .border-amber-300 { border-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 52%, #141b24); }
+:root[data-tema="escuro"] .\!border-amber-300 { border-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 52%, #141b24) !important; }
+:root[data-tema="escuro"] .ring-amber-300 { --tw-ring-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 52%, #141b24); }
+:root[data-tema="escuro"] .text-amber-600 { color: oklch(82.8% 0.189 84.429); }
+:root[data-tema="escuro"] .text-amber-600\/80 { color: color-mix(in oklab, oklch(82.8% 0.189 84.429) 80%, transparent); }
+:root[data-tema="escuro"] .text-amber-700 { color: oklch(87.9% 0.169 91.605); }
+:root[data-tema="escuro"] .text-amber-800 { color: oklch(87.9% 0.169 91.605); }
+:root[data-tema="escuro"] .\!text-amber-800 { color: oklch(87.9% 0.169 91.605) !important; }
+:root[data-tema="escuro"] .text-amber-900 { color: oklch(87.9% 0.169 91.605); }
+:root[data-tema="escuro"] .bg-brand-50,
+:root[data-tema="escuro"] .hover\:bg-brand-50:hover { background-color: color-mix(in oklab, #2b6491 16%, #141b24); }
+:root[data-tema="escuro"] .hover\:bg-brand-100:hover { background-color: color-mix(in oklab, #2b6491 24%, #141b24); }
+:root[data-tema="escuro"] .ring-brand-100 { --tw-ring-color: color-mix(in oklab, #2b6491 24%, #141b24); }
+:root[data-tema="escuro"] .ring-brand-200 { --tw-ring-color: color-mix(in oklab, #2b6491 38%, #141b24); }
+:root[data-tema="escuro"] .hover\:ring-brand-300:hover { --tw-ring-color: color-mix(in oklab, #2b6491 52%, #141b24); }
+:root[data-tema="escuro"] .text-brand-600,
+:root[data-tema="escuro"] .hover\:text-brand-600:hover { color: #4a7ba6; }
+:root[data-tema="escuro"] .text-brand-700 { color: #7fa3c4; }
+:root[data-tema="escuro"] .text-brand-700\/80 { color: color-mix(in oklab, #7fa3c4 80%, transparent); }
+:root[data-tema="escuro"] .text-brand-800 { color: #7fa3c4; }
+:root[data-tema="escuro"] .text-brand-900 { color: #7fa3c4; }
+:root[data-tema="escuro"] .text-acento-600 { color: #fbbf24; }
+}
+}

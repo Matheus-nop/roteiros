@@ -258,6 +258,25 @@ um aviso pedindo o vínculo.
 
 Trocar senha: Authentication → Users → o usuário → *Reset password*.
 
+## Modo dia e modo noite
+
+O botão ao lado da troca de sistema, no topo, alterna o tema como no Gestão de
+Estoque e na Frota: **aparelho** (segue o celular ou o computador) → **noite** →
+**dia**. A escolha fica no aparelho (`localStorage.tema`) e entra antes da
+primeira pintura, pelo script do `index.html`, para a tela não piscar branca.
+
+As telas usam as cores do Tailwind direto (`bg-white`, `text-slate-800`,
+`bg-emerald-50`…), então o escuro não reescreve tela nenhuma: ele troca a cor por
+trás das classes, em `src/tema-escuro.css`. O cinza vira a escala escura do
+Gestão de Estoque; nas cores de estado, o fundo claro vira tinta escura e o
+texto escuro vira claro; o topo azul e os botões sólidos ficam iguais. Só vale
+na tela — etiqueta, espelho, certificado e folha de presença saem sempre claros.
+
+Esse arquivo é **gerado**: `node scripts/gerar-tema-escuro.mjs`. O script só
+escreve regra para classe que alguma tela usa, então, quando uma tela passar a
+usar uma cor nova e ela ficar clara demais no escuro, é rodar de novo e
+commitar o resultado.
+
 ## PWA
 
 Instalável na tela inicial, com ícone próprio e atalhos para *Meu roteiro*, *Planejamento* e

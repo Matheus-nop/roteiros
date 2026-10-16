@@ -19,6 +19,19 @@
     <meta name="apple-mobile-web-app-title" content="Roteiros" />
     <meta name="mobile-web-app-capable" content="yes" />
 
+    <!-- O tema entra ANTES da primeira pintura, para a tela não piscar branca no
+         modo noite. A mesma regra de src/components/Tema.tsx: "claro" ou
+         "escuro" guardado no aparelho; sem nada guardado, segue o aparelho. -->
+    <script>
+      (function () {
+        try {
+          var t = localStorage.getItem('tema');
+          var escuro = t === 'escuro' || (t !== 'claro' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+          document.documentElement.dataset.tema = escuro ? 'escuro' : 'claro';
+        } catch (e) {}
+      })();
+    </script>
+
     <!-- Uso interno: nada daqui deve aparecer em busca. -->
     <meta name="robots" content="noindex, nofollow" />
   </head>
