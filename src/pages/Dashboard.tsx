@@ -263,7 +263,7 @@ function BarrasDia({ dias, hoje, onDia }: { dias: { iso: string; aRoteirizar: nu
               <div className="w-full rounded-t transition-opacity" style={{
                 height: `${(d.total / max) * 100}%`,
                 minHeight: d.total ? 4 : 2,
-                background: d.total ? (eHoje ? COR_HOJE : COR_BARRA) : '#e2e8f0',
+                background: d.total ? (eHoje ? COR_HOJE : COR_BARRA) : 'var(--color-slate-200)',
                 opacity: sobre && !ativo ? 0.65 : 1,
               }} />
             </button>

@@ -10,6 +10,7 @@ import { cx } from './ui'
 import { ModalNovaDemanda } from './FormDemanda'
 import { usePwa } from '../hooks/usePwa'
 import { TrocaSistema } from './TrocaSistema'
+import { BotaoTema } from './Tema'
 
 type ItemMenu = { to: string; rotulo: string; icone: typeof Inbox; papeis?: Papel[]; sep?: boolean }
 
@@ -88,6 +89,7 @@ export function Layout() {
           </button>
         )}
 
+        <BotaoTema />
         <TrocaSistema />
 
         <div className="relative shrink-0" ref={ref}>
