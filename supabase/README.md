@@ -45,6 +45,10 @@ quebra nada.
 | `0016_treinamentos.sql` | agenda de treinamentos: `treinamentos`, `participantes`, `presencas` e `v_temas_treinamento` |
 | `0017_conteudo_do_treinamento.sql` | `treinamentos.conteudo`: os tópicos que saem em lista no certificado |
 | `0018_onde_e_quem_procurar.sql` | endereço de chegada e contato do treinamento, para a capa do técnico |
+| `0019_a_conferencia_do_tecnico.sql` | a conferência da carga pelo técnico: `conferencia`, `conferido_por`, `conferido_em`, `divergencia` |
+| `0020_a_conferencia_no_relatorio.sql` | a conferência entra na `v_rel_demandas` (o relatório de quem erra, e em quê) |
+| `0021_sem_perfil_ou_sem_acesso.sql` | sem perfil, sem acesso e sessão vencida, cada um com o seu aviso |
+| `0022_a_conferencia_dia_a_dia.sql` | `conferido_em`, `om` e `patrimonio` na `v_rel_demandas`, para a tela Conferências de carga |
 
 Scripts avulsos ficam em `scripts/` e **não** fazem parte da sequência: são correções
 pontuais e testes, cada um com a explicação no topo do arquivo. Um deles é obrigatório

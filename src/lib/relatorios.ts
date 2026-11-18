@@ -31,6 +31,11 @@ export type LinhaFato = {
   /** Quem SEPAROU. É por ele que a divergência é ranqueada — não por quem conferiu. */
   separado_por: string | null
   divergencia: string | null
+  /** Quando o técnico conferiu, e qual carga era (0022). Opcionais: antes da
+   *  migração a view não os traz. */
+  conferido_em?: string | null
+  om?: string | null
+  patrimonio?: string | null
 }
 
 /** Tipos que significam "esse equipamento deu problema", e não "esse equipamento foi entregue". */
@@ -73,6 +78,9 @@ export function daDemanda(d: Demanda, nomeTecnico: (id: string | null) => string
     conferido_por: d.conferido_por,
     separado_por: d.separado_por,
     divergencia: d.divergencia,
+    conferido_em: d.conferido_em,
+    om: d.om,
+    patrimonio: d.patrimonio,
   }
 }
 

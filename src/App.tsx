@@ -32,6 +32,7 @@ const Tecnicos = tela(() => import('./pages/Tecnicos'), 'Tecnicos')
 const Cadastros = tela(() => import('./pages/Cadastros'), 'Cadastros')
 const Historico = tela(() => import('./pages/Historico'), 'Historico')
 const Relatorios = tela(() => import('./pages/Relatorios'), 'Relatorios')
+const Conferencias = tela(() => import('./pages/Conferencias'), 'Conferencias')
 const Arquivo = tela(() => import('./pages/Arquivo'), 'Arquivo')
 
 function Protegido() {
@@ -48,6 +49,7 @@ function Protegido() {
           <Route index element={inicio === '/' ? <Dashboard /> : <Navigate to={inicio} replace />} />
           <Route path="meu-roteiro" element={<MeuRoteiro />} />
           <Route path="conferencia" element={<Conferencia />} />
+          <Route path="conferencias" element={<Conferencias />} />
           <Route path="fila" element={<Fila />} />
           <Route path="planejamento" element={<Planejamento />} />
           <Route path="pre-roteiro" element={<PreRoteiro />} />
