@@ -83,6 +83,7 @@
 :root[data-tema="escuro"] .bg-red-50,
 :root[data-tema="escuro"] .hover\:bg-red-50:hover { background-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 16%, #141b24); }
 :root[data-tema="escuro"] .\!bg-red-50 { background-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 16%, #141b24) !important; }
+:root[data-tema="escuro"] .bg-red-50\/40 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(63.7% 0.237 25.331) 16%, #141b24) 40%, transparent); }
 :root[data-tema="escuro"] .bg-red-50\/70 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(63.7% 0.237 25.331) 16%, #141b24) 70%, transparent); }
 :root[data-tema="escuro"] .bg-red-100 { background-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 24%, #141b24); }
 :root[data-tema="escuro"] .border-red-200 { border-color: color-mix(in oklab, oklch(63.7% 0.237 25.331) 38%, #141b24); }
@@ -107,6 +108,7 @@
 :root[data-tema="escuro"] .bg-amber-50\/40 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(76.9% 0.188 70.08) 16%, #141b24) 40%, transparent); }
 :root[data-tema="escuro"] .bg-amber-50\/60 { background-color: color-mix(in oklab, color-mix(in oklab, oklch(76.9% 0.188 70.08) 16%, #141b24) 60%, transparent); }
 :root[data-tema="escuro"] .bg-amber-100 { background-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 24%, #141b24); }
+:root[data-tema="escuro"] .ring-amber-100 { --tw-ring-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 24%, #141b24); }
 :root[data-tema="escuro"] .border-amber-200 { border-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 38%, #141b24); }
 :root[data-tema="escuro"] .ring-amber-200 { --tw-ring-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 38%, #141b24); }
 :root[data-tema="escuro"] .border-amber-300 { border-color: color-mix(in oklab, oklch(76.9% 0.188 70.08) 52%, #141b24); }
@@ -120,6 +122,7 @@
 :root[data-tema="escuro"] .text-amber-900 { color: oklch(87.9% 0.169 91.605); }
 :root[data-tema="escuro"] .bg-brand-50,
 :root[data-tema="escuro"] .hover\:bg-brand-50:hover { background-color: color-mix(in oklab, #2b6491 16%, #141b24); }
+:root[data-tema="escuro"] .bg-brand-100,
 :root[data-tema="escuro"] .hover\:bg-brand-100:hover { background-color: color-mix(in oklab, #2b6491 24%, #141b24); }
 :root[data-tema="escuro"] .ring-brand-100 { --tw-ring-color: color-mix(in oklab, #2b6491 24%, #141b24); }
 :root[data-tema="escuro"] .ring-brand-200 { --tw-ring-color: color-mix(in oklab, #2b6491 38%, #141b24); }
